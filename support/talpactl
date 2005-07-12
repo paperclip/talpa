@@ -1,0 +1,756 @@
+#! /usr/bin/python
+#
+# TALPA Control Utility
+#
+# Copyright (C) 2004 Sophos Plc, Oxford, England.
+#
+# This program is free software; you can redistribute it and/or modify it under the terms of the
+# GNU General Public License Version 2 as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program; if not,
+# write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+#
+
+
+import sys, os, socket, string
+
+talpactl_version = "0.0.1"
+talparoot = "/proc/sys/talpa"
+verbose = False
+
+def read_module_var(module, var):
+    path = os.path.join(talparoot, module, var)
+    try:
+        f = file(path)
+        status = f.read()
+        status = status.rstrip("\n")
+    except:
+        status = "-"
+
+    return status
+
+def write_module_var(module, var, value):
+    path = os.path.join(talparoot, module, var)
+    if verbose:
+        print "echo %s > %s" % (value, path)
+    try:
+        f = file(path, "w")
+        f.write(value)
+    except:
+        print "Failed to write '%s' to '%s'!" % (value, path)
+
+def enable_module(module):
+    if read_module_var(module, "status") != "enabled":
+        write_module_var(module, "status", "enable")
+
+def disable_module(module):
+    if read_module_var(module, "status") != "disabled":
+        write_module_var(module, "status", "disable")
+
+def add_var_string(module, var, string):
+    write_module_var(module, var, "+" + string)
+
+def remove_var_string(module, var, string):
+    write_module_var(module, var, "-" + string)
+
+def read_module_status(module):
+    return read_module_var(module, "status")
+
+def get_module_vars(module):
+    return os.listdir(os.path.join(talparoot, module))
+
+def parse_mask(caller, known, args):
+    if not len(args):
+        return known[:]
+    result = []
+    while len(args):
+        arg = args[0].lower()
+        if arg == "and" or arg == "then":
+            args.pop(0)
+            break
+        elif arg == "help":
+            print "Command '%s' recognises following sub-commands:" % caller[-1],
+            for cmd in known:
+                print cmd,
+            args.pop(0)
+            result = [ "help" ]
+            break
+        else:
+            good = False
+            for k in known:
+                if string.find(k, arg) == 0:
+                    if k in result:
+                        continue
+                    else:
+                        result.append(k)
+                        good = True
+                        args.pop(0)
+                        break
+            if not good:
+                break
+    if not result:
+        result = known[:]
+
+    return result
+
+def talpa_bool():
+    pass
+
+true_list = ( "on", "yes", "true", "enable", "1" )
+false_list = ( "off", "no", "false", "disable", "0" )
+bool_help = string.join(true_list, "/")
+bool_help += " "
+bool_help += string.join(false_list, "/")
+
+def parse_bool(arg):
+    try:
+        if int(arg) == 1:
+            return True
+        elif int(arg) == 0:
+            return False
+    except:
+        if arg in true_list or string.find("enable", arg) == 0:
+            return True
+        elif arg in false_list or string.find("disable", arg) == 0:
+            return False
+    return None
+
+def command(cmd, args):
+    cmd = cmd.lower()
+
+    if cmd == "and" or cmd == "then":
+        return 0
+
+    match = [ tok for tok in cmds if tok.find(cmd) == 0 ]
+
+    if not match:
+        return -1
+    elif len(match) > 1:
+        return -2
+
+    return cmds[match[0]](match, args)
+
+def subcommand(cmd, known, args):
+    eknown = {}
+    for k in known:
+        if not k.count("/"):
+            eknown[k] = [ k, known[k] ]
+        else:
+            for ek in k.split("/"):
+                eknown[ek] = [ k, known[k] ]
+    match = []
+    if len(args):
+        arg = args[0].lower()
+        if arg == "and" or arg == "then":
+            args.pop(0)
+            return -1
+        elif arg == "help":
+            print "Command '%s' recognises following sub-commands:" % cmd[-1],
+            if "bool" in known:
+                print bool_help,
+            if "customhelp" in known:
+                print known["customhelp"],
+            for k in known:
+                if k != "bool" and k != "customhelp":
+                    print k,
+            print
+            args.pop(0)
+            return -1
+        else:
+            match = [ k for k in eknown if k != "customhelp" and k.find(arg) == 0 ]
+
+    if 0 < len(match) <= 1:
+        args.pop(0)
+        match = eknown[match[0]]
+        subcmd = match[0]
+        func = match[1]
+        known[subcmd](cmd + [subcmd], args)
+        return -1
+    elif match:
+        return -2
+    elif "bool" in known and len(args):
+        arg = args[0]
+        rc = parse_bool(arg)
+        if rc != None:
+            args.pop(0)
+        return rc
+
+    return None
+
+def banner(module):
+    header = "Talpa %s on %s (%s)" % (module, socket.getfqdn(), string.join(os.uname()))
+    print
+    print header
+    print "-" * len(header)
+
+def talpa_mods(self, args):
+    options = ["processor", "filters", "interceptors", "interfaces"]
+
+    res = parse_mask(self, options, args)
+
+    if res[0] == "help":
+        return 0
+
+    banner(self[-1])
+
+    if "processor" in res:
+        print "\nIntercept processor:\n\t" + processors[0]
+    if "interceptors" in res:
+        print "\nInterceptors:\n\t" + string.join(interceptors, "\n\t")
+    if "filters" in res:
+        print "\nFilters:\n\t" + string.join(filters, "\n\t")
+    if "interfaces" in res:
+        print "\nFilter interfaces:\n\t" + string.join(interfaces, "\n\t")
+
+    return 0
+
+def talpa_status(self, args):
+    options = ["processor", "filters", "interceptors", "interfaces"]
+
+    res = parse_mask(self, options, args)
+
+    if res[0] == "help":
+        return 0
+
+    banner(self[-1])
+
+    if "processor" in res:
+        print "\nIntercept processor:"
+        print "\t" + processors[0] + " [" + read_module_status("intercept-processors/" + processors[0]) + "]"
+    if "interceptors" in res:
+        print "\nInterceptors:"
+        for mod in interceptors:
+            print "\t" + mod + " [" + read_module_status("interceptors/" + mod) + "]"
+    if "filters" in res:
+        print "\nFilters:"
+        for mod in filters:
+            print "\t" + mod + " [" + read_module_status("intercept-filters/" + mod) + "]"
+    if "interfaces" in res:
+        print "\nFilter interfaces:"
+        for mod in interfaces:
+            print "\t" + mod + " [" + read_module_status("filter-interfaces/" + mod) + "]"
+
+    return 0
+
+def talpa_help(self, args):
+    print "Generic commands: and then"
+    print "Recognised top-level commands:",
+    for cmd in cmds:
+        print cmd,
+
+    return 0
+
+def talpa_version(self, args):
+    print talpactl_version
+
+    return 0
+
+def print_module_vars(module, prefix1, prefix2):
+    for v in get_module_vars(module):
+        print prefix1 + v
+        for l in read_module_var(module, v).splitlines():
+            print prefix2 + l
+
+def talpa_report(self, args):
+    options = ["processor", "filters", "interceptors", "interfaces"]
+
+    res = parse_mask(self, options, args)
+
+    if res[0] == "help":
+        return 0
+
+    banner(self[-1])
+
+    if "processor" in res:
+        print "\nIntercept processor:"
+        print "\t" + processors[0]
+        module = "intercept-processors/" + processors[0]
+    if "interceptors" in res:
+        print "\nInterceptors:"
+        for m in interceptors:
+            module = "interceptors/" + m
+            print "\t" + m
+            print_module_vars(module, "\t\t", "\t\t\t")
+    if "filters" in res:
+        print "\nFilters:"
+        for m in filters:
+            module = "intercept-filters/" + m
+            print "\t" + m
+            print_module_vars(module, "\t\t", "\t\t\t")
+    if "interfaces" in res:
+        print "\nFilter interfaces:"
+        for m in interfaces:
+            module = "filter-interfaces/" + m
+            print "\t" + m
+            print_module_vars(module, "\t\t", "\t\t\t")
+
+    return 0
+
+def talpa_cache_clear(self, args):
+    status = read_module_var("intercept-filters/Cache", "status")
+    write_module_var("intercept-filters/Cache", "status", "disable")
+    if status == "enabled":
+        write_module_var("intercept-filters/Cache", "status", "enable")
+
+def talpa_cache_stats(self, args):
+    print read_module_var("intercept-filters/Cache", "stats")
+
+def talpa_cache_add(self, args):
+    try:
+        add_var_string("intercept-filters/Cache", "fstypes", args.pop(0))
+    except:
+        pass
+
+def talpa_cache_none(self, args):
+    for fs in read_module_var("intercept-filters/Cache", "fstypes").splitlines():
+        remove_var_string("intercept-filters/Cache", "fstypes", fs)
+
+def talpa_cache_remove(self, args):
+    arg = args.pop(0)
+    if arg == "all":
+        talpa_cache_none(self, args)
+    else:
+        remove_var_string("intercept-filters/Cache", "fstypes", arg)
+
+def talpa_cache_list(self, args):
+    print read_module_var("intercept-filters/Cache", "fstypes")
+
+def talpa_cache(self, args):
+    cmds = { "bool":  talpa_bool,
+             "customhelp": "<fs>",
+             "clear": talpa_cache_clear,
+             "add": talpa_cache_add,
+             "remove/delete": talpa_cache_remove,
+             "stats": talpa_cache_stats,
+             "list": talpa_cache_list,
+             "none": talpa_cache_none }
+
+    res = subcommand(self, cmds, args)
+
+    if res == True:
+        enable_module("intercept-filters/Cache")
+    elif res == False:
+        disable_module("intercept-filters/Cache")
+    elif res == None and len(args):
+        if args[0] in filesystems:
+            talpa_cache_add(self, args)
+
+    return 0
+
+def talpa_enable(self, args):
+    talpa_cache_clear(self, args)
+    enable_module("intercept-filters/Cache")
+    for i in interceptors:
+        enable_module("interceptors/" + i)
+
+    return 0
+
+def talpa_disable(self, args):
+    for i in interceptors:
+        disable_module("interceptors/" + i)
+    disable_module("intercept-filters/Cache")
+    talpa_cache_clear(self, args)
+
+    return 0
+
+def talpa_include_path(self, args):
+    print read_module_var("intercept-filters/FilesystemInclusionProcessor", "include-path")
+
+def talpa_include(self, args):
+    cmds = { "bool": talpa_bool,
+             "customhelp": "<path>",
+             "path": talpa_include_path }
+
+    res = subcommand(self, cmds, args)
+
+    if res == None:
+        write_module_var("intercept-filters/FilesystemInclusionProcessor", "include-path", args.pop(0))
+    elif res == True:
+        enable_module("intercept-filters/FilesystemInclusionProcessor")
+    elif res == False:
+        disable_module("intercept-filters/FilesystemInclusionProcessor")
+
+    return 0
+
+def talpa_endis(cmd, module, args):
+    if len(args):
+        arg = args[0]
+        if arg == "help":
+            print "Command '%s' recognises following sub-commands: %s" % (cmd, bool_help)
+            args.pop(0)
+        else:
+            res = parse_bool(arg)
+            if res != None:
+                args.pop(0)
+                if res:
+                    enable_module(module)
+                else:
+                    disable_module(module)
+
+def talpa_debug(self, args):
+    talpa_endis("debug", "intercept-filters/DebugSyslog", args)
+    return 0
+
+def talpa_deny(self, args):
+    talpa_endis("denylog", "intercept-filters/DenySyslog", args)
+    return 0
+
+def talpa_process(self, args):
+    talpa_endis("process-exclusion", "intercept-filters/ProcessExclusionProcessor", args)
+    return 0
+
+def talpa_degraded_threshold(self, args):
+    if len(args):
+        write_module_var("intercept-filters/DegradedModeProcessor", "threshold", args.pop(0))
+    else:
+        print "Missing parameter to threshold!"
+
+def talpa_degraded(self, args):
+    cmds = { "bool": talpa_bool,
+             "threshold": talpa_degraded_threshold }
+
+    res = subcommand(self, cmds, args)
+
+    if res == True:
+        enable_module("intercept-filters/DegradedModeProcessor")
+    elif res == False:
+        disable_module("intercept-filters/DegradedModeProcessor")
+
+    return 0
+
+def talpa_verbose(self, args):
+    globals()["verbose"] = True
+    return 0
+
+def talpa_operation_nonblock(self, args):
+    if len(args):
+        arg = args[0]
+        if arg == "help":
+            print "Command 'operation' recognises following sub-commands: %s" % bool_help
+            args.pop(0)
+        else:
+            res = parse_bool(arg)
+            if res != None:
+                args.pop(0)
+                if res:
+                    write_module_var("intercept-filters/OperationExclusionProcessor", "fs-onlyblock", "false")
+                else:
+                    write_module_var("intercept-filters/OperationExclusionProcessor", "fs-onlyblock", "true")
+
+def talpa_operation(self, args):
+    cmds = { "bool": talpa_bool,
+             "non-block": talpa_operation_nonblock }
+
+    res = subcommand(self, cmds, args)
+
+    if res == True:
+        enable_module("intercept-filters/OperationExclusionProcessor")
+    elif res == False:
+        disable_module("intercept-filters/OperationExclusionProcessor")
+
+    return 0
+
+def talpa_vetting_timeout(self, args):
+    if len(args):
+        write_module_var("intercept-filters/VettingController", "timeout-ms", args.pop(0))
+    else:
+        print read_module_var("intercept-filters/VettingController", "timeout-ms")
+
+def talpa_vetting_fs_timeout(self, args):
+    if len(args):
+        write_module_var("intercept-filters/VettingController", "fs-timeout-ms", args.pop(0))
+    else:
+        print read_module_var("intercept-filters/VettingController", "fs-timeout-ms")
+
+def talpa_vetting_route_list(self, args):
+    print read_module_var("intercept-filters/VettingController", "routing")
+
+def talpa_vetting_route_delete(self, args):
+    try:
+        write_module_var("intercept-filters/VettingController", "routing", "-" + args.pop(0))
+    except:
+        pass
+
+def talpa_vetting_route_clear(self, args):
+    routes = read_module_var("intercept-filters/VettingController", "routing")
+    for route in routes:
+        talpa_vetting_route_delete([route])
+
+def talpa_vetting_route_common(rtype, args):
+    if len(args) >= 2:
+        name = args.pop(0)
+        group = args.pop(0)
+        string = "+%s:%s:%s" % (rtype, name, group)
+        write_module_var("intercept-filters/VettingController", "routing", string)
+
+def talpa_vetting_route_fs(self, args):
+    talpa_vetting_route_common("fs", args)
+
+def talpa_vetting_route_path(self, args):
+    talpa_vetting_route_common("path", args)
+
+def talpa_vetting_route(self, args):
+    cmds = { "customhelp": "<fs> <path>",
+             "clear": talpa_vetting_route_clear,
+             "fs": talpa_vetting_route_fs,
+             "path": talpa_vetting_route_path,
+             "list": talpa_vetting_route_list,
+             "remove/delete": talpa_vetting_route_delete }
+
+    res = subcommand(self, cmds, args)
+
+    if res == None and len(args) >=2:
+        if args[0] in filesystems:
+            talpa_vetting_route_fs(self, args)
+        else:
+            talpa_vetting_route_path(self, args)
+
+def talpa_vetting(self, args):
+    cmds = { "bool": talpa_bool,
+             "timeout": talpa_vetting_timeout,
+             "fs-timeout": talpa_vetting_fs_timeout,
+             "route": talpa_vetting_route }
+
+    res = subcommand(self, cmds, args)
+
+    if res == True:
+        enable_module("intercept-filters/VettingController")
+    elif res == False:
+        disable_module("intercept-filters/VettingController")
+
+    return 0
+
+def wordin(word, lst):
+    for t in lst:
+        if word in t:
+            return True
+
+    return False
+
+def talpa_exclude_catch_ignore_special(self, args):
+    try:
+        if wordin("ignore", self) or not wordin("catch", self):
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "specials", "+" + args.pop(0))
+        else:
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "specials", "-" + args.pop(0))
+    except:
+        pass
+
+def talpa_exclude_catch_ignore_fs(self, args):
+    try:
+        if wordin("ignore", self) or not wordin("catch", self):
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "fstypes", "+" + args.pop(0))
+        else:
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "fstypes", "-" + args.pop(0))
+    except:
+        pass
+
+def talpa_exclude_catch_ignore_path(self, args):
+    try:
+        if wordin("ignore", self) or not wordin("catch", self):
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "paths", "+" + args.pop(0))
+        else:
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "paths", "-" + args.pop(0))
+    except:
+        pass
+
+def talpa_exclude_catch_ignore_mount_fs(self, args):
+    try:
+        if wordin("ignore", self) or not wordin("catch", self):
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "mount-fstypes", "+" + args.pop(0))
+        else:
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "mount-fstypes", "-" + args.pop(0))
+    except:
+        pass
+
+def talpa_exclude_catch_ignore_mount_path(self, args):
+    try:
+        if wordin("ignore", self) or not wordin("catch", self):
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "mount-paths", "+" + args.pop(0))
+        else:
+            write_module_var("intercept-filters/FilesystemExclusionProcessor", "mount-paths", "-" + args.pop(0))
+    except:
+        pass
+
+def talpa_exclude_catch_ignore(self, args):
+    cmds = { "customhelp": "<special> <fs> <path>",
+             "special": talpa_exclude_catch_ignore_special,
+             "fs": talpa_exclude_catch_ignore_fs,
+             "path": talpa_exclude_catch_ignore_path,
+             "mount-fs": talpa_exclude_catch_ignore_mount_fs,
+             "mount-path": talpa_exclude_catch_ignore_mount_path }
+
+    res = subcommand(self, cmds, args)
+
+    if res == None:
+        if len(args):
+            hit = False
+            for spec in specials:
+                if string.find(spec, args[0]) == 0:
+                    hit = True
+                    args.pop(0)
+                    args.insert(0, spec)
+            if hit:
+                talpa_exclude_catch_ignore_special(self, args)
+            elif args[0] in filesystems:
+                talpa_exclude_catch_ignore_fs(self, args)
+            else:
+                talpa_exclude_catch_ignore_path(self, args)
+
+def talpa_exclude_list(self, args):
+    options = ["special", "fs", "path", "mount-fs", "mount-path"]
+
+    res = parse_mask(self, options, args)
+
+    if res[0] == "help":
+        return 0
+
+    if "special" in res:
+        print read_module_var("intercept-filters/FilesystemExclusionProcessor", "specials")
+    if "fs" in res:
+        print read_module_var("intercept-filters/FilesystemExclusionProcessor", "fstypes")
+    if "path" in res:
+        print read_module_var("intercept-filters/FilesystemExclusionProcessor", "paths")
+    if "mount-fs" in res:
+        print read_module_var("intercept-filters/FilesystemExclusionProcessor", "mount-fstypes")
+    if "mount-path" in res:
+        print read_module_var("intercept-filters/FilesystemExclusionProcessor", "mount-paths")
+
+def talpa_exclude(self, args):
+    cmds = { "bool": talpa_bool,
+             "customhelp": "<special> <fs> <path>",
+             "list": talpa_exclude_list,
+             "catch/remove/delete": talpa_exclude_catch_ignore,
+             "ignore/add": talpa_exclude_catch_ignore }
+
+    res = subcommand(self, cmds, args)
+
+    if res == True:
+        enable_module("intercept-filters/FilesystemExclusionProcessor")
+    elif res == False:
+        disable_module("intercept-filters/FilesystemExclusionProcessor")
+    elif res == None:
+        if len(args):
+            hit = False
+            for spec in specials:
+                if string.find(spec, args[0]) == 0:
+                    hit = True
+                    args.pop(0)
+                    args.insert(0, spec)
+            if hit:
+                talpa_exclude_catch_ignore_special(self, args)
+            elif args[0] in filesystems:
+                talpa_exclude_catch_ignore_fs(self, args)
+            else:
+                talpa_exclude_catch_ignore_path(self, args)
+
+    return 0
+
+def talpa_intercept_catch_ignore(self, args):
+    try:
+        if wordin("catch", self) or not wordin("ignore", self):
+            string = "+" + args.pop(0)
+        else:
+            string = "-" + args.pop(0)
+
+        for i in interceptors:
+            write_module_var("interceptors/" + i, "ops", string)
+
+    except:
+        pass
+
+def talpa_intercept_ops(self, args):
+    for i in interceptors:
+        print i + ":",
+        print read_module_var("interceptors/" + i, "ops").replace("\n", " ")
+
+def talpa_intercept(self, args):
+    cmds = { "bool": talpa_bool,
+             "customhelp": "<interception>",
+             "catch": talpa_intercept_catch_ignore,
+             "ignore": talpa_intercept_catch_ignore,
+             "ops": talpa_intercept_ops }
+
+    res = subcommand(self, cmds, args)
+
+    if res == True:
+        for i in interceptors:
+            enable_module("interceptors/" + i)
+    elif res == False:
+        for i in interceptors:
+            disable_module("interceptors/" + i)
+    elif res == None:
+        if len(args):
+            hit = False
+            for op in interceptions:
+                if string.find(op, args[0]) == 0:
+                    hit = True
+                    args.pop(0)
+                    args.insert(0, op)
+            if hit:
+                talpa_intercept_catch_ignore(self, args)
+
+    return 0
+
+
+cmds = { "verbose": talpa_verbose,
+         "modules": talpa_mods,
+         "status": talpa_status,
+         "help": talpa_help,
+         "version": talpa_version,
+         "report": talpa_report,
+         "enable": talpa_enable,
+         "disable": talpa_disable,
+         "cache": talpa_cache,
+         "include": talpa_include,
+         "debug": talpa_debug,
+         "deny": talpa_deny,
+         "degraded": talpa_degraded,
+         "process": talpa_process,
+         "operation": talpa_operation,
+         "exclude": talpa_exclude,
+         "vetting": talpa_vetting,
+         "intercept": talpa_intercept }
+
+
+if not os.path.isdir(talparoot):
+    sys.exit("Talpa is not loaded!")
+
+filters = os.listdir(os.path.join(talparoot, "intercept-filters"))
+interceptors = os.listdir(os.path.join(talparoot, "interceptors"))
+interfaces = os.listdir(os.path.join(talparoot, "filter-interfaces"))
+processors = os.listdir(os.path.join(talparoot, "intercept-processors"))
+
+filesystems = ()
+specials = ( "regular", "symlink", "fifo", "socket", "chardev", "blockdev" )
+interceptions = ( "open", "close", "exec", "uselib", "mount", "umount" )
+
+try:
+    fs = []
+    f = file("/proc/filesystems")
+    for l in f.readlines():
+        l = l.rstrip("\n")
+        t = l.split("\t")
+        fs.append(t[1])
+    filesystems = tuple(fs)
+except:
+    pass
+
+sys.argv.pop(0)
+
+if not len(sys.argv):
+    sys.argv.append("help")
+
+while len(sys.argv):
+    arg = sys.argv.pop(0).lower()
+    rc = command(arg, sys.argv)
+    if rc == -1:
+        print "Unkown command '%s'" % arg
+    elif rc == -2:
+        print "'%s' is ambigious" % arg
+    elif rc < 0:
+        print "'%s' caused an unkown error" % arg

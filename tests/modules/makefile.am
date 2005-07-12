@@ -1,0 +1,207 @@
+#
+# tests/modules/Makefile.am
+#
+# TALPA Filesystem Interceptor
+#
+# Copyright (C) 2004 Sophos Plc, Oxford, England.
+#
+# This program is free software; you can redistribute it and/or modify it under the terms of the
+# GNU General Public License Version 2 as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program; if not,
+# write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+#
+
+CHECKMODULESRC =
+
+# Beware a hack to make 'make dist' everything work
+src/platforms/linux/glue.c: link-sources
+
+# Beware a hack to make 'make check' everything work
+src/components/services/linux_personality_impl/linux_personality.c: link-sources
+
+link-sources:
+	@if test ! -L src; then \
+		rm -f src; \
+		ln -s @abs_top_srcdir@/src src; \
+	fi; \
+	if test ! -L include; then \
+		rm -f include; \
+		ln -s @abs_top_srcdir@/include include; \
+	fi
+
+EXTRA_DIST = tlp-test.h Makefile
+
+if KBUILD26
+
+if KBUILDUSEM
+kbuildenv := M
+else
+kbuildenv := SUBDIRS
+endif
+
+CHECKMODULES := \
+           tlp-personality.ko \
+           tlp-fileinfo.ko \
+           tlp-filesysteminfo.ko \
+           tlp-syslog.ko \
+           tlp-procfs.ko \
+           tlp-stdinterceptor.ko \
+           tlp-inclusion.ko \
+           tlp-opexcl.ko \
+           tlp-denysyslog.ko \
+           tlp-threadinfo.ko \
+           tlp-exclusion.ko \
+           tlp-ddvc.ko \
+           tlp-cacheobj.ko \
+           tlp-cache.ko \
+           tlp-degrmode.ko \
+           tlp-file.ko
+
+modulesdir     = $(libdir)/modules
+check_SCRIPTS  = $(CHECKMODULES)
+
+$(CHECKMODULES) : $(CHECKMODULESRC)
+	$(MAKE) -C @kerneldir@ $(kbuildenv)=@abs_srcdir@ modules
+
+## make sure that the check modules are built before the check target is executed
+check-local : $(CHECKMODULES)
+
+clean-local :
+	$(MAKE) -C @kerneldir@ $(kbuildenv)=@abs_srcdir@ clean
+
+else
+
+modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB -DDEBUG -g
+modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/../../include -I$(srcdir)/../../src -I$(srcdir)/../../src/ifaces @kernelincludes@
+MODULELINKCMD           =   $(MODULELINKER) -m elf_i386 -r -o $@
+
+modulesdir              =   $(libdir)/modules
+
+check_PROGRAMS          =   tlp-personality.o \
+                            tlp-fileinfo.o \
+                            tlp-filesysteminfo.o \
+                            tlp-syslog.o \
+                            tlp-procfs.o \
+                            tlp-stdinterceptor.o \
+                            tlp-inclusion.o \
+                            tlp-opexcl.o \
+                            tlp-denysyslog.o \
+                            tlp-threadinfo.o \
+                            tlp-exclusion.o \
+                            tlp-ddvc.o \
+                            tlp-cacheobj.o \
+                            tlp-cache.o \
+                            tlp-degrmode.o \
+                            tlp-file.o
+
+endif
+
+include common.mk
+
+tlp_personality_o_SOURCES    =  $(tlpPersonalitySOURCES)
+
+tlp_personality_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_personality_o_LINK       =   $(MODULELINKCMD)
+
+tlp_fileinfo_o_SOURCES    =  $(tlpFileInfoSOURCES)
+
+tlp_fileinfo_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_fileinfo_o_LINK       =   $(MODULELINKCMD)
+
+tlp_filesysteminfo_o_SOURCES    =  $(tlpFilesystemInfoSOURCES)
+
+tlp_filesysteminfo_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_filesysteminfo_o_LINK       =   $(MODULELINKCMD)
+
+tlp_syslog_o_SOURCES    =  $(tlpSyslogSOURCES)
+
+tlp_syslog_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_syslog_o_LINK       =   $(MODULELINKCMD)
+
+tlp_procfs_o_SOURCES    =  $(tlpProcfsSOURCES)
+
+tlp_procfs_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_procfs_o_LINK       =   $(MODULELINKCMD)
+
+tlp_stdinterceptor_o_SOURCES    =  $(tlpStdInterceptorSOURCES)
+
+tlp_stdinterceptor_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_stdinterceptor_o_LINK       =   $(MODULELINKCMD)
+
+tlp_inclusion_o_SOURCES    =  $(tlpInclusionSOURCES)
+
+tlp_inclusion_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_inclusion_o_LINK       =   $(MODULELINKCMD)
+
+tlp_opexcl_o_SOURCES    =  $(tlpOpExclSOURCES)
+
+tlp_opexcl_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_opexcl_o_LINK       =   $(MODULELINKCMD)
+
+tlp_denysyslog_o_SOURCES    =  $(tlpDenySyslogSOURCES)
+
+tlp_denysyslog_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_denysyslog_o_LINK       =   $(MODULELINKCMD)
+
+tlp_threadinfo_o_SOURCES    =  $(tlpThreadInfoSOURCES)
+
+tlp_threadinfo_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_threadinfo_o_LINK       =   $(MODULELINKCMD)
+
+tlp_exclusion_o_SOURCES    =  $(tlpExclusionSOURCES)
+
+tlp_exclusion_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_exclusion_o_LINK       =   $(MODULELINKCMD)
+
+tlp_ddvc_o_SOURCES    =  $(tlpDDVCSOURCES)
+
+tlp_ddvc_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_ddvc_o_LINK       =   $(MODULELINKCMD)
+
+tlp_cacheobj_o_SOURCES    =  $(tlpCacheObjSOURCES)
+
+tlp_cacheobj_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_cacheobj_o_LINK       =   $(MODULELINKCMD)
+
+tlp_cache_o_SOURCES    =  $(tlpCacheSOURCES)
+
+tlp_cache_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_cache_o_LINK       =   $(MODULELINKCMD)
+
+tlp_degrmode_o_SOURCES    =  $(tlpDegrModeSOURCES)
+
+tlp_degrmode_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_degrmode_o_LINK       =   $(MODULELINKCMD)
+
+tlp_file_o_SOURCES    =  $(tlpFileSOURCES)
+
+tlp_file_o_CFLAGS     =   $(modules_CFLAGS)
+tlp_file_o_LINK       =   $(MODULELINKCMD)
+
+CHECKMODULESRC += $(tlp_personality_o_SOURCES)
+CHECKMODULESRC += $(tlp_fileinfo_o_SOURCES)
+CHECKMODULESRC += $(tlp_filesysteminfo_o_SOURCES)
+CHECKMODULESRC += $(tlp_syslog_o_SOURCES)
+CHECKMODULESRC += $(tlp_procfs_o_SOURCES)
+CHECKMODULESRC += $(tlp_stdinterceptor_o_SOURCES)
+CHECKMODULESRC += $(tlp_inclusion_o_SOURCES)
+CHECKMODULESRC += $(tlp_opexcl_o_SOURCES)
+CHECKMODULESRC += $(tlp_denysyslog_o_SOURCES)
+CHECKMODULESRC += $(tlp_threadinfo_o_SOURCES)
+CHECKMODULESRC += $(tlp_exclusion_o_SOURCES)
+CHECKMODULESRC += $(tlp_ddvc_o_SOURCES)
+CHECKMODULESRC += $(tlp_cacheobj_o_SOURCES)
+CHECKMODULESRC += $(tlp_cache_o_SOURCES)
+CHECKMODULESRC += $(tlp_degrmode_o_SOURCES)
+CHECKMODULESRC += $(tlp_file_o_SOURCES)
+
+TESTS =
+
+#
+# End of tests/modules/Makefile.am
+#

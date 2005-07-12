@@ -1,0 +1,3 @@
+#! /bin/bash
+
+echo disable >/proc/sys/talpa/interceptors/SyscallInterceptor/status

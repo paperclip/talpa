@@ -1,0 +1,8 @@
+#! /bin/bash
+
+sync
+rmmod talpa_thrdexcl
+rmmod talpa_vcdevice
+rmmod talpa_syscall
+rmmod talpa_core
+rmmod talpa_linux

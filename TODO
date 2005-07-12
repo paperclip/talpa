@@ -1,0 +1,3 @@
+
+- Consolidate config strings list from cache, exclusion processor and vetting controller
+  into shared object based system? - Tvrtko
