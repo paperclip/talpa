@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.18)
+AC_INIT(talpa, 0.9.19)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2005 Sophos PLC)
 
@@ -498,6 +498,8 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@hidden@/"${hidden}"/ ${srcdir}/Makefile
     ${SED} -i s/@execve@/"${execve}"/ ${srcdir}/Makefile
 
+    ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/tests/modules/Makefile
+    ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
