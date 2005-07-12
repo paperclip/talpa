@@ -135,7 +135,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
                    from the same process context */
                 if ( copy_from_user(object->mEnv, (void *)mm->env_start, object->mEnvSize) )
                 {
-                    err("Can't copy environment!");
+                    err("Can't copy environment for %s[%d/%d] (%lu)!", current->comm, current->tgid, current->pid, object->mEnvSize);
                 }
             }
             else
