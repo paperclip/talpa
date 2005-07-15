@@ -1,5 +1,5 @@
 
-EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../include -DDEBUG -g @inodeallocsem@ @tasknewtty@
+EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../include @debug@ @inodeallocsem@ @tasknewtty@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \
