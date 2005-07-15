@@ -94,12 +94,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+#ifdef __NR_gettid
     if ( gettid() != thread.tid )
     {
         fprintf(stderr,"TID mismatch! %d != %d\n",gettid(), thread.tid);
         close(fd);
         return 1;
     }
+#endif
 
     efd = open("/proc/self/environ", O_RDONLY);
     envsize = read(efd,env,sizeof(env));
