@@ -875,7 +875,7 @@ static int stacker_inode_removexattr(struct dentry *dentry, char *name)
     return RESTRICTIVE_STACKED(inode_removexattr, (dentry, name));
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)) || defined TALPA_HAS_2610_LSM
 static int stacker_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
 {
     return RESTRICTIVE_STACKED(inode_getsecurity, (inode, name, buffer, size));
@@ -964,7 +964,7 @@ static int stacker_file_set_fowner(struct file * file)
     return RESTRICTIVE_STACKED(file_set_fowner, (file));
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)) || defined TALPA_HAS_2610_LSM
 static int stacker_file_send_sigiotask(struct task_struct * tsk, struct fown_struct * fown, int sig)
 {
     return RESTRICTIVE_STACKED(file_send_sigiotask, (tsk, fown, sig));

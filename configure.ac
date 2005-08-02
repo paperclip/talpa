@@ -92,6 +92,13 @@ AC_ARG_ENABLE(lsm,
                     AC_SUBST(lsm,$enableval) ],
                 [   auto_lsm=yes])
 
+AC_ARG_ENABLE(lsm-2610,
+                [  --enable-lsm-2610              for example RHAS 4.0 2.6.9 kernel has LSM backported from 2.6.10 [[autodetected]]],
+                [   AC_SUBST(lsm2610,"-DTALPA_HAS_2610_LSM")
+                    auto_lsm2610=no
+                ],
+                [   auto_lsm2610=yes])
+
 AC_ARG_ENABLE(lsm-266,
                 [  --enable-lsm-266               for example Fedora Core 2 2.6.5 kernel has LSM backported from 2.6.6 [[autodetected]]],
                 [   AC_SUBST(lsm266,"-DTALPA_HAS_266_LSM")
@@ -455,10 +462,24 @@ if test $((kern_version_code)) -ge 132608; then
 
     if test "$lsm" = "yes"; then
         # Autodetect LSM backports
-        if test $((kern_version_code)) -le 132613; then
+        TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath)
+        TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
 
-            TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath)
-            TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
+        if test $((kern_version_code)) -le 132617; then
+            # Autodetect if LSM from 2.6.10 is backported to 2.6.9
+            if test "$auto_lsm2610" = "yes"; then
+                AC_MSG_CHECKING([for 2.6.10 LSM])
+                ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/lsm2610.c -o /dev/null 1>/dev/null 2>&1
+                if test $? -eq 0; then
+                    AC_MSG_RESULT([detected])
+                    AC_SUBST(lsm2610,"-DTALPA_HAS_2610_LSM")
+                else
+                    AC_MSG_RESULT([not detected])
+                fi
+            fi
+        fi
+
+        if test $((kern_version_code)) -le 132613; then
             # Autodetect if LSM from 2.6.6 is backported to 2.6.5
             if test "$auto_lsm266" = "yes"; then
                 AC_MSG_CHECKING([for 2.6.6 LSM])
@@ -501,6 +522,7 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@buildlsm@/"${lsm}"/ ${srcdir}/Makefile
     ${SED} -i s/@lsm265@/"${lsm265}"/ ${srcdir}/Makefile
     ${SED} -i s/@lsm266@/"${lsm266}"/ ${srcdir}/Makefile
+    ${SED} -i s/@lsm2610@/"${lsm2610}"/ ${srcdir}/Makefile
     ${SED} -i s/@hidden@/"${hidden}"/ ${srcdir}/Makefile
     ${SED} -i s/@execve@/"${execve}"/ ${srcdir}/Makefile
 
