@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.20)
+AC_INIT(talpa, 0.9.21)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2005 Sophos PLC)
 
@@ -382,13 +382,19 @@ if test $((kern_version_code)) -ge 132608; then
 
     AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
 
-    # 2.6.10 and later kernels do not export do_execve
+    # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
     AC_MSG_CHECKING([for syscallhook module execve support])
-    if test $((kern_version_code)) -ge 132618; then
+    if test -f $kerneldir/fs/exec.c; then
+        ${EGREP} EXPORT_SYMBOL\\\(do_execve\\\)\; $kerneldir/fs/exec.c >/dev/null 2>&1
+        if test $? -ne 0; then
+            AC_SUBST(execve,"")
+            AC_MSG_RESULT([not available])
+        else
+            AC_MSG_RESULT([available])
+        fi
+    else
         AC_SUBST(execve,"")
         AC_MSG_RESULT([not available])
-    else
-        AC_MSG_RESULT([available])
     fi
 
     # Autodetect if we are running on 2.6.5 with backported sched.h
