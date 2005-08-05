@@ -47,6 +47,7 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
     struct talpa_seek seek;
     struct talpa_read read;
     struct talpa_write write;
+    void *buf;
 
     switch ( cmd )
     {
@@ -85,7 +86,20 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             ret = copy_from_user(&read, (void *)parm, sizeof(struct talpa_read));
             if ( !ret )
             {
-                ret = testfile->i_IFile.read(testfile, read.data, read.size);
+                buf = kmalloc(read.size, GFP_KERNEL);
+                if ( buf )
+                {
+                    ret = testfile->i_IFile.read(testfile, buf, read.size);
+                    if ( ret >= 0 )
+                    {
+                        ret = copy_to_user(read.data, buf, ret);
+                    }
+                    kfree(buf);
+                }
+                else
+                {
+                    ret = -ENOMEM;
+                }
             }
             else
             {
@@ -96,7 +110,20 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             ret = copy_from_user(&write, (void *)parm, sizeof(struct talpa_write));
             if ( !ret )
             {
-                ret = testfile->i_IFile.write(testfile, write.data, write.size);
+                buf = kmalloc(write.size, GFP_KERNEL);
+                if ( buf )
+                {
+                    ret = copy_from_user(buf, write.data, write.size);
+                    if ( !ret )
+                    {
+                        ret = testfile->i_IFile.write(testfile, buf, write.size);
+                    }
+                    kfree(buf);
+                }
+                else
+                {
+                    ret = -ENOMEM;
+                }
             }
             else
             {
