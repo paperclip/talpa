@@ -81,7 +81,6 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
     LinuxPersonality *pers;
 
     struct talpa_file tf;
-    struct talpa_file* ptf;
     LinuxFileInfo *fi;
 
     pers = newLinuxPersonality();
@@ -96,11 +95,10 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             ret = 0;
             break;
         case TALPA_TEST_FILEINFO:
-            ptf = (struct talpa_file *)parm;
             ret = copy_from_user(&tf, (void *)parm, sizeof(struct talpa_file));
             if ( !ret )
             {
-                fi = newLinuxFileInfo(tf.operation, ptf->name, ptf->flags, 0);
+                fi = newLinuxFileInfo(tf.operation, tf.name, tf.flags, 0);
                 if ( fi )
                 {
                     degrmode->i_IInterceptFilter.examineFile(degrmode, &erep->i_IEvaluationReport, &pers->i_IPersonality, &fi->i_IFileInfo, NULL);

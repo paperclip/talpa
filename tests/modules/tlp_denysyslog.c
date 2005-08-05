@@ -80,11 +80,9 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
     LinuxPersonality *pers;
 
     struct talpa_file tf;
-    struct talpa_file* ptf;
     LinuxFileInfo *fi;
 
     struct talpa_filesystem tfs;
-    struct talpa_filesystem* ptfs;
     LinuxFilesystemInfo *fsi;
 
     pers = newLinuxPersonality();
@@ -96,11 +94,10 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             ret = 0;
             break;
         case TALPA_TEST_FILEINFO:
-            ptf = (struct talpa_file *)parm;
             ret = copy_from_user(&tf, (void *)parm, sizeof(struct talpa_file));
             if ( !ret )
             {
-                fi = newLinuxFileInfo(tf.operation, ptf->name, 0, 0);
+                fi = newLinuxFileInfo(tf.operation, tf.name, 0, 0);
                 if ( fi )
                 {
                     syslog->i_IInterceptFilter.examineFile(syslog, &erep->i_IEvaluationReport, &pers->i_IPersonality, &fi->i_IFileInfo, NULL);
@@ -118,11 +115,10 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             }
             break;
         case TALPA_TEST_FILESYSTEMINFO:
-            ptfs = (struct talpa_filesystem *)parm;
             ret = copy_from_user(&tfs, (void *)parm, sizeof(struct talpa_filesystem));
             if ( !ret )
             {
-                fsi = newLinuxFilesystemInfo(tfs.operation, ptfs->dev, ptfs->target, ptfs->type);
+                fsi = newLinuxFilesystemInfo(tfs.operation, tfs.dev, tfs.target, tfs.type);
                 if ( fsi )
                 {
                     syslog->i_IInterceptFilter.examineFilesystem(syslog, &erep->i_IEvaluationReport, &pers->i_IPersonality, &fsi->i_IFilesystemInfo);

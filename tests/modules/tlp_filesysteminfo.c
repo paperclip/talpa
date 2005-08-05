@@ -69,17 +69,15 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
     int ret = -ENOTTY;
 
     struct talpa_filesystem tfs;
-    struct talpa_filesystem* ptfs;
     LinuxFilesystemInfo *fsi;
 
     switch ( cmd )
     {
         case TALPA_TEST_FILESYSTEMINFO:
-            ptfs = (struct talpa_filesystem *)parm;
             ret = copy_from_user(&tfs, (void *)parm, sizeof(struct talpa_filesystem));
             if ( !ret )
             {
-                fsi = newLinuxFilesystemInfo(tfs.operation, ptfs->dev, ptfs->target, ptfs->type);
+                fsi = newLinuxFilesystemInfo(tfs.operation, tfs.dev, tfs.target, tfs.type);
                 if ( fsi )
                 {
                     tfs.operation = fsi->i_IFilesystemInfo.operation(fsi);

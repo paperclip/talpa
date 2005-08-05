@@ -70,17 +70,15 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
     int ret = -ENOTTY;
 
     struct talpa_file tf;
-    struct talpa_file* ptf;
     LinuxFileInfo *fi;
 
     switch ( cmd )
     {
         case TALPA_TEST_FILEINFO:
-            ptf = (struct talpa_file *)parm;
             ret = copy_from_user(&tf, (void *)parm, sizeof(struct talpa_file));
             if ( !ret )
             {
-                fi = newLinuxFileInfo(tf.operation, ptf->name, 0, 0);
+                fi = newLinuxFileInfo(tf.operation, tf.name, 0, 0);
                 if ( fi )
                 {
                     tf.operation = fi->i_IFileInfo.operation(fi);
@@ -106,11 +104,10 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             }
             break;
         case TALPA_TEST_FILEINFOFD:
-            ptf = (struct talpa_file *)parm;
             ret = copy_from_user(&tf, (void *)parm, sizeof(struct talpa_file));
             if ( !ret )
             {
-                fi = newLinuxFileInfoFromFd(tf.operation, ptf->fd);
+                fi = newLinuxFileInfoFromFd(tf.operation, tf.fd);
                 if ( fi )
                 {
                     tf.operation = fi->i_IFileInfo.operation(fi);
