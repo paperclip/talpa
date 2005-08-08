@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.22)
+AC_INIT(talpa, 0.9.23)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2005 Sophos PLC)
 
@@ -40,7 +40,7 @@ AC_PATH_PROG(RM, rm)
 AC_PREFIX_DEFAULT(/opt/talpa)
 
 AC_ARG_ENABLE(talpa-build,
-            [  --enable-talpa-build           configure building of talpa [[yes]]],
+            [  --disable-talpa-build          configure building of talpa [[build]]],
             [talpabuild=$enableval],
             [talpabuild=yes])
 
@@ -56,32 +56,42 @@ AC_ARG_WITH(kernel-include,
 
 AC_ARG_ENABLE(debug,
               [  --enable-debug                 enable debugging code],
-              [AC_SUBST(debug,"-DDEBUG -g")])
+              [ if test "$enableval" = "yes"; then
+                    AC_SUBST(debug,"-DDEBUG -g")
+                fi])
 
 AC_ARG_ENABLE(hidden-syscall-table,
                 [  --enable-hidden-syscall-table  enable hunting for a hidden syscall table [[autodetected]]],
-                [   AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
+                    fi
                     auto_hidden=no
                 ],
                 [   auto_hidden=yes ])
 
 AC_ARG_ENABLE(new-parent,
                 [  --enable-new-parent            enable support for 2.6 style task_struct on some patched 2.4 kernels [[autodetected]]],
-                [   AC_SUBST(newparent,"-DTALPA_HAS_NEW_PARENT")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(newparent,"-DTALPA_HAS_NEW_PARENT")
+                    fi
                     auto_parent=no
                 ],
                 [   auto_parent=yes])
 
 AC_ARG_ENABLE(inode-alloc-sem,
                 [  --enable-inode-alloc-sem       kernels >= 2.4.22 and >= 2.6.6 have this field as some patched ones [[autodetected]]],
-                [   AC_SUBST(inodeallocsem,"-DTALPA_HAS_INODE_ALLOC_SEM")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(inodeallocsem,"-DTALPA_HAS_INODE_ALLOC_SEM")
+                    fi
                     auto_inode=no
                 ],
                 [   auto_inode=yes])
 
 AC_ARG_ENABLE(task-new-tty,
                 [  --enable-task-new-tty          SuSE Enterprise Server 9 2.6.5 kernel has a task_struct from later kernels [[autodetected]]],
-                [   AC_SUBST(tasknewtty,"-DTALPA_HAS_TASK_NEW_TTY")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(tasknewtty,"-DTALPA_HAS_TASK_NEW_TTY")
+                    fi
                     auto_tasknewtty=no
                 ],
                 [   auto_tasknewtty=yes])
@@ -94,21 +104,27 @@ AC_ARG_ENABLE(lsm,
 
 AC_ARG_ENABLE(lsm-2610,
                 [  --enable-lsm-2610              for example RHAS 4.0 2.6.9 kernel has LSM backported from 2.6.10 [[autodetected]]],
-                [   AC_SUBST(lsm2610,"-DTALPA_HAS_2610_LSM")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(lsm2610,"-DTALPA_HAS_2610_LSM")
+                    fi
                     auto_lsm2610=no
                 ],
                 [   auto_lsm2610=yes])
 
 AC_ARG_ENABLE(lsm-266,
                 [  --enable-lsm-266               for example Fedora Core 2 2.6.5 kernel has LSM backported from 2.6.6 [[autodetected]]],
-                [   AC_SUBST(lsm266,"-DTALPA_HAS_266_LSM")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(lsm266,"-DTALPA_HAS_266_LSM")
+                    fi
                     auto_lsm266=no
                 ],
                 [   auto_lsm266=yes])
 
 AC_ARG_ENABLE(lsm-265,
                 [  --enable-lsm-265               for example SuSE-s 9.1 2.6.4 kernel has LSM backported from 2.6.5 [[autodetected]]],
-                [   AC_SUBST(lsm265,"-DTALPA_HAS_265_LSM")
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(lsm265,"-DTALPA_HAS_265_LSM")
+                    fi
                     auto_lsm265=no
                 ],
                 [   auto_lsm265=yes])
@@ -118,6 +134,13 @@ AC_ARG_WITH(test-interceptor,
             [testinterceptor=$withval],
             [testinterceptor=default])
 
+AC_ARG_ENABLE(x-workaround,
+              [  --disable-x-workaround         disable X server workaround where open(2) fails with -EINTR because of itimers are not honoured [[enabled]]],
+              [ if test "$enableval" = "yes"; then
+                    AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
+                fi
+              ],
+              [ AC_SUBST(xhack, "-DTALPA_HAS_XHACK")])
 
 CFLAGS=
 
@@ -525,6 +548,7 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@lsm2610@/"${lsm2610}"/ ${srcdir}/Makefile
     ${SED} -i s/@hidden@/"${hidden}"/ ${srcdir}/Makefile
     ${SED} -i s/@execve@/"${execve}"/ ${srcdir}/Makefile
+    ${SED} -i s/@xhack@/"${xhack}"/ ${srcdir}/Makefile
 
     ${SED} -i s/@debug@/"${debug}"/ ${srcdir}/tests/modules/Makefile
     ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/tests/modules/Makefile
