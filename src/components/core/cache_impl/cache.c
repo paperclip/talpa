@@ -652,7 +652,8 @@ static void doActionString(void* self, talpa_list_head* list, char** set, const 
     return;
 }
 
-/* FIXME: Code taken from drivers/net/hamradio/soundmodem/sm_afsk2666.c */
+/* Integer binary exponent approximation function borrowed
+   from drivers/net/hamradio/soundmodem/sm_afsk2666.c */
 static int binexp(unsigned int i)
 {
     int ret = 31;
@@ -697,6 +698,8 @@ static unsigned int int_sqrt_approx(unsigned int i)
     return (sqrt_tab[i & 0xf] << j) >> 15;
 }
 
+/* End of borrowed code */
+
 /* Find next prime lower than number given */
 static int findPrime(int inval)
 {
@@ -731,71 +734,71 @@ static int findPrime(int inval)
 
 static int calculateCacheParams(unsigned int* entries, unsigned int* hash, unsigned int* setsize)
 {
-    int _entries;
-    int _prime;
-    int _set;
+    int temp_entries;
+    int temp_prime;
+    int temp_set;
 
-    _entries = *entries;
+    temp_entries = *entries;
 
-    if ( _entries < 10 )
+    if ( temp_entries < 10 )
     {
         err("Cache size to small!");
         return 0;
     }
 
-    _entries = findPrime(_entries);
+    temp_entries = findPrime(temp_entries);
 
-    if ( !_entries )
+    if ( !temp_entries )
     {
         err("Failed to find 1st hash prime!");
         return 0;
     }
 
-    _set = 2;
-    _prime = ( _entries + _set - 2 ) / _set;
+    temp_set = 2;
+    temp_prime = ( temp_entries + temp_set - 2 ) / temp_set;
 
     if ( *setsize )
     {
-        _set = *setsize;
+        temp_set = *setsize;
 
-        if ( _set < 1 )
+        if ( temp_set < 1 )
         {
-            _set = 1;
+            temp_set = 1;
         }
     }
 
     if ( *hash )
     {
-        _prime = *hash;
+        temp_prime = *hash;
 
-        if (    ( _prime >= _entries ) ||
-                ( _prime < 1 ) ||
-                ( ( _set > 2) && ( _prime >= ( _entries / ( _set - 1 ) ) ) )    )
+        if (    ( temp_prime >= temp_entries ) ||
+                ( temp_prime < 1 ) ||
+                ( ( temp_set > 2) && ( temp_prime >= ( temp_entries / ( temp_set - 1 ) ) ) )    )
         {
-            if ( _set > 2 )
+            if ( temp_set > 2 )
             {
-                _prime = _entries / ( _set - 1 );
+                temp_prime = temp_entries / ( temp_set - 1 );
             }
             else
             {
-                _prime = _entries - 1;
+                temp_prime = temp_entries - 1;
             }
         }
     }
 
-    _prime = findPrime(_prime);
+    temp_prime = findPrime(temp_prime);
 
-    if ( !_prime )
+    if ( !temp_prime )
     {
         err("Failed to find 2nd hash prime!");
         return 0;
     }
 
-    dbg("Cache size %u, 2nd hash prime %u, set size %u", _entries, _prime, _set);
+    dbg("Cache size %u, 2nd hash prime %u, set size %u", temp_entries, temp_prime, temp_set);
 
-    *entries = _entries;
-    *hash = _prime;
-    *setsize = _set;
+    *entries = temp_entries;
+    *hash = temp_prime;
+    *setsize = temp_set;
 
     return 1;
 }
