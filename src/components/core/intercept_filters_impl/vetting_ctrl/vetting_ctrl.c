@@ -337,9 +337,10 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
     static char* actmsg_error = "EIA_Error";
     static char* actmsg_timeout = "EIA_Timeout";
 #endif
-    /* FIXME: Nasty hack to workaround X not obeying open failing
-        with -EINTR caused by smart scheduler in recent versions.
-        This is also a Linux specific code. */
+    #ifdef TALPA_HAS_XHACK
+    /* Nasty hack to workaround X not obeying open(2) failing
+       with -EINTR caused by smart scheduler in recent versions.
+       This is also Linux specific code. */
     bool xhack = this->mXHack;
     if ( xhack )
     {
@@ -350,41 +351,49 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
             xhack = false;
         }
     }
+    #endif
 
     /* Going to sleep now... */
     do
     {
         dbg("[intercepted %u-%u-%u] going to sleep", processParentPID(current), current->tgid, current->pid);
+
+        #ifdef TALPA_HAS_XHACK
         if ( unlikely( xhack == true ) )
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
             xhack = mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(1) + atomic_read(timeout)*2);
-#else
+            #else
             xhack = mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(1) + atomic_read(timeout)*2);
-#endif
+            #endif
             if ( !xhack )
             {
                 /* Remove the timer since we have just activated an inactive one */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
                 del_timer(&current->signal->real_timer);
-#else
+                #else
                 del_timer(&current->real_timer);
-#endif
+                #endif
             }
             else
             {
                 dbg("X workaround activated!");
             }
         }
+        #endif
+
         ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, details->restartWait || atomic_read(&details->complete) || atomic_read(&details->reopen), atomic_read(timeout));
+
+        #ifdef TALPA_HAS_XHACK
         if ( unlikely( xhack == true ) )
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
             mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(10));
-#else
+            #else
             mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(10));
-#endif
+            #endif
         }
+        #endif
 
         /* Woken up because intercept is complete? */
         if ( likely(!ret) )
