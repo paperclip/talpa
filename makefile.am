@@ -86,7 +86,7 @@ clean-local :
 
 else
 
-modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @debug@ @newparent@ @inodeallocsem@ @backportedprefetch@ @snprintf@ ${TALPA_ID}
+modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @debug@ @newparent@ @inodeallocsem@ @backportedprefetch@ @snprintf@ @xhack@ ${TALPA_ID}
 modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/src -I$(srcdir)/src/ifaces -I$(srcdir)/include @kernelincludes@
 MODULELINKCMD           =   $(MODULELINKER) -m elf_i386 -r -o $@
 modulesdir              =   $(libdir)
