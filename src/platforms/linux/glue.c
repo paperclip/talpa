@@ -76,7 +76,12 @@ static char * __d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
             break;
         if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
             /* Global root? */
-/* FIXME: Locking!? Should be safe. */
+/* FIXME: We can't grab the lock below here since it is not exported.
+   But we must replicate kernels __d_path in order to find out the
+   absolute path of a file. So the question is can we get away with
+   not taking the lock? Can our parent mount go away while there are
+   accesses to files on his child mount? As far as I understand it no,
+   so this should be safe. */
 /*             spin_lock(&vfsmount_lock); */
             if (vfsmnt->mnt_parent == vfsmnt) {
 /*                 spin_unlock(&vfsmount_lock); */

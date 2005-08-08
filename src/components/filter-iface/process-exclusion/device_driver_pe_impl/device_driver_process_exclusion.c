@@ -256,7 +256,8 @@ static int ddpeIoctl(struct inode* inode, struct file* file, unsigned int cmd, u
 
 
     /* We should check whether file was opened with write permission
-    here but we intentionally do not. FIXME */
+       here but we intentionally do not. Our userspace users want it
+       that way. */
 
     ctx = (struct DDPEOpenContext *)file->private_data;
     down_read(&GL_object.mSem);

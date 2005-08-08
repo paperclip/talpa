@@ -285,7 +285,8 @@ static inline int talpa_inode_permission(struct inode *inode, int mask, struct n
     }
 
     /* FIXME: Is it correct to assume that when nd->flags == 0 the kernel
-        is doing an operation on internally mounted fs? */
+        is doing an "operation on internally mounted fs"? It works well
+        in practice and I haven't found a problem with it. */
     if ( unlikely( !nd->flags ) )
     {
         dbg("operation on kern_mount fs");

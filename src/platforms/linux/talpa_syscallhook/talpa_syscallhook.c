@@ -138,7 +138,9 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
     return;
 }
 
-/* FIXME: Taken from Dazuko */
+/* Function below, which finds the hidden system call table,
+   is borrowed from the Dazuko project. It is confirmed to work
+   on both patched 2.4 and vanilla 2.6 kernels. */
 #ifdef TALPA_HIDDEN_SYSCALLS
 void **sys_call_table;
 
