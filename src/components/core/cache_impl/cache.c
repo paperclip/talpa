@@ -746,14 +746,6 @@ static int calculateCacheParams(unsigned int* entries, unsigned int* hash, unsig
         return 0;
     }
 
-    /* We won't allow more than 128k entries.
-       That amounts to 1Mb of memory. */
-    if ( temp_entries > (128*1024) )
-    {
-        err("Cache size to big!");
-        return 0;
-    }
-
     temp_entries = findPrime(temp_entries);
 
     if ( !temp_entries )
