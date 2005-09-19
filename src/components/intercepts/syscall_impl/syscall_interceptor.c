@@ -242,23 +242,26 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
     /* Read the chunk of the file that must contain the hash bang */
     rc = pFile->read(pFile->object, buf, BINPRM_BUF_SIZE);
 
+    /* Seek back to the beginning of the file */
+    pFile->seek(pFile->object, 0, 0);
+
     if ( unlikely( rc < 0 ) )
     {
         return ERR_PTR(rc);
     }
-
-    /* Seek back to the beginning of the file */
-    pFile->seek(pFile->object, 0, 0);
+    else if ( unlikely( rc == 0 ) )
+    {
+        return filename;
+    }
 
     /* Parse the buffer and try to extract interpreter name */
-    buf[rc-1] = '\0';
     /* Check for '#!' */
-    if ( rc && (*buf++ != '#') )
+    if ( *buf++ != '#' )
     {
         return filename;
     }
     rc--;
-    if ( rc && (*buf++ != '!') )
+    if ( !rc || (*buf++ != '!') )
     {
         return filename;
     }
@@ -284,7 +287,15 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
         ilen++;
     }
 
-    *buf = '\0';
+    /* Null-terminate if not exausted */
+    if ( rc )
+    {
+        *buf = '\0';
+    }
+    else
+    {
+        return filename;
+    }
 
     /* We have our interpreter if it is at least 1 byte long */
     if ( ilen > 0 )
