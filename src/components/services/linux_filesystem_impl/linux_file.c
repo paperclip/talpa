@@ -192,6 +192,7 @@ static int open(void* self, const char* filename, unsigned int flags, unsigned i
         this->mWritable = true;
     }
 
+    this->mOpenType = Regular;
     this->mFile = file;
     this->mFiles = current->files;
 
