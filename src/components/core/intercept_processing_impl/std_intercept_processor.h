@@ -25,7 +25,7 @@
 #include "intercept_processing/iintercept_processor.h"
 #include "configurator/iconfigurable.h"
 
-#define STDINTPROC_CFGDATASIZE      (sizeof(char) * 16)
+#define STDINTPROC_CFGDATASIZE      (16)
 
 typedef struct
 {

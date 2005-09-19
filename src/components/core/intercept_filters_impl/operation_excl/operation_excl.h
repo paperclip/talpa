@@ -24,7 +24,7 @@
 #include "intercept_filters/iintercept_filter.h"
 #include "configurator/iconfigurable.h"
 
-#define OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE      (sizeof(char) * 16)
+#define OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE      (16)
 
 typedef struct {
     char    name[OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE];

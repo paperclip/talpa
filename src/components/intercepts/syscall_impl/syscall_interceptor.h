@@ -31,8 +31,8 @@
 #include "components/services/linux_filesystem_impl/linux_filesystem_factoryimpl.h"
 #include "platforms/linux/talpa_syscallhook.h"
 
-#define SYSCALL_CFGDATASIZE     (sizeof(char) * 16)
-#define SYSCALL_OPSCFGDATASIZE  (sizeof(char) * 64)
+#define SYSCALL_CFGDATASIZE     (16)
+#define SYSCALL_OPSCFGDATASIZE  (64)
 
 typedef struct {
     char    name[SYSCALL_CFGDATASIZE];

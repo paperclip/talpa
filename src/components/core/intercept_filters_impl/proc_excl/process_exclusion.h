@@ -30,7 +30,7 @@
  */
 
 
-#define PROCEXCL_CFGDATASIZE      (sizeof(char) * 16)
+#define PROCEXCL_CFGDATASIZE      (16)
 
 typedef struct {
     char    name[PROCEXCL_CFGDATASIZE];

@@ -38,8 +38,8 @@ int talpa_pedevice_detach(void);
  * Configuration structures
  */
 
-#define DDPE_CFGDATASIZE      (sizeof(char) * 16)
-#define DDPE_CFGLOCATIONSIZE  (sizeof(char) * 128)
+#define DDPE_CFGDATASIZE      (16)
+#define DDPE_CFGLOCATIONSIZE  (128)
 
 typedef struct {
     char    name[DDPE_CFGDATASIZE];

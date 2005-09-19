@@ -36,9 +36,9 @@
 #include "components/services/linux_filesystem_impl/linux_systemroot.h"
 #include "platforms/linux/talpa_syscallhook.h"
 
-#define VFSHOOK_CFGDATASIZE     (sizeof(char) * 16)
-#define VFSHOOK_OPSCFGDATASIZE  (sizeof(char) * 64)
-#define VFSHOOK_FSCFGDATASIZE   (sizeof(char) * 128)
+#define VFSHOOK_CFGDATASIZE     (16)
+#define VFSHOOK_OPSCFGDATASIZE  (64)
+#define VFSHOOK_FSCFGDATASIZE   (128)
 
 typedef struct {
     char    name[VFSHOOK_CFGDATASIZE];

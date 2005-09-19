@@ -47,7 +47,7 @@ struct DDVC_State
  * Configuration structures
  */
 
-#define DDVETTINGCLIENT_CFGDATASIZE      (sizeof(char) * 16)
+#define DDVETTINGCLIENT_CFGDATASIZE      (16)
 
 typedef struct {
     char    name[DDVETTINGCLIENT_CFGDATASIZE];

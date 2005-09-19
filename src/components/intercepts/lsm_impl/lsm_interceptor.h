@@ -33,8 +33,8 @@
 #include "configurator/pod_configuration_element.h"
 #include "components/services/linux_filesystem_impl/linux_filesystem_factoryimpl.h"
 
-#define LSM_CFGDATASIZE     (sizeof(char) * 16)
-#define LSM_OPSCFGDATASIZE  (sizeof(char) * 64)
+#define LSM_CFGDATASIZE     (16)
+#define LSM_OPSCFGDATASIZE  (64)
 
 
 

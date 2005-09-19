@@ -40,7 +40,7 @@
 #define MIN_STREAM_PACKET_SIZE (1*1024)
 
 
-#define VETCTRL_CFGDATASIZE      (sizeof(char) * 16)
+#define VETCTRL_CFGDATASIZE      (16)
 
 typedef struct {
     char    name[VETCTRL_CFGDATASIZE];

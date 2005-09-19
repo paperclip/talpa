@@ -25,7 +25,7 @@
 #include "intercept_filters/iintercept_filter.h"
 #include "configurator/iconfigurable.h"
 
-#define CFGDATASIZE      (sizeof(char) * 16)
+#define CFGDATASIZE      (16)
 
 typedef struct {
     char    name[CFGDATASIZE];

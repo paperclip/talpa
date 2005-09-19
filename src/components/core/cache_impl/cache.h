@@ -30,10 +30,10 @@
  */
 
 
-#define CACHE_CFGDATASIZE       (sizeof(char) * 16)
-#define CACHE_STATDATASIZE      (sizeof(char) * 128)
-#define CACHE_FSCFGDATASIZE     (sizeof(char) * 128)
-#define CACHE_PARAMSCFGDATASIZE (sizeof(char) * 64)
+#define CACHE_CFGDATASIZE       (16)
+#define CACHE_STATDATASIZE      (128)
+#define CACHE_FSCFGDATASIZE     (128)
+#define CACHE_PARAMSCFGDATASIZE (64)
 
 typedef struct {
     char    name[CACHE_CFGDATASIZE];

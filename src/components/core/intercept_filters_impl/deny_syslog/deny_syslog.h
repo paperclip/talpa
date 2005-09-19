@@ -23,7 +23,7 @@
 #include "intercept_filters/iintercept_filter.h"
 #include "configurator/iconfigurable.h"
 
-#define DENYSYSLOGFILTER_CFGDATASIZE      (sizeof(char) * 16)
+#define DENYSYSLOGFILTER_CFGDATASIZE      (16)
 
 typedef struct {
     char    name[DENYSYSLOGFILTER_CFGDATASIZE];

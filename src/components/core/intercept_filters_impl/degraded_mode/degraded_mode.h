@@ -28,7 +28,7 @@
  */
 
 
-#define DMD_CFGDATASIZE      (sizeof(char) * 16)
+#define DMD_CFGDATASIZE      (16)
 
 typedef struct {
     char    name[DMD_CFGDATASIZE];

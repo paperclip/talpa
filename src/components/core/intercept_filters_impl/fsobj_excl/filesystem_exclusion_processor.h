@@ -26,9 +26,9 @@
 #include "intercept_filters/iintercept_filter.h"
 #include "configurator/iconfigurable.h"
 
-#define FSEXCPROC_CFGDATASIZE      (sizeof(char) * 16)
-#define FSEXCPROC_FSCFGDATASIZE      (sizeof(char) * 128)
-#define FSEXCPROC_SPECCFGDATASIZE      (sizeof(char) * 64)
+#define FSEXCPROC_CFGDATASIZE       (16)
+#define FSEXCPROC_FSCFGDATASIZE     (128)
+#define FSEXCPROC_SPECCFGDATASIZE   (64)
 
 typedef struct {
     char    name[FSEXCPROC_CFGDATASIZE];
