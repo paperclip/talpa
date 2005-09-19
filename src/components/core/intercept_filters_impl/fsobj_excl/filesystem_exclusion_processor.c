@@ -105,7 +105,7 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
             {0, 0, FSEXCPROC_CFGDATASIZE, true, false },
             {0, 0, PATH_MAX, true, false },
             {0, 0, FSEXCPROC_FSCFGDATASIZE, true, false },
-            {0, 0, 0, false }
+            {0, 0, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }

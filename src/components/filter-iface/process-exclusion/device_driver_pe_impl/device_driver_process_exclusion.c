@@ -96,7 +96,7 @@ static DeviceDriverProcessExclusion GL_object =
         {
             {GL_object.mDeviceConfigData[0].name, GL_object.mDeviceConfigData[0].value, DDPE_CFGDATASIZE, false, true },
             {GL_object.mLocationConfigData[0].name, GL_object.mLocationConfigData[0].value, DDPE_CFGLOCATIONSIZE, true, true },
-            {0, 0, 0, false },
+            {0, 0, 0, false, false },
         },
         {
             { CFG_DEVICE, CFG_VALUE_DEVICE }
