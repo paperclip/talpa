@@ -1004,6 +1004,7 @@ static void constructStringSet(const void* self, talpa_list_head* list, char** s
     unsigned int alloc_len = 0;
     VetCtrlConfigObject* obj;
     char* newset = NULL;
+    char* out;
 
 
     /* We are doing the allocation in at least 2-passes.
@@ -1014,6 +1015,11 @@ try_alloc:
     if ( alloc_len )
     {
         newset = kmalloc(alloc_len, GFP_KERNEL);
+        if ( !newset )
+        {
+            err("Failed to create string set!");
+            return;
+        }
     }
 
     len = 0;
@@ -1024,50 +1030,42 @@ try_alloc:
     }
 
     /* We will reallocate if the size has increased or this is a second pass (first allocation)/ */
-    if ( ((len + 1) > alloc_len) || !newset )
+    if ( (len + 1) > alloc_len )
     {
-        alloc_len = len + 1;
         talpa_rcu_read_unlock(&this->mConfigLock);
+        alloc_len = len + 1;
         kfree(newset);
         goto try_alloc;
     }
 
-    if ( newset )
+    out = newset;
+    kfree(*set);
+    talpa_list_for_each_entry_rcu(obj, list, head)
     {
-        char* out = newset;
-
-        kfree(*set);
-        talpa_list_for_each_entry_rcu(obj, list, head)
+        len = 0;
+        switch ( obj->type )
         {
-            len = 0;
-            switch ( obj->type )
-            {
-                case FILESYSTEM:
-                    strcpy(out, "fs:");
-                    out += 3;
-                    break;
-                case PATH:
-                    strcpy(out, "path:");
-                    out += 5;
-                    break;
-                default:
-                    len = sprintf(out, "unknown:%u", obj->type);
-                    out += len;
-            }
-            len = sprintf(out, "%s:%u\n", obj->string, obj->group);
-            out += len;
+            case FILESYSTEM:
+                strcpy(out, "fs:");
+                out += 3;
+                break;
+            case PATH:
+                strcpy(out, "path:");
+                out += 5;
+                break;
+            default:
+                len = sprintf(out, "unknown:%u", obj->type);
+                out += len;
         }
-        if ( out > newset )
-        {
-            out--;
-        }
-        *out = 0;
-        *set = newset;
+        len = sprintf(out, "%s:%u\n", obj->string, obj->group);
+        out += len;
     }
-    else
+    if ( out > newset )
     {
-        err("Failed to create string set!");
+        out--;
     }
+    *out = 0;
+    *set = newset;
 
     talpa_rcu_read_unlock(&this->mConfigLock);
 

@@ -1611,6 +1611,8 @@ static void constructStringSet(void* self, talpa_list_head* list, char** set)
     unsigned int alloc_len = 0;
     VFSHookObject* obj;
     char* newset = NULL;
+    char* out;
+
 
     /* We are doing the allocation in at least 2-passes.
      * That is because we want to allocate enough storage outside of
@@ -1620,6 +1622,11 @@ try_alloc:
     if ( alloc_len )
     {
         newset = kmalloc(alloc_len, GFP_KERNEL);
+        if ( !newset )
+        {
+            err("Failed to create string set!");
+            return;
+        }
     }
 
     len = 0;
@@ -1630,40 +1637,32 @@ try_alloc:
     }
 
     /* We will reallocate if the size has increased or this is a second pass (first allocation)/ */
-    if ( ((len + 1) > alloc_len) || !newset )
+    if ( (len + 1) > alloc_len )
     {
-        alloc_len = len + 1;
         talpa_rcu_read_unlock(&this->mSkipLock);
+        alloc_len = len + 1;
         kfree(newset);
         goto try_alloc;
     }
 
-    if ( newset )
+    out = newset;
+    kfree(*set);
+    talpa_list_for_each_entry_rcu(obj, list, head)
     {
-        char* out = newset;
-
-        kfree(*set);
-        talpa_list_for_each_entry_rcu(obj, list, head)
+        if ( obj->protected )
         {
-            if ( obj->protected )
-            {
-                *out++ = '!';
-            }
-            strcpy(out, obj->value);
-            out += obj->len;
-            *out++ = '\n';
+            *out++ = '!';
         }
-        if ( out > newset )
-        {
-            out--;
-        }
-        *out = 0;
-        *set = newset;
+        strcpy(out, obj->value);
+        out += obj->len;
+        *out++ = '\n';
     }
-    else
+    if ( out > newset )
     {
-        err("Failed to create string set!");
+        out--;
     }
+    *out = 0;
+    *set = newset;
 
     talpa_rcu_read_unlock(&this->mSkipLock);
 
