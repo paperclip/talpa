@@ -142,22 +142,46 @@ static void* customData(const void* self, int id, int* size)
 static void setCustomData(void* self, int id, void* data, int size)
 {
     EvaluationStorage*   posptr;
+    EvaluationStorage*   storage = NULL;
 
 
     talpa_list_for_each_entry(posptr, &this->mCustom, list)
     {
         if (posptr->id == id)
         {
-            size = posptr->size;
-            kfree(posptr->data);
-            posptr->data = kmalloc(size, GFP_KERNEL);
-            memcpy(posptr->data, data, size);
-            return;
+            storage = posptr;
+            break;
         }
     }
 
-    posptr = kmalloc(size, GFP_KERNEL);
-    talpa_list_add_tail(&posptr->list, &(this->mCustom));
+    if ( storage )
+    {
+        if ( storage->size != size )
+        {
+            kfree(storage->data);
+            storage->data = NULL;
+            storage->size = 0;
+        }
+    }
+    else
+    {
+        storage = kmalloc(sizeof(*storage), GFP_KERNEL);
+        memset(storage, 0, sizeof(*storage));
+        TALPA_INIT_LIST_HEAD(&storage->list);
+        storage->id = id;
+        talpa_list_add_tail(&storage->list, &(this->mCustom));
+    }
+
+    if ( !storage->data )
+    {
+        storage->data = kmalloc(size, GFP_KERNEL);
+    }
+
+    if ( storage->data )
+    {
+        storage->size = size;
+        memcpy(storage->data, data, size);
+    }
 
     return;
 }
