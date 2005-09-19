@@ -746,6 +746,14 @@ static int calculateCacheParams(unsigned int* entries, unsigned int* hash, unsig
         return 0;
     }
 
+    /* We won't allow more than 128k entries.
+       That amounts to 1Mb of memory. */
+    if ( temp_entries > (128*1024) )
+    {
+        err("Cache size to big!");
+        return 0;
+    }
+
     temp_entries = findPrime(temp_entries);
 
     if ( !temp_entries )
@@ -942,6 +950,10 @@ static const char* config(const void* self, const char* name)
             {
                 fillratio = (this->mFill*100) / this->mEntries;
             }
+            /* 7 unsigned ints + 75 text chars = 7*10 + 75 = 145 characters.
+               Although cache size (total, fill) can't be as big as UINT_MAX,
+               we will assume it can. Check CACHE_STATDATASIZE if you modify
+               something here. */
             sprintf(cfgElement->value, "Hits: %u, Misses: %u, HitRatio: %u%%\nFill: %u, Replacements: %u, Total: %u, FillRatio: %u%%", this->mHits, this->mMisses, hitratio, this->mFill, this->mReplacement, this->mEntries, fillratio);
         }
         else if ( !strcmp(cfgElement->name, CFG_FSTYPES) )
