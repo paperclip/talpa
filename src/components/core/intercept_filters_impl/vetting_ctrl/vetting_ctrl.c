@@ -1581,13 +1581,6 @@ static struct TalpaProtocolHeader* processPacket(void* self, VettingClient* clie
         pktreturn_fail(-EPROTO);
     }
 
-    /* Reset the vetting timeout if vetting is in progress. */
-    if ( atomic_read(&client->vetting) && client->vettingDetails )
-    {
-        client->vettingDetails->restartWait = true;
-        wake_up(&client->vettingDetails->interceptedWaitQueue);
-    }
-
     switch ( packet->type )
     {
         case TALPA_PKT_REG:
@@ -1631,6 +1624,13 @@ static struct TalpaProtocolHeader* processPacket(void* self, VettingClient* clie
             break;
         default:
             dbg("[%u] Unsupported packet type 0x%x received", (unsigned int)client->id, packet->type);
+    }
+
+    /* Reset the vetting timeout if vetting is in progress. */
+    if ( atomic_read(&client->vetting) && client->vettingDetails )
+    {
+        client->vettingDetails->restartWait = true;
+        wake_up(&client->vettingDetails->interceptedWaitQueue);
     }
 
     return response;
