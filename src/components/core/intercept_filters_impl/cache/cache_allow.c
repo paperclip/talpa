@@ -117,17 +117,19 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
 
 static bool enable(void* self)
 {
-    return this->mCache->enable(this->mCache->object);
+    /* This filter is not allowed to enable the cache. */
+    return false;
 }
 
 static void disable(void* self)
 {
-    this->mCache->disable(this->mCache->object);
+    /* This filter is not allowed to disable the cache. */
     return;
 }
 
 static bool isEnabled(const void* self)
 {
+    /* Status is inherited from the cache object. */
     return this->mCache->isEnabled(this->mCache->object);
 }
 
