@@ -41,9 +41,10 @@ typedef struct {
 typedef struct tag_ProcessExclusionProcessor
 {
     IInterceptFilter          i_IInterceptFilter;
-    IProcessExcluder           i_IProcessExcluder;
+    IProcessExcluder          i_IProcessExcluder;
     IConfigurable             i_IConfigurable;
     void                      (*delete)(struct tag_ProcessExclusionProcessor* object);
+    talpa_mutex_t             mConfigSerialize;
     bool                      mEnabled;
 
     talpa_rcu_lock_t          mExcludedLock;

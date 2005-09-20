@@ -89,6 +89,7 @@ static ProcessExclusionProcessor template_ProcessExclusionProcessor =
             (void (*)(void*))deleteProcessExclusionProcessor
         },
         deleteProcessExclusionProcessor,
+        TALPA_MUTEX_INIT,
         true,
         TALPA_RCU_UNLOCKED,
         { },
@@ -300,23 +301,27 @@ static ProcessExcluded* idle(void* self, ProcessExcluded* obj)
 
 static bool enable(void* self)
 {
+    talpa_mutex_lock(&this->mConfigSerialize);
     if (!this->mEnabled)
     {
         this->mEnabled = true;
         strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
+    talpa_mutex_unlock(&this->mConfigSerialize);
     return true;
 }
 
 static void disable(void* self)
 {
+    talpa_mutex_lock(&this->mConfigSerialize);
     if (this->mEnabled)
     {
         this->mEnabled = false;
         strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
+    talpa_mutex_unlock(&this->mConfigSerialize);
     return;
 }
 

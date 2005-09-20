@@ -20,6 +20,7 @@
 #define H_DENYSYSLOGFILTER
 
 
+#include "common/locking.h"
 #include "intercept_filters/iintercept_filter.h"
 #include "configurator/iconfigurable.h"
 
@@ -35,6 +36,7 @@ typedef struct tag_DenySyslogFilter
     IInterceptFilter            i_IInterceptFilter;
     IConfigurable               i_IConfigurable;
     void                        (*delete)(struct tag_DenySyslogFilter* object);
+    talpa_mutex_t               mConfigSerialize;
     bool                        mEnabled;
     char                        mName[64];
     PODConfigurationElement     mConfig[2];

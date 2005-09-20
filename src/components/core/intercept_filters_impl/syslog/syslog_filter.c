@@ -79,6 +79,7 @@ static SyslogFilter template_SyslogFilter =
             (void (*)(void*))deleteSyslogFilter
         },
         deleteSyslogFilter,
+        TALPA_MUTEX_INIT,
         false,
         "default",
         {
@@ -185,23 +186,27 @@ static void examineFilesystem(const void* self, IEvaluationReport* report, const
 
 static bool enable(void* self)
 {
+    talpa_mutex_lock(&this->mConfigSerialize);
     if (!this->mEnabled)
     {
         this->mEnabled = true;
         strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
         info("%s: Enabled", this->mName);
     }
+    talpa_mutex_unlock(&this->mConfigSerialize);
     return true;
 }
 
 static void disable(void* self)
 {
+    talpa_mutex_lock(&this->mConfigSerialize);
     if (this->mEnabled)
     {
         this->mEnabled = false;
         strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
         info("%s: Disabled", this->mName);
     }
+    talpa_mutex_unlock(&this->mConfigSerialize);
     return;
 }
 
