@@ -101,9 +101,9 @@ static char* absolutePath(struct nameidata* nd)
         {
             strcpy(absolute, apath);
         }
-
-        free_page((unsigned long)page);
     }
+
+    free_page((unsigned long)page);
 
     return absolute;
 }
