@@ -470,7 +470,7 @@ static const char* fsType(const void* self)
 
     if ( likely(mnt != 0) )
     {
-        if ( likely(mnt->mnt_devname != NULL) )
+        if ( likely((this->mDeviceName == NULL) && (mnt->mnt_devname != NULL)) )
         {
             this->mDeviceName = kmalloc(strlen(mnt->mnt_devname) + 1, GFP_KERNEL);
             if ( likely(this->mDeviceName != NULL) )
