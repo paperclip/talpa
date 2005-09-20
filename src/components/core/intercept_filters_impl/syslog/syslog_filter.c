@@ -108,8 +108,12 @@ SyslogFilter* newSyslogFilter(const char *name)
     {
         memcpy(object, &template_SyslogFilter, sizeof(template_SyslogFilter));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
+
+        talpa_mutex_init(&object->mConfigSerialize);
+
         strncpy(object->mName, name, sizeof(object->mName)-1);
         object->mName[sizeof(object->mName)-1] = 0x00;
+
         object->mConfig[0].name  = object->mConfigData[0].name;
         object->mConfig[0].value = object->mConfigData[0].value;
     }

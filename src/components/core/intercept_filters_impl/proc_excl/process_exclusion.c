@@ -122,6 +122,7 @@ ProcessExclusionProcessor* newProcessExclusionProcessor(void)
             object->i_IProcessExcluder.object =
             object->i_IConfigurable.object = object;
 
+        talpa_mutex_init(&object->mConfigSerialize);
         talpa_rcu_lock_init(&object->mExcludedLock);
         TALPA_INIT_LIST_HEAD(&object->mExcluded);
 
