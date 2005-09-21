@@ -121,6 +121,13 @@ DeviceDriverVettingClient* newDeviceDriverVettingClient(IVettingServer* server)
 {
     int ret;
 
+
+    if ( !server )
+    {
+        err("Vetting server not specified!");
+        return NULL;
+    }
+
     ret = misc_register(&ddvc_dev);
 
     if ( ret )
@@ -130,13 +137,6 @@ DeviceDriverVettingClient* newDeviceDriverVettingClient(IVettingServer* server)
     }
 
     sprintf(GL_object.mConfigData[0].value, "%d,%d", MISC_MAJOR, ddvc_dev.minor);
-
-    if ( !server )
-    {
-        err("Vetting server not specified!");
-        misc_deregister(&ddvc_dev);
-        return NULL;
-    }
 
     GL_object.mServer = server;
 
