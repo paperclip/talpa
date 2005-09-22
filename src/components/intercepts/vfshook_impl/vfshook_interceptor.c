@@ -1836,26 +1836,29 @@ static void doSpecialString(void* self, const char* value)
 
 static bool enable(void* self)
 {
-    if ( !this->mInterceptMask )
+    if ( !this->mTargetProcessor )
     {
-        if ( this->mTargetProcessor )
+        err("No processor!");
+        return false;
+    }
+
+    if ( !this->mInterceptMask && this->mHookingMask )
+    {
+        if ( try_module_get(THIS_MODULE) )
         {
-            if ( try_module_get(THIS_MODULE) )
-            {
-                atomic_inc(&this->mUseCnt);
-                this->mInterceptMask = this->mHookingMask;
-                strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
-                info("Enabled");
-            }
+            atomic_inc(&this->mUseCnt);
+            this->mInterceptMask = this->mHookingMask;
+            strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+            info("Enabled");
+            return true;
         }
         else
         {
-            err("No processor!");
-            return false;
+            warn("Failed to enable");
         }
     }
 
-    return true;
+    return false;
 }
 
 static void disable(void* self)
