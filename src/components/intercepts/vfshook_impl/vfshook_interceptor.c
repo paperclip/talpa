@@ -931,7 +931,7 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     }
     else
     {
-        err("Nothing to restore!");
+        dbg("Nothing to restore - read-only fs with no regular files!");
     }
 
     return 0;
