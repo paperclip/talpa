@@ -37,7 +37,7 @@ int vc_stream_write(int handle, void *buffer, size_t size);
 int vc_stream_unlink_file(int handle);
 int vc_stream_truncate(int handle, unsigned int length);
 
-int vc_scan_stream(int handle);
+unsigned int vc_scan_stream(int handle);
 
 #define vc_file_frag(packet) ((struct TalpaPacketFragment_FileDetails *)(((char *)packet) + sizeof(struct TalpaPacket_VettingDetails)))
 #define vc_file_name(filefrag) (((char *)filefrag) + sizeof(struct TalpaPacketFragment_FileDetails))

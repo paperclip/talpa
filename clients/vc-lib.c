@@ -383,7 +383,7 @@ int vc_stream_truncate(int handle, unsigned int length)
     return rc;
 }
 
-int vc_scan_stream(int handle)
+unsigned int vc_scan_stream(int handle)
 {
     int rc;
     char buf[4096];
@@ -396,9 +396,9 @@ int vc_scan_stream(int handle)
         {
             total += rc;
         }
-    } while ( (rc >= 0) && (rc >= sizeof(buf)) && (total < 65536) );
+    } while ( (rc == sizeof(buf)) && (total < (sizeof(buf)*16)) );
 
-    return rc;
+    return total;
 }
 
 
