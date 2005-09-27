@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        printf("Allowing access...");
+        printf("Denying access...");
         if ( vc_respond(talpa, packet, TALPA_DENY) < 0 )
         {
             printf("Error %d!\n", errno);
