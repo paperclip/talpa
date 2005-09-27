@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
+#include <asm/div64.h>
 
 #define TALPA_SUBSYS "cache"
 #include "common/talpa.h"
@@ -934,11 +935,24 @@ static const char* config(const void* self, const char* name)
 
             if ( (this->mHits+this->mMisses) > 0 )
             {
-                hitratio = (unsigned int)((unsigned long long)this->mHits*100ULL)/(this->mHits+this->mMisses);
+                unsigned long long h, d;
+
+                h = this->mHits;
+                h *= 100;
+                d = this->mHits;
+                d += this->mMisses;
+                do_div(h, d);
+                hitratio = h;
             }
             if ( this->mEntries > 0 )
             {
-                fillratio = (this->mFill*100) / this->mEntries;
+                unsigned long long f, e;
+
+                f = this->mFill;
+                f *= 100;
+                e = this->mEntries;
+                do_div(f, e);
+                fillratio = f;
             }
             /* 7 unsigned ints + 75 text chars = 7*10 + 75 = 145 characters.
                Although cache size (total, fill) can't be as big as UINT_MAX,
