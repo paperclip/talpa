@@ -361,15 +361,15 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         #ifdef TALPA_HAS_XHACK
         if ( unlikely( xhack == true ) )
         {
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+            #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
             xhack = mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(1) + atomic_read(timeout)*2);
             #else
             xhack = mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(1) + atomic_read(timeout)*2);
             #endif
             if ( !xhack )
             {
-                /* Remove the timer since we have just activated an inactive one */
-                #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+                /* Remove the timer since we have just activated the inactive one */
+                #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
                 del_timer(&current->signal->real_timer);
                 #else
                 del_timer(&current->real_timer);
@@ -387,7 +387,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         #ifdef TALPA_HAS_XHACK
         if ( unlikely( xhack == true ) )
         {
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+            #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
             mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(10));
             #else
             mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(10));

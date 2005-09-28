@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.24)
+AC_INIT(talpa, 0.9.25)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2005 Sophos PLC)
 
@@ -95,6 +95,24 @@ AC_ARG_ENABLE(task-new-tty,
                     auto_tasknewtty=no
                 ],
                 [   auto_tasknewtty=yes])
+
+AC_ARG_ENABLE(backported-rcu,
+                [  --enable-backported-rcu        Fedora FC4 2.6.11 has rcpudate.h backported from vanilla 2.6.12 [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(rcubackport,"-DTALPA_HAS_BACKPORTED_RCU")
+                    fi
+                    auto_rcubackport=no
+                ],
+                [   auto_rcubackport=yes])
+
+AC_ARG_ENABLE(backported-signal,
+                [  --enable-backported-signal     Fedora FC4 2.6.11 has the task_struct->signal backported from vanilla 2.6.12 [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(signalbackport,"-DTALPA_HAS_BACKPORTED_SIGNAL")
+                    fi
+                    auto_signalbackport=no
+                ],
+                [   auto_signalbackport=yes])
 
 AC_ARG_ENABLE(lsm,
                 [  --enable-lsm                   try to build LSM dependent modules [[autodetected]]],
@@ -443,6 +461,36 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    # Autodetect if rcupdate.h was backported
+    if test $((kern_version_code)) -lt 132620; then
+        if test "$auto_rcubackport" = "yes"; then
+            AC_MSG_CHECKING([for backported rcupdate.h])
+            ${EGREP} "deprecated.*synchronize_kernel" $TALPA_HEADER_LOCATION/linux/rcupdate.h >/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(rcubackport,"-DTALPA_HAS_BACKPORTED_RCU")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+    fi
+
+    # Autodetect if task_struct->signal was backported
+    if test $((kern_version_code)) -lt 132620; then
+        if test "$auto_signalbackport" = "yes"; then
+            TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
+            TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
+            AC_MSG_CHECKING([for backported task_struct->signal])
+            ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/tasksignal.c -o /dev/null 1>/dev/null 2>&1
+            if test $? -ne 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(signalbackport,"-DTALPA_HAS_BACKPORTED_SIGNAL")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+    fi
+
     # Check whether to build LSM related modules
     AC_MSG_CHECKING([for LSM support])
     if test "$auto_lsm" = "yes"; then
@@ -542,6 +590,8 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@newparent@/"${newparent}"/ ${srcdir}/Makefile
     ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/Makefile
     ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/Makefile
+    ${SED} -i s/@rcubackport@/"${rcubackport}"/ ${srcdir}/Makefile
+    ${SED} -i s/@signalbackport@/"${signalbackport}"/ ${srcdir}/Makefile
     ${SED} -i s/@buildlsm@/"${lsm}"/ ${srcdir}/Makefile
     ${SED} -i s/@lsm265@/"${lsm265}"/ ${srcdir}/Makefile
     ${SED} -i s/@lsm266@/"${lsm266}"/ ${srcdir}/Makefile

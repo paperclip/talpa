@@ -145,7 +145,7 @@ typedef struct rcu_head talpa_rcu_head;
 #define TALPA_RCU_INIT              RCU_HEAD_INIT
 #define talpa_rcu_init(x)           INIT_RCU_HEAD(x)
 #define talpa_rcu_call(head, func)  call_rcu(head, func)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_RCU
 #define talpa_rcu_synchronize       synchronize_sched
 #else
 #define talpa_rcu_synchronize       synchronize_kernel
