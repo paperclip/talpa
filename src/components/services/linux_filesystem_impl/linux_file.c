@@ -48,8 +48,6 @@ static int     truncate     (void* self, loff_t length);
 
 static void deleteLinuxFile(struct tag_LinuxFile* object);
 
-static inline bool verifyFile(struct file* file);
-
 /*
 * Template Object.
 */
@@ -97,6 +95,16 @@ LinuxFile* newLinuxFile(void)
         object->i_IFile.object = object;
     }
     return object;
+}
+
+static inline bool verifyFile(struct file* file)
+{
+    if ( file->f_dentry && file->f_dentry->d_inode && S_ISREG(file->f_dentry->d_inode->i_mode) )
+    {
+        return true;
+    }
+
+    return false;
 }
 
 LinuxFile* cloneLinuxFile(struct file* fobject)
@@ -147,16 +155,6 @@ static void deleteLinuxFile(struct tag_LinuxFile* object)
 /*
 * IFile.
 */
-
-static inline bool verifyFile(struct file* file)
-{
-    if ( file->f_dentry && file->f_dentry->d_inode && S_ISREG(file->f_dentry->d_inode->i_mode) )
-    {
-        return true;
-    }
-
-    return false;
-}
 
 static void get(void* self)
 {
