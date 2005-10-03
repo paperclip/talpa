@@ -101,6 +101,7 @@ endif
 
 ## Clean up the fallout resulting from kbuild operating in the source tree.
 dist-hook:
+	rm -f $(distdir)/TODO
 	find $(distdir) -type d -name .svn -prune -print0 | xargs -r -0 -- rm -rf
 	find $(distdir) -name \*.o -print0 | xargs -r -0 -- rm
 	find $(distdir) -name .\*.cmd -print0 | xargs -r -0 -- rm
