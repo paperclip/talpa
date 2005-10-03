@@ -14,3 +14,4 @@
 - create Talpa specific memory caches for often used objects (idea on how to abstract and
   fit into the isolated object model is required)
 
+- use kzalloc instead of kmalloc + memset when available in mainline (wrapper in glue.h?)
