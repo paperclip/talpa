@@ -385,7 +385,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
         char    c;
         char*   cfgValue;
 
-        if ( !strlen_user(buffer) ) /* we could use access_ok but we need the area size, also in this way we know it is safe to use fast __get_user() */
+        if ( strnlen_user(buffer, *lenp) < 0 )
         {
             return -EFAULT;
         }

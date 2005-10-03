@@ -38,7 +38,11 @@
  */
 static int ddpeOpen(struct inode* inode, struct file* file);
 static int ddpeClose(struct inode* inode, struct file* file);
+#ifdef HAVE_UNLOCKED_IOCTL
+static long ddpeIoctl(struct file* file, unsigned int cmd, unsigned long arg);
+#else
 static int ddpeIoctl(struct inode* inode, struct file* file, unsigned int cmd, unsigned long arg);
+#endif
 
 static bool attach(void* self);
 static bool detach(void* self);
@@ -67,16 +71,6 @@ static void deleteDeviceDriverProcessExclusion(struct tag_DeviceDriverProcessExc
  */
 static DeviceDriverProcessExclusion GL_object =
     {
-        {
-            ddpeOpen,
-            ddpeClose,
-            NULL,
-            NULL,
-            ddpeIoctl,
-            NULL,
-            &GL_object,
-            (void (*)(void*))deleteDeviceDriverProcessExclusion
-        },
         {
             configName,
             allConfig,
@@ -112,10 +106,17 @@ static DeviceDriverProcessExclusion GL_object =
  */
 static struct file_operations ddpe_fops =
 {
-    owner:      THIS_MODULE,
-    open:       ddpeOpen,
-    release:    ddpeClose,
-    ioctl:      ddpeIoctl,
+    owner:          THIS_MODULE,
+    open:           ddpeOpen,
+    release:        ddpeClose,
+#ifdef HAVE_UNLOCKED_IOCTL
+    unlocked_ioctl: ddpeIoctl,
+#ifdef HAVE_COMPAT_IOCTL
+    compat_ioctl:   ddpeIoctl,
+#endif
+#else
+    ioctl:          ddpeIoctl,
+#endif
 };
 
 static struct miscdevice ddpe_dev =
@@ -249,11 +250,16 @@ static int ddpeClose(struct inode* inode, struct file* file)
     return 0;
 }
 
+#ifdef HAVE_UNLOCKED_IOCTL
+static long ddpeIoctl(struct file* file, unsigned int cmd, unsigned long arg)
+{
+    long ret = 0;
+#else
 static int ddpeIoctl(struct inode* inode, struct file* file, unsigned int cmd, unsigned long arg)
 {
-    struct DDPEOpenContext* ctx;
     int ret = 0;
-
+#endif
+    struct DDPEOpenContext* ctx;
 
     /* We should check whether file was opened with write permission
        here but we intentionally do not. Our userspace users want it

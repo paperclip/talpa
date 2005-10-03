@@ -38,7 +38,11 @@ static int ddvcOpen(struct inode* inode, struct file* file);
 static int ddvcClose(struct inode* inode, struct file* file);
 static ssize_t ddvcRead(struct file* file, char* buf, size_t len, loff_t* ppos);
 static ssize_t ddvcWrite(struct file* file, const char* buf, size_t len, loff_t* ppos);
+#ifdef HAVE_UNLOCKED_IOCTL
+static long ddvcIoctl(struct file* file, unsigned int cmd, unsigned long arg);
+#else
 static int ddvcIoctl(struct inode* inode, struct file* file, unsigned int cmd, unsigned long arg);
+#endif
 static unsigned int ddvcPoll(struct file* file, struct poll_table_struct* polltbl);
 
 static const char* configName(const void* self);
@@ -62,16 +66,6 @@ static void deleteDeviceDriverVettingClient(struct tag_DeviceDriverVettingClient
  */
 static DeviceDriverVettingClient GL_object =
     {
-        {
-            ddvcOpen,
-            ddvcClose,
-            ddvcRead,
-            ddvcWrite,
-            ddvcIoctl,
-            ddvcPoll,
-            &GL_object,
-            (void (*)(void*))deleteDeviceDriverVettingClient
-        },
         {
             configName,
             allConfig,
@@ -98,13 +92,20 @@ static DeviceDriverVettingClient GL_object =
  */
 static struct file_operations ddvc_fops =
 {
-    owner:      THIS_MODULE,
-    open:       ddvcOpen,
-    release:    ddvcClose,
-    read:       ddvcRead,
-    write:      ddvcWrite,
-    ioctl:      ddvcIoctl,
-    poll:       ddvcPoll
+    owner:          THIS_MODULE,
+    open:           ddvcOpen,
+    release:        ddvcClose,
+    read:           ddvcRead,
+    write:          ddvcWrite,
+#ifdef HAVE_UNLOCKED_IOCTL
+    unlocked_ioctl: ddvcIoctl,
+#ifdef HAVE_COMPAT_IOCTL
+    compat_ioctl:   ddvcIoctl,
+#endif
+#else
+    ioctl:          ddvcIoctl,
+#endif
+    poll:           ddvcPoll
 };
 
 static struct miscdevice ddvc_dev=
@@ -452,13 +453,19 @@ static ssize_t ddvcWrite(struct file* file, const char* buf, size_t len, loff_t*
     return ret;
 }
 
+#ifdef HAVE_UNLOCKED_IOCTL
+static long ddvcIoctl(struct file* file, unsigned int cmd, unsigned long arg)
+{
+    long ret = -ENOTTY;
+#else
 static int ddvcIoctl(struct inode* inode, struct file* file, unsigned int cmd, unsigned long arg)
 {
+    int ret = -ENOTTY;
+#endif
     IVettingServer* server = GL_object.mServer;
     VettingClient* client = (VettingClient *)file->private_data;
     struct DDVC_State* state;
     struct TalpaProtocolHeader* response = NULL;
-    int ret = -ENOTTY;
 
 
     DDVC_CHECK_SERVER(server);

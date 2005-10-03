@@ -392,7 +392,11 @@ static int __init talpa_syscallhook_init(void)
     orig_close = sys_call_table[__NR_close];
     orig_uselib = sys_call_table[__NR_uselib];
     orig_mount = sys_call_table[__NR_mount];
+#ifdef CONFIG_X86_64
+    orig_umount = sys_call_table[__NR_umount2];
+#else
     orig_umount = sys_call_table[__NR_umount];
+#endif
 #ifdef TALPA_EXECVE_SUPPORT
     orig_execve = sys_call_table[__NR_execve];
 #endif
@@ -419,7 +423,11 @@ static int __init talpa_syscallhook_init(void)
 
     if ( strchr(hook_mask, 'u') )
     {
+#ifdef CONFIG_X86_64
+        sys_call_table[__NR_umount2] = talpa_umount;
+#else
         sys_call_table[__NR_umount] = talpa_umount;
+#endif
     }
 
 #ifdef TALPA_EXECVE_SUPPORT
@@ -457,7 +465,11 @@ static void __exit talpa_syscallhook_exit(void)
     sys_call_table[__NR_close] = orig_close;
     sys_call_table[__NR_uselib] = orig_uselib;
     sys_call_table[__NR_mount] = orig_mount;
+#ifdef CONFIG_X86_64
+    sys_call_table[__NR_umount2] = orig_umount;
+#else
     sys_call_table[__NR_umount] = orig_umount;
+#endif
 #ifdef TALPA_EXECVE_SUPPORT
     sys_call_table[__NR_execve] = orig_execve;
 #endif

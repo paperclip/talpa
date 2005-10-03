@@ -62,7 +62,6 @@ struct DDPEOpenContext
 
 typedef struct tag_DeviceDriverProcessExclusion
 {
-    IDeviceFile                 i_IDeviceFile;
     IConfigurable               i_IConfigurable;
     void                        (*delete)(struct tag_DeviceDriverProcessExclusion* object);
     bool                        (*attach)(void* self);

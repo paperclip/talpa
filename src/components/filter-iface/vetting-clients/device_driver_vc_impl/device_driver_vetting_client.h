@@ -57,7 +57,6 @@ typedef struct {
 
 typedef struct tag_DeviceDriverVettingClient
 {
-    IDeviceFile                 i_IDeviceFile;
     IConfigurable               i_IConfigurable;
     void                        (*delete)(struct tag_DeviceDriverVettingClient* object);
     IVettingServer*             mServer;
