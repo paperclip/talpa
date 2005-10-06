@@ -1153,11 +1153,14 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
         {
             if ( !talpa_path_lookup(dir, TALPA_LOOKUP, &nd) )
             {
+                putname(dir);
                 processMount(nd.mnt, flags);
                 path_release(&nd);
 
                 return;
             }
+
+            putname(dir);
         }
     }
 
