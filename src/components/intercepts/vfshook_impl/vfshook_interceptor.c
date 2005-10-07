@@ -1140,7 +1140,10 @@ out:
 static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
     struct nameidata nd;
+    struct nameidata nd2;
     char* dir;
+    char* page;
+    char* dir2;
 
 
     /* Interception housekeeping work: Patch filesystem?
@@ -1153,11 +1156,30 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
         {
             if ( !talpa_path_lookup(dir, TALPA_LOOKUP, &nd) )
             {
-                putname(dir);
-                processMount(nd.mnt, flags);
-                path_release(&nd);
+                page = (char *)__get_free_page(GFP_KERNEL);
+                if ( page )
+                {
+                    /* Double path resolve. Makes smbmount way of mounting work. */
+                    dir2 = d_path(nd.dentry, nd.mnt, page, PAGE_SIZE);
+                    if ( dir2 )
+                    {
+                       if ( !talpa_path_lookup(dir2, TALPA_LOOKUP, &nd2) )
+                       {
+                            free_page((unsigned long)page);
+                            path_release(&nd);
+                            putname(dir);
 
-                return;
+                            processMount(nd2.mnt, flags);
+                            path_release(&nd2);
+
+                            return;
+                        }
+                    }
+
+                    free_page((unsigned long)page);
+                }
+
+                path_release(&nd);
             }
 
             putname(dir);
