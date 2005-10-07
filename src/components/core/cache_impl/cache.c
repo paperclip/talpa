@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
-#include <asm/div64.h>
 
 #define TALPA_SUBSYS "cache"
 #include "common/talpa.h"
@@ -930,35 +929,11 @@ static const char* config(const void* self, const char* name)
 
         if ( !strcmp(cfgElement->name, CFG_STAT) )
         {
-            unsigned int hitratio = 0;
-            unsigned int fillratio = 0;
-
-            if ( (this->mHits+this->mMisses) > 0 )
-            {
-                unsigned long long h, d;
-
-                h = this->mHits;
-                h *= 100;
-                d = this->mHits;
-                d += this->mMisses;
-                do_div(h, d);
-                hitratio = h;
-            }
-            if ( this->mEntries > 0 )
-            {
-                unsigned long long f, e;
-
-                f = this->mFill;
-                f *= 100;
-                e = this->mEntries;
-                do_div(f, e);
-                fillratio = f;
-            }
-            /* 7 unsigned ints + 75 text chars = 7*10 + 75 = 145 characters.
+            /* 5 unsigned ints + 53 text chars = 5*10 + 53 = 103 characters.
                Although cache size (total, fill) can't be as big as UINT_MAX,
                we will assume it can. Check CACHE_STATDATASIZE if you modify
                something here. */
-            sprintf(cfgElement->value, "Hits: %u, Misses: %u, HitRatio: %u%%\nFill: %u, Replacements: %u, Total: %u, FillRatio: %u%%", this->mHits, this->mMisses, hitratio, this->mFill, this->mReplacement, this->mEntries, fillratio);
+            sprintf(cfgElement->value, "Hits: %u, Misses: %u\nUsed: %u, Replacements: %u, Total: %u", this->mHits, this->mMisses, this->mFill, this->mReplacement, this->mEntries);
         }
         else if ( !strcmp(cfgElement->name, CFG_FSTYPES) )
         {
