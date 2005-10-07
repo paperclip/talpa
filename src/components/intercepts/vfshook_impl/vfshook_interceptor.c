@@ -37,6 +37,8 @@
 #include <linux/namei.h>
 #include <linux/moduleparam.h>
 #endif
+#include <linux/smb_fs.h>
+
 
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -74,6 +76,8 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
 static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 static void talpaPreUmount(char* name, int flags);
 static void talpaPostUmount(int err, char* name, int flags);
+
+static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDirect);
 
 /*
  * Constants
@@ -486,6 +490,63 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     hookExitRv(err);
 }
 
+static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int err = -ESRCH;
+
+
+    hookEntry();
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( inode->i_op == p->i_ops )
+        {
+            patch = getPatch(p);
+            dbg("ioctl on %s", patch->fstype->name);
+            break;
+        }
+    }
+
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+    if ( patch )
+    {
+        if ( patch->ioctl )
+        {
+            err = patch->ioctl(inode, filp, cmd, arg);
+
+            if ( cmd == SMB_IOC_NEWCONN )
+            {
+                if ( !err )
+                {
+                    processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, true);
+                }
+                else
+                {
+                    dbg("smbfs newconn ioctl failed (%d)!", err);
+                }
+            }
+            else
+            {
+                dbg("Unexpected smbmount behaviour!");
+            }
+        }
+        else
+        {
+            err = -ENOTTY;
+            err("smbfs_ioctl unexpectedly missing!");
+        }
+
+        putPatch(patch);
+    }
+
+    hookExitRv(err);
+}
+
 /* Structure which holds info on one entry as we scan the directory tree */
 struct dentryContext
 {
@@ -775,6 +836,7 @@ static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
         patch->f_ops = reg->d_inode->i_fop;
         patch->open = patch->f_ops->open;
         patch->release = patch->f_ops->release;
+        patch->ioctl = patch->f_ops->ioctl;
     }
     /* supermount fs with no media is a special case. We patch inode_lookup to catch
        when media becomes available. */
@@ -815,14 +877,22 @@ static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
     return 0;
 }
 
-static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, struct patchedFilesystem* patch)
+static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, bool smbfs, struct patchedFilesystem* patch)
 {
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( reg )
     {
-        dbg("  patching file operations 0x%p 0x%p", patch->open, patch->release);
-        patch->f_ops->open = talpaOpen;
-        patch->f_ops->release = talpaRelease;
+        if ( !smbfs )
+        {
+            dbg("  patching file operations 0x%p 0x%p (open, release)", patch->open, patch->release);
+            patch->f_ops->open = talpaOpen;
+            patch->f_ops->release = talpaRelease;
+        }
+        else
+        {
+            dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
+            patch->f_ops->ioctl = talpaIoctl;
+        }
         smp_wmb();
     }
     /* supermount fs with no media is a special case. We patch inode_lookup to catch
@@ -851,7 +921,7 @@ static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct den
     return 0;
 }
 
-static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, struct patchedFilesystem* patch)
+static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, bool smbfsDirect, struct patchedFilesystem* patch)
 {
     /* No-op if already patched */
     if ( patch->f_ops && (patch->f_ops->open == talpaOpen) )
@@ -873,6 +943,19 @@ static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
         {
             dbg("  restoring inode lookup operation 0x%p", patch->lookup);
             patch->i_ops->lookup = patch->lookup;
+        }
+
+        if ( smbfsDirect )
+        {
+            dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
+            patch->f_ops->ioctl = patch->ioctl;
+
+            patch->i_ops = reg->d_inode->i_op;
+            patch->f_ops = reg->d_inode->i_fop;
+            patch->open = patch->f_ops->open;
+            patch->release = patch->f_ops->release;
+            patch->ioctl = patch->f_ops->ioctl;
+            smp_wmb();
         }
 
         dbg("  patching file operations 0x%p 0x%p", patch->open, patch->release);
@@ -910,9 +993,10 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
 {
     if ( patch->f_ops )
     {
-        dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
+        dbg("Restoring file operations 0x%p 0x%p 0x%p", patch->open, patch->release, patch->ioctl);
         patch->f_ops->open = patch->open;
         patch->f_ops->release = patch->release;
+        patch->f_ops->ioctl = patch->ioctl;
         smp_wmb();
     }
     else if ( patch->i_ops )
@@ -937,7 +1021,7 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     return 0;
 }
 
-static int processMount(struct vfsmount* mnt, unsigned long flags)
+static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDirect)
 {
     struct patchedFilesystem*   p;
     struct patchedFilesystem*   patch = NULL;
@@ -947,6 +1031,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags)
     int                         ret = -ESRCH;
     bool                        firstOpenFailed = false;
     bool                        supermountWithNoMedia = false;
+    bool                        smbfs = false;
 
 
     /* We don't want to patch some filesystems */
@@ -966,14 +1051,24 @@ static int processMount(struct vfsmount* mnt, unsigned long flags)
        can't do it while holding a lock. */
     newpatch = kmalloc(sizeof(struct patchedFilesystem), GFP_KERNEL);
 
-    /* Try to find one regular file, also before taking the lock. */
-    reg = findRegular(mnt, &firstOpenFailed);
-
-    /* Check if this is a supermount mount point with no media */
-    if ( !reg && firstOpenFailed && !strcmp(mnt->mnt_sb->s_type->name, "supermount") )
+    /* We do not want to search for files on smbfs mounts since
+       they are not ready yet. */
+    if ( !smbfsDirect && !strcmp(mnt->mnt_sb->s_type->name, "smbfs") )
     {
-        supermountWithNoMedia = true;
-        dbg("no media in a supermount mount point!");
+        reg = dget(mnt->mnt_root);
+        smbfs = true;
+    }
+    else
+    {
+        /* Try to find one regular file, also before taking the lock. */
+        reg = findRegular(mnt, &firstOpenFailed);
+
+        /* Check if this is a supermount mount point with no media */
+        if ( !reg && firstOpenFailed && !strcmp(mnt->mnt_sb->s_type->name, "supermount") )
+        {
+            supermountWithNoMedia = true;
+            dbg("no media in a supermount mount point!");
+        }
     }
 
     /* Check if we have already patched this filesystem */
@@ -1016,12 +1111,12 @@ static int processMount(struct vfsmount* mnt, unsigned long flags)
             dbg("processMount: refcnt for %s = %d", patch->fstype->name, atomic_read(&patch->refcnt));
             talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
             /* Actually patch the filesystem */
-            patchFilesystem(mnt, flags, reg, supermountWithNoMedia, patch);
+            patchFilesystem(mnt, flags, reg, supermountWithNoMedia, smbfs, patch);
         }
         else
         {
             /* Re-patch filesystem */
-            repatchFilesystem(mnt, flags, reg, supermountWithNoMedia, patch);
+            repatchFilesystem(mnt, flags, reg, supermountWithNoMedia, smbfsDirect, patch);
         }
     }
     else
@@ -1169,7 +1264,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                             path_release(&nd);
                             putname(dir);
 
-                            processMount(nd2.mnt, flags);
+                            processMount(nd2.mnt, flags, false);
                             path_release(&nd2);
 
                             return;
@@ -1287,7 +1382,7 @@ static void talpaPostUmount(int err, char* name, int flags)
 
             if ( !err )
             {
-                err = processMount(nd.mnt, nd.mnt->mnt_flags);
+                err = processMount(nd.mnt, nd.mnt->mnt_flags, false);
                 path_release(&nd);
             }
             else
@@ -1336,7 +1431,7 @@ static void walkMountTree(void)
     {
         dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_type->name);
 
-        processMount(mnt, mnt->mnt_flags);
+        processMount(mnt, mnt->mnt_flags, false);
 
         spin_lock(&dcache_lock);
 
