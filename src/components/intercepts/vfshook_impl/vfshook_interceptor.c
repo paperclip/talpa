@@ -1431,7 +1431,7 @@ static void walkMountTree(void)
     {
         dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_type->name);
 
-        processMount(mnt, mnt->mnt_flags, false);
+        processMount(mnt, mnt->mnt_flags, true);
 
         spin_lock(&dcache_lock);
 
