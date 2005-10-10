@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.26)
+AC_INIT(talpa, 0.9.27)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2005 Sophos PLC)
 
@@ -46,13 +46,20 @@ AC_ARG_ENABLE(talpa-build,
 
 AC_ARG_WITH(kernel,
             [  --with-kernel=DIR            specify the kernel that should be built against],
-            [AC_SUBST(kerneldir,[$withval])],
-            [AC_SUBST(kerneldir,[/lib/modules/`${UNAME} -r`/build])])
+            [ AC_SUBST(kerneldir,[$withval])
+              AC_SUBST(sourcedir,[$withval]) ],
+            [ kernver=`${UNAME} -r`
+              AC_SUBST(kerneldir,[/lib/modules/${kernver}/build])
+              AC_SUBST(sourcedir,[/lib/modules/${kernver}/source]) ])
 
 AC_ARG_WITH(kernel-include,
             [  --with-kernel-include=DIR:DIR    specify the include path for kernel header files that should be built against],
-            [AC_SUBST(kernelhdrspath,[$withval])],
-            [AC_SUBST(kernelhdrspath,[$kerneldir/include])])
+            [ AC_SUBST(kernelhdrspath,[$withval]) ],
+            [ if test -s ${sourcedir}; then
+                AC_SUBST(kernelhdrspath,[$kerneldir/include:$sourcedir/include])
+              else
+                AC_SUBST(kernelhdrspath,[$kerneldir/include])
+              fi ])
 
 AC_ARG_ENABLE(debug,
               [  --enable-debug                 enable debugging code],
