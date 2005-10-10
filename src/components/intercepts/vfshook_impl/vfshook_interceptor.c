@@ -1382,7 +1382,7 @@ static void talpaPostUmount(int err, char* name, int flags)
 
             if ( !err )
             {
-                err = processMount(nd.mnt, nd.mnt->mnt_flags, false);
+                err = processMount(nd.mnt, nd.mnt->mnt_flags, true);
                 path_release(&nd);
             }
             else
