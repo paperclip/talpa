@@ -667,7 +667,7 @@ rescan:
     {
         if ( !strcmp(dirname, dc->root) )
         {
-            dbg("backed out to root (err)");
+            dbg("backed out to root (err %ld)", PTR_ERR(dc->dir));
             if ( opencount == 0 )
             {
                 *firstOpenFailed = true;
@@ -1064,10 +1064,13 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
         reg = findRegular(mnt, &firstOpenFailed);
 
         /* Check if this is a supermount mount point with no media */
-        if ( !reg && firstOpenFailed && !strcmp(mnt->mnt_sb->s_type->name, "supermount") )
+        if ( !reg &&
+              firstOpenFailed &&
+             ( !strcmp(mnt->mnt_sb->s_type->name, "supermount") ||
+               !strcmp(mnt->mnt_sb->s_type->name, "fuse") ) )
         {
             supermountWithNoMedia = true;
-            dbg("no media in a supermount mount point!");
+            dbg("special case:\n\tno media in a supermounted device\n\tfuse mount");
         }
     }
 
