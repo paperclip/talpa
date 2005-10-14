@@ -437,9 +437,9 @@ def talpa_operation_nonblock(self, args):
             if res != None:
                 args.pop(0)
                 if res:
-                    write_module_var("intercept-filters/OperationExclusionProcessor", "fs-onlyblock", "false")
+                    write_module_var("intercept-filters/OperationExclusionProcessor", "fs-onlyblock", "disable")
                 else:
-                    write_module_var("intercept-filters/OperationExclusionProcessor", "fs-onlyblock", "true")
+                    write_module_var("intercept-filters/OperationExclusionProcessor", "fs-onlyblock", "enable")
 
 def talpa_operation(self, args):
     cmds = { "bool": talpa_bool,
