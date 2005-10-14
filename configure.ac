@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.27)
+AC_INIT(talpa, 0.9.28)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2005 Sophos PLC)
 
