@@ -118,7 +118,7 @@ static inline unsigned long jiffies_to_msecs(unsigned long jiffies)
 
 #else /* version >= 2.6.0 */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7)) || TALPA_HAS_BACKPORTED_JIFFIES
 
 static inline unsigned long msecs_to_jiffies(const unsigned int m)
 {

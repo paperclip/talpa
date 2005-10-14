@@ -121,6 +121,15 @@ AC_ARG_ENABLE(backported-signal,
                 ],
                 [   auto_signalbackport=yes])
 
+AC_ARG_ENABLE(backported-jiffies,
+                [  --enable-backported-jiffies    Updated SLES9 kernel can have features backported from newer versions [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(jiffiesbackport,"-DTALPA_HAS_BACKPORTED_JIFFIES")
+                    fi
+                    auto_jiffiesbackport=no
+                ],
+                [   auto_jiffiesbackport=yes])
+
 AC_ARG_ENABLE(lsm,
                 [  --enable-lsm                   try to build LSM dependent modules [[autodetected]]],
                 [   auto_lsm=no
@@ -498,6 +507,23 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    # Autodetect if msecs_to_jiffies was backported
+    if test $((kern_version_code)) -lt 132615; then
+        if test "$auto_jiffiesbackport" = "yes"; then
+            TALPA_LOCATE_HEADER(linux/time.h, $kernelhdrspath)
+            TALPA_LOCATE_HEADER(linux/jiffies.h, $kernelhdrspath)
+            TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
+            AC_MSG_CHECKING([for backported msecs_to_jiffies])
+            ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/msecstojiffies.c -o /dev/null 1>/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(jiffiesbackport,"-DTALPA_HAS_BACKPORTED_JIFFIES")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+    fi
+
     # Check whether to build LSM related modules
     AC_MSG_CHECKING([for LSM support])
     if test "$auto_lsm" = "yes"; then
@@ -599,6 +625,7 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/Makefile
     ${SED} -i s/@rcubackport@/"${rcubackport}"/ ${srcdir}/Makefile
     ${SED} -i s/@signalbackport@/"${signalbackport}"/ ${srcdir}/Makefile
+    ${SED} -i s/@jiffiesbackport@/"${jiffiesbackport}"/ ${srcdir}/Makefile
     ${SED} -i s/@buildlsm@/"${lsm}"/ ${srcdir}/Makefile
     ${SED} -i s/@lsm265@/"${lsm265}"/ ${srcdir}/Makefile
     ${SED} -i s/@lsm266@/"${lsm266}"/ ${srcdir}/Makefile
