@@ -514,7 +514,7 @@ if test $((kern_version_code)) -ge 132608; then
             TALPA_LOCATE_HEADER(linux/jiffies.h, $kernelhdrspath)
             TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
             AC_MSG_CHECKING([for backported msecs_to_jiffies])
-            ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/msecstojiffies.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default ${srcdir}/tests/configure/msecstojiffies.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(jiffiesbackport,"-DTALPA_HAS_BACKPORTED_JIFFIES")
