@@ -237,6 +237,7 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
     char* interpreter = NULL;
     int rc;
     unsigned int ilen = 0;
+    unsigned int ipos = 0;
 
 
     /* Read the chunk of the file that must contain the hash bang */
@@ -261,16 +262,19 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
         return filename;
     }
     rc--;
+    ipos++;
     if ( !rc || (*buf++ != '!') )
     {
         return filename;
     }
     rc--;
+    ipos++;
     /* Skip whitespace */
     while ( rc && ((*buf == ' ') || (*buf == '\t')) )
     {
         buf++;
         rc--;
+        ipos++;
     }
     /* Abort if string exausted */
     if ( !rc )
@@ -285,10 +289,12 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
         buf++;
         rc--;
         ilen++;
+        ipos++;
     }
 
-    /* Null-terminate if not exausted */
-    if ( rc )
+    /* Null-terminate if there is enough space in the buffer,
+       or return the 'script' name if no interpreter in BINPRM_BUF_SIZE. */
+    if ( ipos <= BINPRM_BUF_SIZE )
     {
         *buf = '\0';
     }
@@ -315,7 +321,7 @@ static inline int examineExecve(char *filename)
     if ( likely(pFile != NULL) )
     {
         IFileInfo* pFInfo;
-        char buf[BINPRM_BUF_SIZE];
+        char buf[BINPRM_BUF_SIZE + 1];
         char* real;
 
 
