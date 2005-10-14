@@ -82,7 +82,8 @@ static asmlinkage long (*orig_uselib)(const char* library);
 static asmlinkage int (*orig_execve)(struct pt_regs regs);
 #endif
 static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-static asmlinkage long (*orig_umount)(char* name, int flags);
+static asmlinkage long (*orig_umount)(char* name);
+static asmlinkage long (*orig_umount2)(char* name, int flags);
 
 /*
  * Hooking mask:
@@ -338,7 +339,37 @@ out:
     return err;
 }
 
-static asmlinkage long talpa_umount(char* name, int flags)
+static asmlinkage long talpa_umount(char* name)
+{
+    struct talpa_syscall_operations* ops;
+    int err;
+
+
+    atomic_inc(&usecnt);
+
+    ops = interceptor;
+
+    if ( likely( ops != NULL ) )
+    {
+        ops->umount_pre(name, 0);
+    }
+
+    err = orig_umount(name);
+
+    if ( likely( ops != NULL ) )
+    {
+        ops->umount_post(err, name, 0);
+    }
+
+    if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
+    {
+        wake_up(&unregister_wait);
+    }
+
+    return err;
+}
+
+static asmlinkage long talpa_umount2(char* name, int flags)
 {
     struct talpa_syscall_operations* ops;
     int err;
@@ -353,7 +384,7 @@ static asmlinkage long talpa_umount(char* name, int flags)
         ops->umount_pre(name, flags);
     }
 
-    err = orig_umount(name, flags);
+    err = orig_umount2(name, flags);
 
     if ( likely( ops != NULL ) )
     {
@@ -392,11 +423,18 @@ static int __init talpa_syscallhook_init(void)
     orig_close = sys_call_table[__NR_close];
     orig_uselib = sys_call_table[__NR_uselib];
     orig_mount = sys_call_table[__NR_mount];
-#ifdef CONFIG_X86_64
-    orig_umount = sys_call_table[__NR_umount2];
-#else
+
+#if defined CONFIG_X86
+ #if defined CONFIG_X86_64
+    orig_umount2 = sys_call_table[__NR_umount2];
+ #else
     orig_umount = sys_call_table[__NR_umount];
+    orig_umount2 = sys_call_table[__NR_umount2];
+ #endif
+#else
+ #error "Architecture currently not supported!"
 #endif
+
 #ifdef TALPA_EXECVE_SUPPORT
     orig_execve = sys_call_table[__NR_execve];
 #endif
@@ -423,10 +461,13 @@ static int __init talpa_syscallhook_init(void)
 
     if ( strchr(hook_mask, 'u') )
     {
-#ifdef CONFIG_X86_64
-        sys_call_table[__NR_umount2] = talpa_umount;
-#else
+#if defined CONFIG_X86
+ #if defined CONFIG_X86_64
+        sys_call_table[__NR_umount2] = talpa_umount2;
+ #else
         sys_call_table[__NR_umount] = talpa_umount;
+        sys_call_table[__NR_umount2] = talpa_umount2;
+ #endif
 #endif
     }
 
@@ -465,11 +506,16 @@ static void __exit talpa_syscallhook_exit(void)
     sys_call_table[__NR_close] = orig_close;
     sys_call_table[__NR_uselib] = orig_uselib;
     sys_call_table[__NR_mount] = orig_mount;
-#ifdef CONFIG_X86_64
-    sys_call_table[__NR_umount2] = orig_umount;
-#else
+
+#if defined CONFIG_X86
+ #if defined CONFIG_X86_64
+    sys_call_table[__NR_umount2] = orig_umount2;
+ #else
     sys_call_table[__NR_umount] = orig_umount;
+    sys_call_table[__NR_umount2] = orig_umount2;
+ #endif
 #endif
+
 #ifdef TALPA_EXECVE_SUPPORT
     sys_call_table[__NR_execve] = orig_execve;
 #endif
