@@ -139,33 +139,6 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
     return;
 }
 
-/* Function below, which finds the hidden system call table,
-   is borrowed from the Dazuko project. It is confirmed to work
-   on both patched 2.4 and vanilla 2.6 kernels. */
-#ifdef TALPA_HIDDEN_SYSCALLS
-void **sys_call_table;
-
-static void** talpa_find_syscall_table(void)
-{
-    unsigned long ptr;
-    extern int loops_per_jiffy;
-    unsigned long *p;
-
-    for ( ptr = (unsigned long)&loops_per_jiffy; ptr < (unsigned long)&boot_cpu_data; ptr += sizeof(void *) )
-    {
-        p = (unsigned long *)ptr;
-        if ( p[6] == (unsigned long)sys_close )
-        {
-            return (void **)p;
-        }
-    }
-
-    return NULL;
-}
-#else
-extern void *sys_call_table[];
-#endif
-
 /*
  * Hooks
  */
@@ -398,6 +371,153 @@ static asmlinkage long talpa_umount2(char* name, int flags)
 
     return err;
 }
+
+/*
+ * System call table helpers
+ */
+
+#ifdef TALPA_HIDDEN_SYSCALLS
+static void **sys_call_table;
+
+/* Code below, which finds the hidden system call table,
+   is borrowed from the ARLA project. It is confirmed to work
+   on 2.6 x86-64 kernels. */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#include <linux/kallsyms.h>
+static void *lower_bound = &kernel_thread;
+#else
+#include <asm/pgtable.h>
+static void *lower_bound = &empty_zero_page;
+#endif
+
+const char * __attribute__((weak)) kallsyms_lookup(unsigned long addr, unsigned long *symbolsize, unsigned long *offset, char **modname, char *namebuf);
+
+static void **get_start_addr(void)
+{
+#ifdef CONFIG_X86_64
+    return (void **)&tasklist_lock - 0x1000;
+#else
+    return (void **)&init_mm;
+#endif
+}
+
+static inline int kallsym_is_equal(unsigned long addr, const char *name)
+{
+    char namebuf[128];
+    const char *retname;
+    unsigned long size, offset;
+    char *modname;
+
+    retname = kallsyms_lookup(addr, &size, &offset, &modname, namebuf);
+    if (retname != NULL && strcmp(name, retname) == 0 && offset == 0)
+        return 1;
+
+    return 0;
+}
+
+static inline int verify(void **p)
+{
+    const int zapped_syscalls[] = {
+#ifdef __NR_break
+        __NR_break,
+#endif
+#ifdef __NR_stty
+        __NR_stty,
+#endif
+#ifdef __NR_gtty
+        __NR_gtty,
+#endif
+#ifdef __NR_ftime
+        __NR_ftime,
+#endif
+#ifdef __NR_prof
+        __NR_prof,
+#endif
+#ifdef __NR_lock
+        __NR_lock,
+#endif
+#ifdef __NR_mpx
+        __NR_mpx,
+#endif
+        0 };
+    const int num_zapped_syscalls =
+        (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
+    const int unique_syscalls[] = {
+        __NR_exit, __NR_mount, __NR_read, __NR_write,
+        __NR_open, __NR_close, __NR_unlink };
+    const int num_unique_syscalls =
+        sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
+    int i, s;
+
+    for (i = 0; i < num_unique_syscalls; i++)
+        for (s = 0; s < 223; s++)
+            if (p[s] == p[unique_syscalls[i]]
+                && s != unique_syscalls[i])
+                return 0;
+
+    for (i = 1; i < num_zapped_syscalls; i++)
+        if (p[zapped_syscalls[i]] != p[zapped_syscalls[0]])
+            return 0;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+    if (p[__NR_close] != (void*)&sys_close)
+        return 0;
+#endif
+
+    if (kallsyms_lookup
+        && (!kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
+            || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")))
+        return 0;
+
+    return 1;
+}
+
+static inline int looks_good(void **p)
+{
+    if (*p <= (void*)lower_bound || *p >= (void*)p)
+        return 0;
+    return 1;
+}
+
+static void **talpa_find_syscall_table(void)
+{
+    void **ptr = get_start_addr();
+    void **limit;
+    void **table = NULL;
+
+    lower_bound = (void*)((unsigned long)lower_bound & ~0xfffff);
+
+    for (limit = ptr + 16 * 1024;
+         ptr < limit && table == NULL; ptr++)
+    {
+        int ok = 1;
+        int i;
+
+        for (i = 0; i < 222; i++) {
+            if (!looks_good(ptr + i)) {
+                ok = 0;
+                ptr = ptr + i;
+                break;
+            }
+        }
+
+        if (ok && verify(ptr)) {
+            table = ptr;
+            break;
+        }
+    }
+
+    if (table == NULL) {
+        return NULL;
+    }
+
+    return table;
+}
+
+#else
+extern void *sys_call_table[];
+#endif
 
 /*
  * Module init and exit
