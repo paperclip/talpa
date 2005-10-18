@@ -82,7 +82,9 @@ static asmlinkage long (*orig_uselib)(const char* library);
 static asmlinkage int (*orig_execve)(struct pt_regs regs);
 #endif
 static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
+#if defined CONFIG_X86 && !defined CONFIG_X86_64
 static asmlinkage long (*orig_umount)(char* name);
+#endif
 static asmlinkage long (*orig_umount2)(char* name, int flags);
 
 /*
@@ -312,6 +314,7 @@ out:
     return err;
 }
 
+#if defined CONFIG_X86 && !defined CONFIG_X86_64
 static asmlinkage long talpa_umount(char* name)
 {
     struct talpa_syscall_operations* ops;
@@ -341,6 +344,7 @@ static asmlinkage long talpa_umount(char* name)
 
     return err;
 }
+#endif
 
 static asmlinkage long talpa_umount2(char* name, int flags)
 {
@@ -381,7 +385,7 @@ static void **sys_call_table;
 
 /* Code below, which finds the hidden system call table,
    is borrowed from the ARLA project. It is confirmed to work
-   on 2.6 x86-64 kernels. */
+   on 2.6 (x86, x86_64) and patched 2.4 (x86) kernels. */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 #include <linux/kallsyms.h>
@@ -409,9 +413,13 @@ static inline int kallsym_is_equal(unsigned long addr, const char *name)
     unsigned long size, offset;
     char *modname;
 
+
     retname = kallsyms_lookup(addr, &size, &offset, &modname, namebuf);
-    if (retname != NULL && strcmp(name, retname) == 0 && offset == 0)
+
+    if ( (retname != NULL) && (strcmp(name, retname) == 0) && (offset == 0) )
+    {
         return 1;
+    }
 
     return 0;
 }
@@ -441,42 +449,55 @@ static inline int verify(void **p)
         __NR_mpx,
 #endif
         0 };
-    const int num_zapped_syscalls =
-        (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
-    const int unique_syscalls[] = {
-        __NR_exit, __NR_mount, __NR_read, __NR_write,
-        __NR_open, __NR_close, __NR_unlink };
-    const int num_unique_syscalls =
-        sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
+    const int num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
+    const int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write,
+                                    __NR_open, __NR_close, __NR_unlink };
+    const int num_unique_syscalls = sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
     int i, s;
 
-    for (i = 0; i < num_unique_syscalls; i++)
-        for (s = 0; s < 223; s++)
-            if (p[s] == p[unique_syscalls[i]]
-                && s != unique_syscalls[i])
-                return 0;
 
-    for (i = 1; i < num_zapped_syscalls; i++)
-        if (p[zapped_syscalls[i]] != p[zapped_syscalls[0]])
+    for ( i = 0; i < num_unique_syscalls; i++ )
+    {
+        for ( s = 0; s < 223; s++ )
+        {
+            if ( (p[s] == p[unique_syscalls[i]]) && (s != unique_syscalls[i]) )
+            {
+                return 0;
+            }
+        }
+    }
+
+    for ( i = 1; i < num_zapped_syscalls; i++ )
+    {
+        if ( p[zapped_syscalls[i]] != p[zapped_syscalls[0]] )
+        {
             return 0;
+        }
+    }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    if (p[__NR_close] != (void*)&sys_close)
+    if ( p[__NR_close] != (void*)&sys_close )
+    {
         return 0;
+    }
 #endif
 
-    if (kallsyms_lookup
-        && (!kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
-            || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")))
+    if ( kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
+                             || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
+    {
         return 0;
+    }
 
     return 1;
 }
 
 static inline int looks_good(void **p)
 {
-    if (*p <= (void*)lower_bound || *p >= (void*)p)
+    if ( (*p <= (void*)lower_bound) || (*p >= (void*)p) )
+    {
         return 0;
+    }
+
     return 1;
 }
 
@@ -486,29 +507,34 @@ static void **talpa_find_syscall_table(void)
     void **limit;
     void **table = NULL;
 
+
     lower_bound = (void*)((unsigned long)lower_bound & ~0xfffff);
 
-    for (limit = ptr + 16 * 1024;
-         ptr < limit && table == NULL; ptr++)
+    for ( limit = ptr + 16 * 1024; ptr < limit && table == NULL; ptr++ )
     {
         int ok = 1;
         int i;
 
-        for (i = 0; i < 222; i++) {
-            if (!looks_good(ptr + i)) {
+
+        for ( i = 0; i < 222; i++ )
+        {
+            if ( !looks_good(ptr + i) )
+            {
                 ok = 0;
                 ptr = ptr + i;
                 break;
             }
         }
 
-        if (ok && verify(ptr)) {
+        if ( ok && verify(ptr) )
+        {
             table = ptr;
             break;
         }
     }
 
-    if (table == NULL) {
+    if ( table == NULL )
+    {
         return NULL;
     }
 
