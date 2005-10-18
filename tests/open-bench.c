@@ -17,39 +17,42 @@
  *
  */
 
-#include <stdio.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/mount.h>
-
+#include <string.h>
+#include <time.h>
+#include <stdio.h>
 
 int main(int argc, char *argv[])
 {
-    unsigned int loops = 2000000;
-    int fd;
-    time_t start;
-    time_t end;
+    char *file = "/bin/ls";
+    unsigned int loops = 1000000;
+    char *arg;
+    unsigned int pos = 1;
 
-
-    if ( argc == 2 )
+    for ( ; argc > 1 ; pos++, argc-- )
     {
-        loops = atoi(argv[1]);
+        arg = argv[pos];
+        if ( !strncmp(arg, "-f", 2) )
+        {
+            arg += 2;
+            file = arg;
+        }
+        else if ( !strncmp(arg, "-l", 2) )
+        {
+            arg += 2;
+            loops = atol(arg);
+        }
     }
 
-    start = time(NULL);
-    while ( time(NULL) == start );
-    start = time(NULL);
     while ( loops-- )
     {
-        fd = open("/bin/ls", O_RDONLY);
-        close(fd);
+        close(open(file, O_RDONLY));
     }
-    end = time(NULL);
 
-    printf("%d seconds\n", end - start);
+    printf("%4.2fs\n", (float)clock() / (float)CLOCKS_PER_SEC);
 
     return 0;
 }
