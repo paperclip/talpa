@@ -29,8 +29,6 @@
 
 #include "vc.h"
 
-#define SCANFILE
-
 
 int run = 1;
 
