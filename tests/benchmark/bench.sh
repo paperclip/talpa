@@ -20,10 +20,26 @@ rmmod="/sbin/rmmod"
 
 openclose="./open-bench"
 
-open_file="/bin/ls"
-open_loops=1000
-nr_runs=1
 nr_cpus=`grep "processor" /proc/cpuinfo | wc -l`
+
+
+if [ -z $FILE ]; then
+    open_file="/bin/ls"
+else
+    open_file=$FILE
+fi
+
+if [ -z $LOOPS ]; then
+    open_loops=100000
+else
+    open_loops=$LOOPS
+fi
+
+if [ -z $RUNS ]; then
+    nr_runs=3
+else
+    nr_runs=$RUNS
+fi
 
 if grep "Linux version 2.6." /proc/version >/dev/null; then
     kernel=2.6
