@@ -92,10 +92,10 @@ function talpa_unload()
 
 function talpa_load_core()
 {
-    $insmod ../talpa_linux.$ko
-    $insmod ../talpa_core.$ko
-    $insmod ../talpa_vcdevice.$ko
-    $insmod ../talpa_pedevice.$ko
+    $insmod ../../talpa_linux.$ko
+    $insmod ../../talpa_core.$ko
+    $insmod ../../talpa_vcdevice.$ko
+    $insmod ../../talpa_pedevice.$ko
 }
 
 function open_close()
@@ -222,16 +222,16 @@ for interceptor in $interceptors; do
 
     if [ $interceptor = "syscall" -o $interceptor = "vfshook" ]; then
         if [ $interceptor = "syscall" ]; then
-            $insmod ../talpa_syscallhook.$ko
+            $insmod ../../talpa_syscallhook.$ko
         fi
         if [ $interceptor = "vfshook" ]; then
-            $insmod ../talpa_syscallhook.$ko hook_mask=mu
+            $insmod ../../talpa_syscallhook.$ko hook_mask=mu
         fi
 
         open_close_test "Hooked kernel"
     fi
 
-    $insmod ../talpa_$interceptor.$ko
+    $insmod ../../talpa_$interceptor.$ko
     talpa_no_close_interception
 
     open_close_test "Interceptor loaded ($interceptor)"
