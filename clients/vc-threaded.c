@@ -29,7 +29,6 @@
 
 #include "vc.h"
 
-#define SCANFILE
 
 struct vc_thread
 {
