@@ -697,7 +697,7 @@ fi
 #
 # Output.
 #
-AC_OUTPUT([makefile clients/Makefile tests/Makefile tests/modules/makefile])
+AC_OUTPUT([makefile clients/Makefile tests/Makefile tests/modules/makefile tests/benchmark/Makefile])
 
 if test "$syscalls_unknown" = "yes"; then
     echo -e "\nFailed to autodetect syscall table status - defaulting to exported.\nUse separate --with-kernel and --with-kernel-include, or set --enable-hidden-syscall-table.\n"
