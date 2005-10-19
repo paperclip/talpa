@@ -176,12 +176,18 @@ function vetting_test()
     vc=./vc
 
     if [ $# -gt 0 ]; then
-        if [ $1 = "cache" ]; then
-            extra=", cache enabled"
-            fs=`stat -f $open_file | grep "Type:" | cut -d ':' -f 4 | cut -d ' ' -f 2`
-            echo enable >/proc/sys/talpa/intercept-filters/Cache/status
-            echo "+$fs" >/proc/sys/talpa/intercept-filters/Cache/fstypes
-        fi
+        case $1 in
+            "cache")
+                extra=", cache enabled"
+                fs=`stat -f $open_file | grep "Type:" | cut -d ':' -f 4 | cut -d ' ' -f 2`
+                echo enable >/proc/sys/talpa/intercept-filters/Cache/status
+                echo "+$fs" >/proc/sys/talpa/intercept-filters/Cache/fstypes
+                ;;
+            "scan")
+                extra=", scanning enabled"
+                vc=./vc-scan
+                echo disable >/proc/sys/talpa/intercept-filters/Cache/status
+        esac
     fi
 
     let spawn=1
@@ -240,6 +246,8 @@ for interceptor in $interceptors; do
     open_close_test "Interceptor enabled ($interceptor), filters default"
 
     vetting_test
+
+    vetting_test "scan"
 
     vetting_test "cache"
 
