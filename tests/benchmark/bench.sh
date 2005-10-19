@@ -258,8 +258,10 @@ for interceptor in $interceptors; do
     open_close_test "Filters enabled"
 
     talpa_disable_interceptors
-    $rmmod talpa_$interceptor.$ko
-
+    $rmmod talpa_$interceptor
+    if [ $interceptor = "syscall" -o $interceptor = "vfshook" ]; then
+        $rmmod talpa_syscallhook 2>/dev/null
+    fi
 done
 
 talpa_unload
