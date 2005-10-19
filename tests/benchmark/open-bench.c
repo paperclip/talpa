@@ -24,6 +24,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+#include <sys/times.h>
 
 int main(int argc, char *argv[])
 {
@@ -31,6 +32,12 @@ int main(int argc, char *argv[])
     unsigned int loops = 1000000;
     char *arg;
     unsigned int pos = 1;
+    struct tms times1, times2;
+    struct timeval tv1, tv2;
+    long cps;
+
+
+    cps = sysconf(_SC_CLK_TCK);
 
     for ( ; argc > 1 ; pos++, argc-- )
     {
@@ -47,12 +54,22 @@ int main(int argc, char *argv[])
         }
     }
 
+    gettimeofday(&tv1, NULL);
+    times(&times1);
     while ( loops-- )
     {
         close(open(file, O_RDONLY));
     }
+    times(&times2);
+    gettimeofday(&tv2, NULL);
 
-    printf("%4.2fs\n", (float)clock() / (float)CLOCKS_PER_SEC);
+    times2.tms_utime -= times1.tms_utime;
+    times2.tms_stime -= times1.tms_stime;
+
+    tv2.tv_sec -= tv1.tv_sec;
+    tv2.tv_usec -= tv1.tv_usec;
+
+    printf("%.3f-[%.3f/%.3f]\n", (float)tv2.tv_sec + (float)tv2.tv_usec/1000000.0, (float)times2.tms_utime / (float)cps, (float)times2.tms_stime / (float)cps);
 
     return 0;
 }
