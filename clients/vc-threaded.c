@@ -26,6 +26,7 @@
 #include <sys/mount.h>
 #include <pthread.h>
 #include <signal.h>
+#include <malloc.h>
 
 #include "vc.h"
 

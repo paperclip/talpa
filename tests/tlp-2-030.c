@@ -24,6 +24,8 @@
 #include <sys/mount.h>
 #include <linux/unistd.h>
 #include <syscall.h>
+#include <malloc.h>
+
 
 #include "tlp-test.h"
 #include "modules/tlp-test.h"

@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/poll.h>
+#include <malloc.h>
 
 #include "vc.h"
 
