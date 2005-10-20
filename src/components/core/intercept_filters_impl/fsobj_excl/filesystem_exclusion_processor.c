@@ -78,7 +78,7 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteFilesystemExclusionProcessor
         },
         {
@@ -86,7 +86,7 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteFilesystemExclusionProcessor
         },
         deleteFilesystemExclusionProcessor,
@@ -99,13 +99,13 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
         TALPA_LIST_HEAD_INIT(template_FilesystemExclusionProcessor.mMountFilesystems),
         (TALPA_SOCK | TALPA_LNK | TALPA_BLK | TALPA_DIR | TALPA_CHR | TALPA_FIFO),
         {
-            {0, 0, FSEXCPROC_CFGDATASIZE, true, true },
-            {0, 0, PATH_MAX, true, false },
-            {0, 0, FSEXCPROC_FSCFGDATASIZE, true, false },
-            {0, 0, FSEXCPROC_CFGDATASIZE, true, false },
-            {0, 0, PATH_MAX, true, false },
-            {0, 0, FSEXCPROC_FSCFGDATASIZE, true, false },
-            {0, 0, 0, false, false }
+            {NULL, NULL, FSEXCPROC_CFGDATASIZE, true, true },
+            {NULL, NULL, PATH_MAX, true, false },
+            {NULL, NULL, FSEXCPROC_FSCFGDATASIZE, true, false },
+            {NULL, NULL, FSEXCPROC_CFGDATASIZE, true, false },
+            {NULL, NULL, PATH_MAX, true, false },
+            {NULL, NULL, FSEXCPROC_FSCFGDATASIZE, true, false },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }
@@ -143,7 +143,7 @@ FilesystemExclusionProcessor* newFilesystemExclusionProcessor(void)
 
 
     object = kmalloc(sizeof(template_FilesystemExclusionProcessor), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_FilesystemExclusionProcessor, sizeof(template_FilesystemExclusionProcessor));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
@@ -548,7 +548,7 @@ try_alloc:
 static void destroyStringSet(void *self, char **set)
 {
     kfree(*set);
-    *set = 0;
+    *set = NULL;
     return;
 }
 
@@ -727,7 +727,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -738,7 +738,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         char* retstring = cfgElement->value;
 
@@ -797,7 +797,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -808,7 +808,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

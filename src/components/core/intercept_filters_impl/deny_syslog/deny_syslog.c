@@ -60,7 +60,7 @@ static DenySyslogFilter template_DenySyslogFilter =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteDenySyslogFilter
         },
         {
@@ -68,7 +68,7 @@ static DenySyslogFilter template_DenySyslogFilter =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteDenySyslogFilter
         },
         deleteDenySyslogFilter,
@@ -76,8 +76,8 @@ static DenySyslogFilter template_DenySyslogFilter =
         true,
         "DenySyslog",
         {
-            {0, 0, DENYSYSLOGFILTER_CFGDATASIZE, true, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, DENYSYSLOGFILTER_CFGDATASIZE, true, true },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }
@@ -97,7 +97,7 @@ DenySyslogFilter* newDenySyslogFilter(const char *name)
 
 
     object = kmalloc(sizeof(template_DenySyslogFilter), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_DenySyslogFilter, sizeof(template_DenySyslogFilter));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
@@ -268,7 +268,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -279,7 +279,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }
@@ -294,7 +294,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -305,7 +305,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

@@ -53,7 +53,7 @@ static EvaluationReportImpl template_EvaluationReportImpl =
             setErrorCode,
             hasBeenExternallyVetted,
             externallyVetted,
-            0,
+            NULL,
             (void (*)(void*))deleteEvaluationReportImpl
         },
         deleteEvaluationReportImpl,
@@ -76,7 +76,7 @@ EvaluationReportImpl* newEvaluationReportImpl(int current_timeouts)
 
 
     object = kmalloc(sizeof(template_EvaluationReportImpl), GFP_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         memcpy(object, &template_EvaluationReportImpl, sizeof(template_EvaluationReportImpl));
         object->i_IEvaluationReport.object = object;
@@ -90,25 +90,22 @@ EvaluationReportImpl* newEvaluationReportImpl(int current_timeouts)
 
 static void deleteEvaluationReportImpl(struct tag_EvaluationReportImpl* object)
 {
-    /*
-     * We are responsible for the custom data.....so we do need to destroy them.
-     */
-    if ( likely( object != 0 ))
+    if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( atomic_dec_and_test(&object->mRefCnt) )
+        talpa_list_head*   posptr;
+        talpa_list_head*   nptr;
+
+
+        /*
+        * We are responsible for the custom data.....so we do need to destroy them.
+        */
+        talpa_list_for_each_safe(posptr, nptr, &object->mCustom)
         {
-            talpa_list_head*   posptr;
-            talpa_list_head*   nptr;
-
-
-            talpa_list_for_each_safe(posptr, nptr, &object->mCustom)
-            {
-                talpa_list_del(posptr);
-                kfree(talpa_list_entry(posptr, EvaluationStorage, list)->data);
-                kfree(talpa_list_entry(posptr, EvaluationStorage, list));
-            }
-            kfree(object);
+            talpa_list_del(posptr);
+            kfree(talpa_list_entry(posptr, EvaluationStorage, list)->data);
+            kfree(talpa_list_entry(posptr, EvaluationStorage, list));
         }
+        kfree(object);
     }
     return;
 }

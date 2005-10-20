@@ -64,19 +64,19 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 /*
  * Instance data.
  */
-static StandardInterceptProcessor*      mProcessor        = 0;
-static SyslogFilter*                    mDebugSyslog      = 0;
-static DenySyslogFilter*                mDenySyslog       = 0;
-static FilesystemInclusionProcessor*    mInclusion        = 0;
-static FilesystemExclusionProcessor*    mExclusion        = 0;
-static OperationExclusionProcessor*     mOpExcl           = 0;
-static ProcessExclusionProcessor*       mProcExcl         = 0;
-static DegradedModeProcessor*           mDegrMode         = 0;
-static VettingController*               mVetCtrl          = 0;
-static Cache*                           mCache            = 0;
-static CacheEval*                       mCacheEval        = 0;
-static CacheAllow*                      mCacheAllow       = 0;
-static CacheDeny*                       mCacheDeny        = 0;
+static StandardInterceptProcessor*      mProcessor;
+static SyslogFilter*                    mDebugSyslog;
+static DenySyslogFilter*                mDenySyslog;
+static FilesystemInclusionProcessor*    mInclusion;
+static FilesystemExclusionProcessor*    mExclusion;
+static OperationExclusionProcessor*     mOpExcl;
+static ProcessExclusionProcessor*       mProcExcl;
+static DegradedModeProcessor*           mDegrMode;
+static VettingController*               mVetCtrl;
+static Cache*                           mCache;
+static CacheEval*                       mCacheEval;
+static CacheAllow*                      mCacheAllow;
+static CacheDeny*                       mCacheDeny;
 
 static IConfigurator*                   mConfig;
 
@@ -186,7 +186,7 @@ static int __init talpa_core_init(void)
      */
 
     mConfig = TALPA_Portability()->configurator();
-    if ( mConfig == 0 )
+    if ( !mConfig )
     {
         err("Failed to obtain configurator!");
         return -ENOENT;
@@ -196,7 +196,7 @@ static int __init talpa_core_init(void)
      * Create the InterceptProcessor.
      */
     mProcessor = newStandardInterceptProcessor();
-    if (mProcessor == 0)
+    if ( !mProcessor )
     {
         err("Failed to create processor!");
         return -ENOMEM;
@@ -206,7 +206,7 @@ static int __init talpa_core_init(void)
      * Create the VettingController.
      */
     mVetCtrl = newVettingController();
-    if (mVetCtrl == 0)
+    if ( !mVetCtrl )
     {
         err("Failed to create vetting controller!");
         goto failed;
@@ -216,7 +216,7 @@ static int __init talpa_core_init(void)
      * Create the FilesystemInclusionProcessor.
      */
     mInclusion = newFilesystemInclusionProcessor();
-    if (mInclusion == 0)
+    if ( !mInclusion )
     {
         err("Failed to create filesystem inclusion processor!");
         goto failed;
@@ -226,7 +226,7 @@ static int __init talpa_core_init(void)
      * Create the FilesystemExclusionProcessor.
      */
     mExclusion = newFilesystemExclusionProcessor();
-    if (mExclusion == 0)
+    if ( !mExclusion )
     {
         err("Failed to create filesystem exclusion processor!");
         goto failed;
@@ -236,63 +236,63 @@ static int __init talpa_core_init(void)
      * Create the filters.
      */
     mDebugSyslog = newSyslogFilter("DebugSyslog");
-    if (mDebugSyslog == 0)
+    if ( !mDebugSyslog )
     {
         err("Failed to create debug syslog filter!");
         goto failed;
     }
 
     mDenySyslog = newDenySyslogFilter("DenySyslog");
-    if (mDenySyslog == 0)
+    if ( !mDenySyslog )
     {
         err("Failed to create deny syslog filter!");
         goto failed;
     }
 
     mOpExcl = newOperationExclusionProcessor();
-    if (mOpExcl == 0)
+    if ( !mOpExcl )
     {
         err("Failed to create operation exclusion processor!");
         goto failed;
     }
 
     mCache = newCache();
-    if (mCache == 0)
+    if ( !mCache )
     {
         err("Failed to create cache!");
         goto failed;
     }
 
     mCacheEval = newCacheEval(&mCache->i_ICache);
-    if (mCacheEval == 0)
+    if ( !mCacheEval )
     {
         err("Failed to create cache eval!");
         goto failed;
     }
 
     mCacheAllow = newCacheAllow(&mCache->i_ICache);
-    if (mCacheAllow == 0)
+    if ( !mCacheAllow )
     {
         err("Failed to create cache allow!");
         goto failed;
     }
 
     mCacheDeny = newCacheDeny(&mCache->i_ICache);
-    if (mCacheDeny == 0)
+    if ( !mCacheDeny )
     {
         err("Failed to create cache deny!");
         goto failed;
     }
 
     mProcExcl = newProcessExclusionProcessor();
-    if (mProcExcl == 0)
+    if ( !mProcExcl )
     {
         err("Failed to create process exclusion processor!");
         goto failed;
     }
 
     mDegrMode = newDegradedModeProcessor();
-    if (mDegrMode == 0)
+    if ( !mDegrMode )
     {
         err("Failed to create degraded mode processor!");
         goto failed;
@@ -321,7 +321,9 @@ static int __init talpa_core_init(void)
     mProcessor->i_IInterceptProcessor.addEvaluationFilter(mProcessor, &mProcExcl->i_IInterceptFilter);
     mProcessor->i_IInterceptProcessor.addEvaluationFilter(mProcessor, &mDegrMode->i_IInterceptFilter);
     mProcessor->i_IInterceptProcessor.addEvaluationFilter(mProcessor, &mVetCtrl->i_IInterceptFilter);
+
     mProcessor->i_IInterceptProcessor.addAllowFilter(mProcessor, &mCacheAllow->i_IInterceptFilter);
+
     mProcessor->i_IInterceptProcessor.addDenyFilter(mProcessor, &mCacheDeny->i_IInterceptFilter);
     mProcessor->i_IInterceptProcessor.addDenyFilter(mProcessor, &mDenySyslog->i_IInterceptFilter);
 
@@ -364,59 +366,27 @@ static void __exit talpa_core_exit(void)
     inter_module_unregister("TALPA_Core");
 #endif
 
-    if (mConfig != 0)
-    {
-        if ( mDegrMode )
-        {
-            dbg("Detaching Degraded Mode Processor configurator");
-            mConfig->detach(mConfig->object, &mDegrMode->i_IConfigurable);
-        }
-        if ( mProcExcl )
-        {
-            dbg("Detaching Process Exclusion Processor configurator");
-            mConfig->detach(mConfig->object, &mProcExcl->i_IConfigurable);
-        }
-        if ( mVetCtrl )
-        {
-            dbg("Detaching Vetting Controller configurator");
-            mConfig->detach(mConfig->object, &mVetCtrl->i_IConfigurable);
-        }
-        if ( mCache )
-        {
-            dbg("Detaching Cache configurator");
-            mConfig->detach(mConfig->object, &mCache->i_IConfigurable);
-        }
-        if ( mOpExcl )
-        {
-            dbg("Detaching Operation Exclusion Processor configurator");
-            mConfig->detach(mConfig->object, &mOpExcl->i_IConfigurable);
-        }
-        if ( mExclusion )
-        {
-            dbg("Detaching Filesystem Exclusion Processor configurator");
-            mConfig->detach(mConfig->object, &mExclusion->i_IConfigurable);
-        }
-        if ( mInclusion )
-        {
-            dbg("Detaching Filesystem Inclusion Processor configurator");
-            mConfig->detach(mConfig->object, &mInclusion->i_IConfigurable);
-        }
-        if ( mDebugSyslog )
-        {
-            dbg("Detaching Debug Syslog configurator");
-            mConfig->detach(mConfig->object, &mDebugSyslog->i_IConfigurable);
-        }
-        if ( mDenySyslog )
-        {
-            dbg("Detaching Deny Syslog configurator");
-            mConfig->detach(mConfig->object, &mDenySyslog->i_IConfigurable);
-        }
-        if ( mProcessor )
-        {
-            dbg("Detaching Processor configurator");
-            mConfig->detach(mConfig->object, &mProcessor->i_IConfigurable);
-        }
-    }
+    dbg("Detaching Degraded Mode Processor configurator");
+    mConfig->detach(mConfig->object, &mDegrMode->i_IConfigurable);
+    dbg("Detaching Process Exclusion Processor configurator");
+    mConfig->detach(mConfig->object, &mProcExcl->i_IConfigurable);
+    dbg("Detaching Vetting Controller configurator");
+    mConfig->detach(mConfig->object, &mVetCtrl->i_IConfigurable);
+    dbg("Detaching Cache configurator");
+    mConfig->detach(mConfig->object, &mCache->i_IConfigurable);
+    dbg("Detaching Operation Exclusion Processor configurator");
+    mConfig->detach(mConfig->object, &mOpExcl->i_IConfigurable);
+    dbg("Detaching Filesystem Exclusion Processor configurator");
+    mConfig->detach(mConfig->object, &mExclusion->i_IConfigurable);
+    dbg("Detaching Filesystem Inclusion Processor configurator");
+    mConfig->detach(mConfig->object, &mInclusion->i_IConfigurable);
+    dbg("Detaching Debug Syslog configurator");
+    mConfig->detach(mConfig->object, &mDebugSyslog->i_IConfigurable);
+    dbg("Detaching Deny Syslog configurator");
+    mConfig->detach(mConfig->object, &mDenySyslog->i_IConfigurable);
+    dbg("Detaching Processor configurator");
+    mConfig->detach(mConfig->object, &mProcessor->i_IConfigurable);
+
     deleteGlobals();
     dbg("Unloaded");
     return;

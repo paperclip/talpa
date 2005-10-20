@@ -109,7 +109,7 @@ static int __init talpa_linux_init(void)
 
     mConfig = newProcfsConfigurator();
 
-    if (mConfig == 0)
+    if ( !mConfig )
     {
         err("Failed to create configurator!");
         return -ENOMEM;
@@ -117,7 +117,7 @@ static int __init talpa_linux_init(void)
 
     mSystemRoot = newLinuxSystemRoot();
 
-    if (mSystemRoot == 0)
+    if ( !mSystemRoot )
     {
         err("Failed to create system root!");
         mConfig->delete(mConfig);

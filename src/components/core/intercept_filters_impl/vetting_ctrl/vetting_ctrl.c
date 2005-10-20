@@ -111,7 +111,7 @@ static VettingController template_VettingController =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteVettingController
         },
         {
@@ -137,7 +137,7 @@ static VettingController template_VettingController =
             streamWriteAt,
             streamUnlinkFile,
             streamTruncate,
-            0,
+            NULL,
             (void (*)(void*))deleteVettingController
         },
         {
@@ -145,7 +145,7 @@ static VettingController template_VettingController =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteVettingController
         },
         deleteVettingController,
@@ -167,12 +167,12 @@ static VettingController template_VettingController =
         NULL,
 
         {
-            {0, 0, VETCTRL_CFGDATASIZE, true, true },
-            {0, 0, VETCTRL_CFGDATASIZE, true, true },
-            {0, 0, VETCTRL_CFGDATASIZE, true, true },
-            {0, 0, PATH_MAX, true, false },
-            {0, 0, VETCTRL_CFGDATASIZE, true, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            {NULL, NULL, PATH_MAX, true, false },
+            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }
@@ -206,7 +206,7 @@ VettingController* newVettingController(void)
 
 
     object = kmalloc(sizeof(template_VettingController), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         unsigned int group;
 
@@ -253,23 +253,21 @@ VettingController* newVettingController(void)
 
 static void deleteVettingController(struct tag_VettingController* object)
 {
-    if (object != 0)
+    VetCtrlConfigObject *obj, *tmp;
+
+    talpa_rcu_synchronize();
+
+    talpa_rcu_write_lock(&object->mConfigLock);
+    talpa_list_for_each_entry_safe(obj, tmp, &object->mRoutings, head)
     {
-        VetCtrlConfigObject *obj, *tmp;
-
-        talpa_rcu_synchronize();
-
-        talpa_rcu_write_lock(&object->mConfigLock);
-        talpa_list_for_each_entry_safe(obj, tmp, &object->mRoutings, head)
-        {
-            talpa_list_del(&obj->head);
-            freeObject(obj);
-        }
-        kfree(object->mRoutingsSet);
-        talpa_rcu_write_unlock(&object->mConfigLock);
-
-        kfree(object);
+        talpa_list_del(&obj->head);
+        freeObject(obj);
     }
+    kfree(object->mRoutingsSet);
+    talpa_rcu_write_unlock(&object->mConfigLock);
+
+    kfree(object);
+
     return;
 }
 
@@ -1075,7 +1073,7 @@ try_alloc:
 static void destroyStringSet(void *self, char **set)
 {
     kfree(*set);
-    *set = 0;
+    *set = NULL;
     return;
 }
 
@@ -2217,7 +2215,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -2228,7 +2226,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         char* retstring = cfgElement->value;
 
@@ -2259,7 +2257,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -2270,7 +2268,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

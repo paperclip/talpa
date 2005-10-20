@@ -34,7 +34,7 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
-static DeviceDriverVettingClient*   mClient = NULL;
+static DeviceDriverVettingClient*   mClient;
 
 
 static int __init talpa_vcdevice_init(void)
@@ -44,7 +44,7 @@ static int __init talpa_vcdevice_init(void)
 
     /* Create a new client */
     mClient = newDeviceDriverVettingClient(TALPA_Core()->vettingServer());
-    if (mClient == 0)
+    if ( !mClient )
     {
         err("Failed to create client!");
         return -ENOMEM;

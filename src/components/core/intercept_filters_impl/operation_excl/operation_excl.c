@@ -61,7 +61,7 @@ static OperationExclusionProcessor template_OperationExclusionProcessor =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteOperationExclusionProcessor
         },
         {
@@ -69,7 +69,7 @@ static OperationExclusionProcessor template_OperationExclusionProcessor =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteOperationExclusionProcessor
         },
         deleteOperationExclusionProcessor,
@@ -77,9 +77,9 @@ static OperationExclusionProcessor template_OperationExclusionProcessor =
         true,
         TALPA_MUTEX_INIT,
         {
-            {0, 0, OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE, true, true },
-            {0, 0, OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE, true, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE, true, true },
+            {NULL, NULL, OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE, true, true },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }
@@ -102,7 +102,7 @@ OperationExclusionProcessor* newOperationExclusionProcessor(void)
 
 
     object = kmalloc(sizeof(template_OperationExclusionProcessor), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_OperationExclusionProcessor, sizeof(template_OperationExclusionProcessor));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
@@ -235,7 +235,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -246,7 +246,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }
@@ -261,7 +261,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -272,7 +272,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

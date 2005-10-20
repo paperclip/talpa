@@ -81,7 +81,7 @@ static Cache template_Cache =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteCache
         },
         {
@@ -89,7 +89,7 @@ static Cache template_Cache =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteCache
         },
         deleteCache,
@@ -109,11 +109,11 @@ static Cache template_Cache =
         { },
         NULL,
         {
-            {0, 0, CACHE_CFGDATASIZE, true, true },
-            {0, 0, CACHE_STATDATASIZE, false, true },
-            {0, 0, CACHE_FSCFGDATASIZE, true, true },
-            {0, 0, CACHE_PARAMSCFGDATASIZE, true, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, CACHE_CFGDATASIZE, true, true },
+            {NULL, NULL, CACHE_STATDATASIZE, false, true },
+            {NULL, NULL, CACHE_FSCFGDATASIZE, true, true },
+            {NULL, NULL, CACHE_PARAMSCFGDATASIZE, true, true },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_DISABLED }
@@ -139,7 +139,7 @@ Cache* newCache(void)
 
 
     object = kmalloc(sizeof(template_Cache), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         unsigned int i;
 
@@ -229,24 +229,22 @@ static void freeCache(void* self)
 
 static void deleteCache(struct tag_Cache* object)
 {
-    if (object != 0)
+    CacheConfigObject *obj, *tmp;
+
+    talpa_rcu_synchronize();
+
+    talpa_rcu_write_lock(&object->mConfigLock);
+    talpa_list_for_each_entry_safe(obj, tmp, &object->mFilesystems, head)
     {
-        CacheConfigObject *obj, *tmp;
-
-        talpa_rcu_synchronize();
-
-        talpa_rcu_write_lock(&object->mConfigLock);
-        talpa_list_for_each_entry_safe(obj, tmp, &object->mFilesystems, head)
-        {
-            talpa_list_del(&obj->head);
-            freeObject(obj);
-        }
-        kfree(object->mFilesystemsSet);
-        talpa_rcu_write_unlock(&object->mConfigLock);
-
-        freeCache(object);
-        kfree(object);
+        talpa_list_del(&obj->head);
+        freeObject(obj);
     }
+    kfree(object->mFilesystemsSet);
+    talpa_rcu_write_unlock(&object->mConfigLock);
+
+    freeCache(object);
+    kfree(object);
+
     return;
 }
 
@@ -566,7 +564,7 @@ try_alloc:
 static void destroyStringSet(void *self, char **set)
 {
     kfree(*set);
-    *set = 0;
+    *set = NULL;
     return;
 }
 
@@ -909,7 +907,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -920,7 +918,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         char* retstring = cfgElement->value;
 
@@ -959,7 +957,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -970,7 +968,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

@@ -46,7 +46,7 @@ static CacheEval template_CacheEval =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteCacheEval
         },
         deleteCacheEval,
@@ -63,7 +63,7 @@ CacheEval* newCacheEval(ICache* cache)
 
 
     object = kmalloc(sizeof(template_CacheEval), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_CacheEval, sizeof(template_CacheEval));
         object->i_IInterceptFilter.object = object;

@@ -137,7 +137,7 @@ static VFSHookInterceptor GL_object =
             {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, VFSHOOK_CFGDATASIZE, true, true },
             {GL_object.mOpsConfigData[0].name, GL_object.mOpsConfigData[0].value, VFSHOOK_OPSCFGDATASIZE, true, false },
             {GL_object.mFSConfigData[0].name, GL_object.mFSConfigData[0].value, VFSHOOK_FSCFGDATASIZE, true, false },
-            {0, 0, 0, false, false }
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_DISABLED }
@@ -1639,12 +1639,6 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
 
     dbg("destructor");
 
-    if (object == 0)
-    {
-        critical("Destructor got an empty object!");
-        return;
-    }
-
     talpa_mutex_lock(&object->mSemaphore);
 
     if ( !object->mInitialized )
@@ -1795,7 +1789,7 @@ try_alloc:
 static void destroyStringSet(void *self, char **set)
 {
     kfree(*set);
-    *set = 0;
+    *set = NULL;
     return;
 }
 
@@ -2036,7 +2030,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -2047,7 +2041,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         char* retstring = cfgElement->value;
 
@@ -2078,7 +2072,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -2089,7 +2083,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

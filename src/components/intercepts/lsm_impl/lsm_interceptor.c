@@ -112,11 +112,11 @@ static LSMInterceptor GL_object =
         TALPA_STATIC_MUTEX(GL_object.mSemaphore),
         0,
         HOOK_DEFAULT,
-        0,
+        NULL,
         {
             {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, LSM_CFGDATASIZE, true, true },
             {GL_object.mOpsConfigData[0].name, GL_object.mOpsConfigData[0].value, LSM_OPSCFGDATASIZE, true, false },
-            {0, 0, 0, false, false }
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_DISABLED }
@@ -945,12 +945,6 @@ static void deleteLSMInterceptor(struct tag_LSMInterceptor* object)
 {
     dbg("destructor");
 
-    if (object == 0)
-    {
-        critical("Destructor got an empty object!");
-        return;
-    }
-
     talpa_mutex_lock(&object->mSemaphore);
 
     if ( !object->mInitialized )
@@ -1163,7 +1157,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -1174,7 +1168,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }
@@ -1189,7 +1183,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -1200,7 +1194,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

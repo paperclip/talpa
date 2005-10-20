@@ -62,7 +62,7 @@ static inline IPersonality* newPersonality(const void* self)
 
 
     object = newLinuxPersonality();
-    return (object != 0) ? &object->i_IPersonality : 0;
+    return (object != NULL) ? &object->i_IPersonality : NULL;
 }
 
 /*

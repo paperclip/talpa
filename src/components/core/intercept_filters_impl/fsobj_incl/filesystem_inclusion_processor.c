@@ -63,7 +63,7 @@ static FilesystemInclusionProcessor template_FilesystemInclusionProcessor =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteFilesystemInclusionProcessor
         },
         {
@@ -71,7 +71,7 @@ static FilesystemInclusionProcessor template_FilesystemInclusionProcessor =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteFilesystemInclusionProcessor
         },
         deleteFilesystemInclusionProcessor,
@@ -81,9 +81,9 @@ static FilesystemInclusionProcessor template_FilesystemInclusionProcessor =
         CFG_PATH_DEFAULT,
         CFG_PATH_DEFAULT_LEN,
         {
-            {0, 0, CFGDATASIZE, true, true },
-            {0, 0, PATH_MAX, true, false },
-            {0, 0, 0, false, false }
+            {NULL, NULL, CFGDATASIZE, true, true },
+            {NULL, NULL, PATH_MAX, true, false },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_DISABLED }
@@ -105,7 +105,7 @@ FilesystemInclusionProcessor* newFilesystemInclusionProcessor(void)
 
 
     object = kmalloc(sizeof(template_FilesystemInclusionProcessor), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_FilesystemInclusionProcessor, sizeof(template_FilesystemInclusionProcessor));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
@@ -300,7 +300,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -311,7 +311,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }
@@ -326,7 +326,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -337,7 +337,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

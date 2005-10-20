@@ -47,7 +47,7 @@ static CacheDeny template_CacheDeny =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteCacheDeny
         },
         deleteCacheDeny,
@@ -64,7 +64,7 @@ CacheDeny* newCacheDeny(ICache* cache)
 
 
     object = kmalloc(sizeof(template_CacheDeny), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_CacheDeny, sizeof(template_CacheDeny));
         object->i_IInterceptFilter.object = object;

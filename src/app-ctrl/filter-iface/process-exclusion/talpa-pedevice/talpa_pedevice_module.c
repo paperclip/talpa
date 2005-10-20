@@ -32,13 +32,13 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
-static DeviceDriverProcessExclusion*   mProcExcl = NULL;
+static DeviceDriverProcessExclusion*   mProcExcl;
 
 static int __init talpa_pedevice_init(void)
 {
     /* Create a new client */
     mProcExcl = newDeviceDriverProcessExclusion();
-    if (mProcExcl == 0)
+    if ( !mProcExcl )
     {
         err("Failed to create process excluder!");
         return -ENOMEM;

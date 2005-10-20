@@ -47,7 +47,7 @@ static LinuxPersonality template_LinuxPersonality =
             fsuid,
             gid,
             egid,
-            0,
+            NULL,
             (void (*)(const void*))deleteLinuxPersonality
         },
         deleteLinuxPersonality,
@@ -70,7 +70,7 @@ LinuxPersonality* newLinuxPersonality(void)
 
 
     object = kmalloc(sizeof(template_LinuxPersonality), GFP_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxPersonality, sizeof(template_LinuxPersonality));
         object->i_IPersonality.object = object;
@@ -87,12 +87,9 @@ LinuxPersonality* newLinuxPersonality(void)
 
 static void deleteLinuxPersonality(struct tag_LinuxPersonality* object)
 {
-    if ( likely(object != 0) )
+    if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( atomic_dec_and_test(&object->mRefCnt) )
-        {
-            kfree(object);
-        }
+        kfree(object);
     }
     return;
 }

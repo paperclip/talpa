@@ -67,7 +67,7 @@ static LinuxFile template_LinuxFile =
             write,
             unlink,
             truncate,
-            0,
+            NULL,
             (void (*)(void*))deleteLinuxFile
         },
         deleteLinuxFile,
@@ -89,7 +89,7 @@ LinuxFile* newLinuxFile(void)
 
 
     object = kmalloc(sizeof(template_LinuxFile), SLAB_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFile, sizeof(template_LinuxFile));
         object->i_IFile.object = object;
@@ -118,7 +118,7 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
     }
 
     object = kmalloc(sizeof(template_LinuxFile), SLAB_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFile, sizeof(template_LinuxFile));
         object->i_IFile.object = object;
@@ -140,13 +140,10 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
 
 static void deleteLinuxFile(struct tag_LinuxFile* object)
 {
-    if ( likely(object != 0) )
+    if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( atomic_dec_and_test(&object->mRefCnt) )
-        {
-            close(object);
-            kfree(object);
-        }
+        close(object);
+        kfree(object);
     }
 
     return;

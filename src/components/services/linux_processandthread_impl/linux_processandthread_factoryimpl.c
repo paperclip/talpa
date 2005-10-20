@@ -62,7 +62,7 @@ static IThreadInfo* newThreadInfo(const void* self)
 
 
     object = newLinuxThreadInfo();
-    return (object != 0) ? &object->i_IThreadInfo : 0;
+    return (object != NULL) ? &object->i_IThreadInfo : NULL;
 }
 
 /*

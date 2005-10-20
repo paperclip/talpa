@@ -69,23 +69,25 @@ static LinuxFileInfo template_LinuxFileInfo =
             deviceMinor,
             deviceName,
             fsType,
-            0,
+            NULL,
             (void (*)(const void*))deleteLinuxFileInfo
         },
         deleteLinuxFileInfo,
         ATOMIC_INIT(1),
         0,
+        NULL,
         0,
         0,
         0,
         0,
+        NULL,
+        NULL,
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0
+        NULL,
+        NULL,
+        NULL
     };
 #define this    ((LinuxFileInfo*)self)
 
@@ -99,7 +101,7 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
 
 
     object = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         struct nameidata nd;
         int rc;
@@ -154,7 +156,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
 
 
     object = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         struct file *file;
 
@@ -361,20 +363,17 @@ LinuxFileInfo* newLinuxFileInfoFromInode(EFilesystemOperation operation, void* i
 
 static void deleteLinuxFileInfo(struct tag_LinuxFileInfo* object)
 {
-    if ( likely(object != 0) )
+    if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( atomic_dec_and_test(&object->mRefCnt) )
+        if ( likely(object->mVFSMount != 0) )
         {
-            if ( likely(object->mVFSMount != 0) )
-            {
-                mntput(object->mVFSMount);
-            }
-
-            free_page((unsigned long)object->mPage);
-            kfree(object->mDeviceName);
-            kfree(object->mFSType);
-            kfree(object);
+            mntput(object->mVFSMount);
         }
+
+        free_page((unsigned long)object->mPage);
+        kfree(object->mDeviceName);
+        kfree(object->mFSType);
+        kfree(object);
     }
     return;
 }
@@ -468,7 +467,7 @@ static const char* fsType(const void* self)
 
     mnt = this->mVFSMount;
 
-    if ( likely(mnt != 0) )
+    if ( likely(mnt != NULL) )
     {
         if ( likely((this->mDeviceName == NULL) && (mnt->mnt_devname != NULL)) )
         {

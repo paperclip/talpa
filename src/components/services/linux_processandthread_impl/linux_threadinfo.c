@@ -60,7 +60,7 @@ static LinuxThreadInfo template_LinuxThreadInfo =
             controllingTTY,
             atSystemRoot,
             rootDir,
-            0,
+            NULL,
             (void (*)(const void*))deleteLinuxThreadInfo
         },
         deleteLinuxThreadInfo,
@@ -87,7 +87,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
 
 
     object = kmalloc(sizeof(template_LinuxThreadInfo), SLAB_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         struct task_struct* proc;
         struct mm_struct* mm;
@@ -156,24 +156,21 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
 
 static void deleteLinuxThreadInfo(struct tag_LinuxThreadInfo* object)
 {
-    if ( likely(object != 0) )
+    if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( atomic_dec_and_test(&object->mRefCnt) )
+        if ( likely(object->mEnv != NULL) )
         {
-            if ( likely(object->mEnv != NULL) )
-            {
-                kfree(object->mEnv);
-            }
-            if ( likely(object->mPage != NULL) )
-            {
-                free_page((unsigned long)object->mPage);
-            }
-
-            dput(object->mRootDentry);
-            mntput(object->mRootMount);
-
-            kfree(object);
+            kfree(object->mEnv);
         }
+        if ( likely(object->mPage != NULL) )
+        {
+            free_page((unsigned long)object->mPage);
+        }
+
+        dput(object->mRootDentry);
+        mntput(object->mRootMount);
+
+        kfree(object);
     }
     return;
 }

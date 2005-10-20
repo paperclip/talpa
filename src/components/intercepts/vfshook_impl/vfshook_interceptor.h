@@ -66,8 +66,8 @@ typedef struct
 struct patchedFilesystem
 {
     talpa_list_head         head;
-    atomic_t                usecnt; /* How many mountpoints is patched with this record */
-    atomic_t                refcnt; /* How many hook functions (+1 for usecnt > 0) is currently using this patch */
+    atomic_t                usecnt; /* How many mountpoints are patched with this record */
+    atomic_t                refcnt; /* How many hook functions (+1 for usecnt > 0) are currently using this patch */
     struct file_system_type *fstype;
     struct inode_operations *i_ops;
     struct file_operations  *f_ops;

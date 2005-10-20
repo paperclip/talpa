@@ -78,7 +78,7 @@ static DeviceDriverVettingClient GL_object =
         NULL,
         {
             {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, DDVETTINGCLIENT_CFGDATASIZE, false, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_DEVICE, CFG_VALUE_DEVICE }
@@ -554,7 +554,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -565,7 +565,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }

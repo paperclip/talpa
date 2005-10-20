@@ -100,12 +100,6 @@ static void deleteProcfsConfigurator(struct tag_ProcfsConfigurator* object)
     struct list_head*   nptr;
 
 
-    if (object == 0)
-    {
-        critical("Destructor got an empty object!");
-        return;
-    }
-
     talpa_mutex_lock(&object->mSemaphore);
 
     if ( !object->mInitialized )
@@ -148,12 +142,12 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
      * Determine how big the directory contents is - we must have some contents to be able to configure it!!
      */
     cfgElement = item->all(item->object);
-    if (cfgElement == 0)
+    if ( !cfgElement )
     {
         dbg("no elements pointer");
         return -ENODATA;
     }
-    for (count = 0;  cfgElement->name != 0; count++, cfgElement++)
+    for (count = 0;  cfgElement->name != NULL; count++, cfgElement++)
     {
         //
         // No Action.
@@ -165,7 +159,7 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
         return -ENODATA;
     }
     element = kmalloc(sizeof(ctl_table) * (6 + count + 1), GFP_KERNEL);
-    if (element == 0)
+    if ( !element )
     {
         return -ENOMEM;
     }
@@ -213,7 +207,7 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
     */
     elementSubItem = &element[6];
     for (cfgElement = item->all(item->object), count = 1;
-        cfgElement->name != 0;
+        cfgElement->name != NULL;
         elementSubItem++, cfgElement++, count++)
     {
         elementSubItem->ctl_name     = count;
@@ -236,7 +230,7 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
     }
 
     configItem = kmalloc(sizeof(ConfiguredItem), GFP_KERNEL);
-    if (configItem == 0)
+    if ( !configItem )
     {
         retCode = -ENOMEM;
         goto free_element;
@@ -248,7 +242,7 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
     configItem->item            = (void*)item;
     configItem->config          = element;
     configItem->exposedConfig   = register_sysctl_table(configItem->config, 0);
-    if (configItem->exposedConfig == 0)
+    if ( !configItem->exposedConfig )
     {
         talpa_mutex_unlock(&this->mSemaphore);
         retCode = -EADV;
@@ -346,7 +340,7 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
             len = table->maxlen;
         }
         cfgValue = kmalloc(len + 1, GFP_KERNEL);
-        if (cfgValue == 0)
+        if ( !cfgValue )
         {
             return -ENOMEM;
         }
@@ -405,7 +399,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
             len = table->maxlen;
         }
         cfgValue = kmalloc(len + 1, GFP_KERNEL);
-        if (cfgValue == 0)
+        if ( !cfgValue )
         {
             return -ENOMEM;
         }

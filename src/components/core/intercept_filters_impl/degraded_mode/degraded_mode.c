@@ -72,7 +72,7 @@ static DegradedModeProcessor template_DegradedModeProcessor =
             enable,
             disable,
             isEnabled,
-            0,
+            NULL,
             (void (*)(void*))deleteDegradedModeProcessor
         },
         {
@@ -80,7 +80,7 @@ static DegradedModeProcessor template_DegradedModeProcessor =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteDegradedModeProcessor
         },
         deleteDegradedModeProcessor,
@@ -90,10 +90,10 @@ static DegradedModeProcessor template_DegradedModeProcessor =
         false,
         TALPA_MUTEX_INIT,
         {
-            {0, 0, DMD_CFGDATASIZE, true, true },
-            {0, 0, DMD_CFGDATASIZE, true, true },
-            {0, 0, DMD_CFGDATASIZE, true, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, DMD_CFGDATASIZE, true, true },
+            {NULL, NULL, DMD_CFGDATASIZE, true, true },
+            {NULL, NULL, DMD_CFGDATASIZE, true, true },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }
@@ -118,7 +118,7 @@ DegradedModeProcessor* newDegradedModeProcessor(void)
 
 
     object = kmalloc(sizeof(template_DegradedModeProcessor), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         dbg("object at 0x%p", object);
         memcpy(object, &template_DegradedModeProcessor, sizeof(template_DegradedModeProcessor));
@@ -264,7 +264,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -275,7 +275,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }
@@ -290,7 +290,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement->name != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement->name != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -301,7 +301,7 @@ static void  setConfig(void* self, const char* name, const char* value)
     /*
      * Cant set that which does not exist!
      */
-    if (cfgElement->name == 0)
+    if ( !cfgElement->name )
     {
         return;
     }

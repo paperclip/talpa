@@ -33,7 +33,7 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
-static LSMInterceptor* mIntercept = NULL;
+static LSMInterceptor* mIntercept;
 
 
 static int __init talpa_lsm_init(void)
@@ -46,7 +46,7 @@ static int __init talpa_lsm_init(void)
      * Create a new interceptor!
      */
     mIntercept = newLSMInterceptor();
-    if (mIntercept == 0)
+    if ( !mIntercept )
     {
         err("Failed to create interceptor!");
         return -ENOMEM;
@@ -56,7 +56,7 @@ static int __init talpa_lsm_init(void)
      * Set the InterceptProcessor that will be targetted by the Interceptor.
      */
     target = TALPA_Core()->interceptProcessor();
-    if (target == 0)
+    if ( !target )
     {
         err("Failed to obtain intercept processor!");
         mIntercept->delete(mIntercept);
@@ -77,16 +77,13 @@ static int __init talpa_lsm_init(void)
 
 static void __exit talpa_lsm_exit(void)
 {
-    IConfigurator*          config;
+    IConfigurator*  config;
 
 
     config = TALPA_Portability()->configurator();
     config->detach(config->object, &mIntercept->i_IConfigurable);
 
-    if (mIntercept != 0)
-    {
-        mIntercept->delete(mIntercept);
-    }
+    mIntercept->delete(mIntercept);
     dbg("Unloaded");
     return;
 }

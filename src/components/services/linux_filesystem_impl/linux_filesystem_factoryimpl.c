@@ -78,7 +78,7 @@ static IFile* newFile(const void* self)
 
 
     object = newLinuxFile();
-    return (object != 0) ? &object->i_IFile : 0;
+    return (object != NULL) ? &object->i_IFile : NULL;
 }
 
 static IFile* cloneFile(const void* self, void* fobject)
@@ -87,7 +87,7 @@ static IFile* cloneFile(const void* self, void* fobject)
 
 
     object = cloneLinuxFile(fobject);
-    return (object != 0) ? &object->i_IFile : 0;
+    return (object != NULL) ? &object->i_IFile : NULL;
 }
 
 static IFileInfo* newFileInfo(const void* self, EFilesystemOperation operation, const char* filename, int flags, int mode)
@@ -96,7 +96,7 @@ static IFileInfo* newFileInfo(const void* self, EFilesystemOperation operation, 
 
 
     object = newLinuxFileInfo(operation, filename, flags, mode);
-    return (object != 0) ? &object->i_IFileInfo : 0;
+    return (object != NULL) ? &object->i_IFileInfo : NULL;
 }
 
 static IFileInfo* newFileInfoFromFd(const void* self, EFilesystemOperation operation, int fd)
@@ -105,7 +105,7 @@ static IFileInfo* newFileInfoFromFd(const void* self, EFilesystemOperation opera
 
 
     object = newLinuxFileInfoFromFd(operation, fd);
-    return (object != 0) ? &object->i_IFileInfo : 0;
+    return (object != NULL) ? &object->i_IFileInfo : NULL;
 }
 
 static IFileInfo* newFileInfoFromFile(const void* self, EFilesystemOperation operation, void* file)
@@ -114,7 +114,7 @@ static IFileInfo* newFileInfoFromFile(const void* self, EFilesystemOperation ope
 
 
     fi = newLinuxFileInfoFromFile(operation, file);
-    return (fi != 0) ? &fi->i_IFileInfo : 0;
+    return (fi != NULL) ? &fi->i_IFileInfo : NULL;
 }
 
 static IFileInfo* newFileInfoFromDirectoryEntry(const void* self, EFilesystemOperation operation, void* dentry, void* mnt, int flags, int mode)
@@ -123,7 +123,7 @@ static IFileInfo* newFileInfoFromDirectoryEntry(const void* self, EFilesystemOpe
 
 
     fi = newLinuxFileInfoFromDirectoryEntry(operation, dentry, mnt, flags, mode);
-    return (fi != 0) ? &fi->i_IFileInfo : 0;
+    return (fi != NULL) ? &fi->i_IFileInfo : NULL;
 }
 
 static IFileInfo* newFileInfoFromInode(const void* self, EFilesystemOperation operation, void* inode, int flags)
@@ -132,7 +132,7 @@ static IFileInfo* newFileInfoFromInode(const void* self, EFilesystemOperation op
 
 
     fi = newLinuxFileInfoFromInode(operation, inode, flags);
-    return (fi != 0) ? &fi->i_IFileInfo : 0;
+    return (fi != NULL) ? &fi->i_IFileInfo : NULL;
 }
 
 static IFilesystemInfo* newFilesystemInfo(const void* self, EFilesystemOperation operation, char* dev_name, char* dir_name, char* type)
@@ -141,7 +141,7 @@ static IFilesystemInfo* newFilesystemInfo(const void* self, EFilesystemOperation
 
 
     object = newLinuxFilesystemInfo(operation, dev_name, dir_name, type);
-    return (object != 0) ? &object->i_IFilesystemInfo : 0;
+    return (object != NULL) ? &object->i_IFilesystemInfo : NULL;
 }
 
 /*

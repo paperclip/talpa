@@ -60,15 +60,15 @@ static LinuxFilesystemInfo template_LinuxFilesystemInfo =
             device,
             deviceMajor,
             deviceMinor,
-            0,
+            NULL,
             (void (*)(const void*))deleteLinuxFilesystemInfo
         },
         deleteLinuxFilesystemInfo,
         ATOMIC_INIT(1),
         0,
-        0,
-        0,
-        0,
+        NULL,
+        NULL,
+        NULL,
         0,
         0,
         0
@@ -135,7 +135,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
 
     object = kmalloc(sizeof(template_LinuxFilesystemInfo), SLAB_KERNEL);
-    if ( likely(object != 0) )
+    if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFilesystemInfo, sizeof(template_LinuxFilesystemInfo));
         object->i_IFilesystemInfo.object = object;
@@ -296,15 +296,12 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
 static void deleteLinuxFilesystemInfo(struct tag_LinuxFilesystemInfo* object)
 {
-    if ( likely(object != 0) )
+    if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( atomic_dec_and_test(&object->mRefCnt) )
-        {
-            kfree(object->mDeviceName);
-            kfree(object->mMountPoint);
-            kfree(object->mType);
-            kfree(object);
-        }
+        kfree(object->mDeviceName);
+        kfree(object->mMountPoint);
+        kfree(object->mType);
+        kfree(object);
     }
     return;
 }

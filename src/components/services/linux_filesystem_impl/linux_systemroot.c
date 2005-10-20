@@ -47,7 +47,7 @@ static LinuxSystemRoot template_LinuxSystemRoot =
         {
             directoryEntry,
             mountPoint,
-            0,
+            NULL,
             (void (*)(void*))deleteLinuxSystemRoot
         },
         deleteLinuxSystemRoot,
@@ -126,13 +126,10 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
 
 static void deleteLinuxSystemRoot(struct tag_LinuxSystemRoot* object)
 {
-    if ( likely(object != 0) )
-    {
-        dput(object->mDentry);
-        mntput(object->mMnt);
+    dput(object->mDentry);
+    mntput(object->mMnt);
 
-        kfree(object);
-    }
+    kfree(object);
     return;
 }
 

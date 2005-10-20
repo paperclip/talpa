@@ -81,7 +81,7 @@ static StandardInterceptProcessor template_StandardInterceptProcessor =
             resetEvaluationFilters,
             resetAllowFilters,
             resetDenyFilters,
-            0,
+            NULL,
             (void (*)(void*))deleteStandardInterceptProcessor
         },
         {
@@ -89,7 +89,7 @@ static StandardInterceptProcessor template_StandardInterceptProcessor =
             allConfig,
             config,
             setConfig,
-            0,
+            NULL,
             (void (*)(void*))deleteStandardInterceptProcessor
         },
         deleteStandardInterceptProcessor,
@@ -98,8 +98,8 @@ static StandardInterceptProcessor template_StandardInterceptProcessor =
         {},
         ATOMIC_INIT(0),
         {
-            {0, 0, STDINTPROC_CFGDATASIZE, false, true },
-            {0, 0, 0, false, false }
+            {NULL, NULL, STDINTPROC_CFGDATASIZE, false, true },
+            {NULL, NULL, 0, false, false }
         },
         {
             { CFG_STATUS, CFG_VALUE_ENABLED }
@@ -117,7 +117,7 @@ StandardInterceptProcessor* newStandardInterceptProcessor(void)
 
 
     object = kmalloc(sizeof(template_StandardInterceptProcessor), SLAB_KERNEL);
-    if (object != 0)
+    if ( object )
     {
         memcpy(object, &template_StandardInterceptProcessor, sizeof(template_StandardInterceptProcessor));
         object->i_IInterceptProcessor.object = object->i_IConfigurable.object = object;
@@ -136,14 +136,13 @@ static void deleteStandardInterceptProcessor(struct tag_StandardInterceptProcess
      * We are not responsible for the filter objects.....so we do not need to destroy them.
      * However, we are responsible for the lists we put them in - clean up the lists first.
      */
-    if (object != 0)
-    {
-        resetEvaluationFilters(object);
-        resetAllowFilters(object);
-        resetDenyFilters(object);
 
-        kfree(object);
-    }
+    resetEvaluationFilters(object);
+    resetAllowFilters(object);
+    resetDenyFilters(object);
+
+    kfree(object);
+
     return;
 }
 
@@ -463,7 +462,7 @@ static void addEvaluationFilter(void* self, IInterceptFilter* filter)
 
 
     filterInfo = kmalloc(sizeof(FilterEntry), SLAB_KERNEL);
-    if (filterInfo != 0)
+    if ( filterInfo )
     {
         filterInfo->filter = filter;
         talpa_list_add_tail(&filterInfo->list, &(this->mEvaluationActions));
@@ -477,7 +476,7 @@ static void addAllowFilter(void* self, IInterceptFilter* filter)
 
 
     filterInfo = kmalloc(sizeof(FilterEntry), SLAB_KERNEL);
-    if (filterInfo != 0)
+    if ( filterInfo )
     {
         filterInfo->filter = filter;
         talpa_list_add_tail(&filterInfo->list, &(this->mAllowActions));
@@ -491,7 +490,7 @@ static void addDenyFilter(void* self, IInterceptFilter* filter)
 
 
     filterInfo = kmalloc(sizeof(FilterEntry), SLAB_KERNEL);
-    if (filterInfo != 0)
+    if ( filterInfo )
     {
         filterInfo->filter = filter;
         talpa_list_add_tail(&filterInfo->list, &(this->mDenyActions));
@@ -613,7 +612,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Find the named item.
      */
-    for (cfgElement = this->mConfig; cfgElement != 0; cfgElement++)
+    for (cfgElement = this->mConfig; cfgElement != NULL; cfgElement++)
     {
         if (strcmp(name, cfgElement->name) == 0)
         {
@@ -624,7 +623,7 @@ static const char* config(const void* self, const char* name)
     /*
      * Return what was found else a null pointer.
      */
-    if (cfgElement->name != 0)
+    if ( cfgElement->name )
     {
         return cfgElement->value;
     }
