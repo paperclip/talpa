@@ -203,10 +203,12 @@ foreach my $test (keys %results) {
 }
 
 
+draw_graph('cache-scaling.png', 'Cache scaling', 'cache');
 draw_graph('clean-vs-cache.png', 'Clean kernel vs. cached interception', 'Clean kernel', 'cache');
 draw_graph('clean-vs-intercepting.png', 'Clean kernel vs. intercepting', 'Clean kernel', 'Hooked', 'Interceptor loaded', 'Interceptor enabled');
+draw_graph('clean-vs-syscallhook.png', 'Clean kernel vs. syscallhook', 'Clean kernel', 'Hooked');
 draw_graph('interceptors.png', 'Interceptor vs. interceptor', 'Interceptor loaded', 'Interceptor enabled');
 draw_graph('userspace-round-trip.png', 'Userspace round trip', 'vetting client.? \[');
 draw_graph('scan-64k.png', 'Scan first 64k in 4k chunks', 'scan');
-
+draw_graph('filters.png', 'Filter status', 'Interceptor enabled', 'Filter');
 
