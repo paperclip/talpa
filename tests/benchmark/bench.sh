@@ -235,6 +235,8 @@ function vetting_test()
 
 echo "System CPUs: $nr_cpus"
 echo "Kernel detected: $kernel"
+echo "Open loops: $open_loops"
+echo "Test runs: $nr_runs"
 
 talpa_unload
 open_close_test "Clean kernel"
