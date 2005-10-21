@@ -48,7 +48,7 @@ if grep "Linux version 2.6." /proc/version >/dev/null; then
 else
     kernel=2.4
     ko=o
-    interceptors="syscall"
+    interceptors="vfshook syscall"
 fi
 
 function talpa_conf_filters()
