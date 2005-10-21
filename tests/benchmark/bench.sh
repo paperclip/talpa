@@ -116,16 +116,12 @@ function talpa_load_core()
 
 function open_close()
 {
-    local nr
+    local spawn
+    local res
+    local run
 
-    nr=$1
-    es=""
+    spawn=$1
     run=$nr_runs
-
-    while [ $nr -gt 0 ]; do
-        es="$es $openclose -f$open_file -l$open_loops &"
-        let nr=($nr)-1
-    done
 
     if [ $spawn -eq 1 ]; then
         echo -e "\t$spawn opener:"
@@ -134,7 +130,7 @@ function open_close()
     fi
 
     while [ $run -gt 0 ]; do
-        res=`$bash -c "$es"`
+        res=`$openclose -f$open_file -l$open_loops -o$spawn`
         echo -en "\t\t"
         echo $res
         let run=($run)-1
