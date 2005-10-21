@@ -150,18 +150,23 @@ function open_close_test()
     let spawn=1
     open_close $spawn
 
-    let spawn=($nr_cpus)/2
-    if [ $spawn -gt 1 ]; then
+    if [ $nr_cpus -gt 2 ]; then
+        let spawn=($nr_cpus)/2
         open_close $spawn
     fi
 
-    let spawn=$nr_cpus
-    if [ $spawn -gt 1 ]; then
+    if [ $nr_cpus -gt 1 ]; then
+        let spawn=$nr_cpus
         open_close $spawn
     fi
 
     let spawn=($nr_cpus)*2
-    if [ $spawn -gt 1 ]; then
+    if [ $spawn -ge 2 ]; then
+        open_close $spawn
+    fi
+
+    let spawn=($nr_cpus)*4
+    if [ $spawn -gt 4 ]; then
         open_close $spawn
     fi
 }
@@ -211,22 +216,29 @@ function vetting_test()
     open_close_test "$spawn vetting client$extra"
     kill_vetting_clients
 
-    let spawn=($nr_cpus)/2
-    if [ $spawn -gt 1 ]; then
+    if [ $nr_cpus -gt 2 ]; then
+        let spawn=($nr_cpus)/2
         run_vetting_clients $vc $spawn
         open_close_test "$spawn vetting clients$extra"
         kill_vetting_clients
     fi
 
-    let spawn=$nr_cpus
-    if [ $spawn -gt 1 ]; then
+    if [ $nr_cpus -gt 1 ]; then
+        let spawn=$nr_cpus
         run_vetting_clients $vc $spawn
         open_close_test "$spawn vetting clients$extra"
         kill_vetting_clients
     fi
 
     let spawn=($nr_cpus)*2
-    if [ $spawn -gt 1 ]; then
+    if [ $spawn -ge 2 ]; then
+        run_vetting_clients $vc $spawn
+        open_close_test "$spawn vetting clients$extra"
+        kill_vetting_clients
+    fi
+
+    let spawn=($nr_cpus)*4
+    if [ $spawn -gt 4 ]; then
         run_vetting_clients $vc $spawn
         open_close_test "$spawn vetting clients$extra"
         kill_vetting_clients
