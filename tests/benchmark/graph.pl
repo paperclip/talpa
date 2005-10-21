@@ -10,8 +10,8 @@ our $kernel;
 our $open_loops;
 our $test_runs;
 
-our $gx = 400;
-our $gy = 250;
+our $gx = 700;
+our $gy = 500;
 
 our %results;
 
@@ -76,11 +76,12 @@ sub parse_stdin
             }
             $test = $1;
             if ( $test =~ /(Interceptor.*?)\s+\((\w+)\)/ ) {
-                $test = "[$2] $1";
                 $interceptor = $2;
+                $test = "$1 [$2]";
             } elsif ( not $interceptor eq "" ) {
-                $test = "[$interceptor] $test";
+                $test = "$test [$interceptor]";
             }
+#             print "$test\n";
             $openers = 0;
             next;
         }
@@ -136,7 +137,7 @@ sub draw_graph
     my @tests;
 
     while ( my $testkey = shift @_ ) {
-        foreach $test (keys %results) {
+        foreach $test (sort keys %results) {
             if ( $test =~ /$testkey/ ) {
                 push @tests, $test;
             }
@@ -178,7 +179,11 @@ sub draw_graph
         title             => $title,
         transparent       => 0,
         interlaced        => 0,
-        line_width        => 2
+        line_width        => 2,
+        t_margin          => 10,
+        b_margin          => 10,
+        l_margin          => 10,
+        r_margin          => 10
     ) or die;
 
     $graph->set_legend(@tests);
@@ -199,9 +204,9 @@ foreach my $test (keys %results) {
 
 
 draw_graph('clean-vs-cache.png', 'Clean kernel vs. cached interception', 'Clean kernel', 'cache');
-draw_graph('clean-vs-intercepting.png', 'Clean kernel vs. intercepting', 'Clean kernel', 'Interceptor loaded', 'Interceptor enabled');
+draw_graph('clean-vs-intercepting.png', 'Clean kernel vs. intercepting', 'Clean kernel', 'Hooked', 'Interceptor loaded', 'Interceptor enabled');
 draw_graph('interceptors.png', 'Interceptor vs. interceptor', 'Interceptor loaded', 'Interceptor enabled');
-draw_graph('userspace-round-trip.png', 'Userspace round trip', 'vetting client.?$');
+draw_graph('userspace-round-trip.png', 'Userspace round trip', 'vetting client.? \[');
 draw_graph('scan-64k.png', 'Scan first 64k in 4k chunks', 'scan');
 
 
