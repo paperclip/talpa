@@ -35,7 +35,9 @@ int main(int argc, char *argv[])
     struct tms times1, times2;
     struct timeval tv1, tv2;
     long cps;
-
+    int forks = 1;
+    int children = 0;
+    pid_t child;
 
     cps = sysconf(_SC_CLK_TCK);
 
@@ -52,24 +54,49 @@ int main(int argc, char *argv[])
             arg += 2;
             loops = atol(arg);
         }
+        else if ( !strncmp(arg, "-o", 2) )
+        {
+            arg += 2;
+            forks = atoi(arg);
+        }
     }
 
-    gettimeofday(&tv1, NULL);
-    times(&times1);
-    while ( loops-- )
+    while ( forks-- )
     {
-        close(open(file, O_RDONLY));
+        child = fork();
+
+        if ( child == 0 )
+        {
+            gettimeofday(&tv1, NULL);
+            times(&times1);
+            while ( loops-- )
+            {
+                close(open(file, O_RDONLY));
+            }
+            times(&times2);
+            gettimeofday(&tv2, NULL);
+
+            times2.tms_utime -= times1.tms_utime;
+            times2.tms_stime -= times1.tms_stime;
+
+            tv2.tv_sec -= tv1.tv_sec;
+            tv2.tv_usec -= tv1.tv_usec;
+
+            printf("%.3f-[%.3f/%.3f]\n", (float)tv2.tv_sec + (float)tv2.tv_usec/1000000.0, (float)times2.tms_utime / (float)cps, (float)times2.tms_stime / (float)cps);
+
+            return 0;
+        }
+        else if ( child > 0 )
+        {
+            children++;
+        }
+
     }
-    times(&times2);
-    gettimeofday(&tv2, NULL);
 
-    times2.tms_utime -= times1.tms_utime;
-    times2.tms_stime -= times1.tms_stime;
-
-    tv2.tv_sec -= tv1.tv_sec;
-    tv2.tv_usec -= tv1.tv_usec;
-
-    printf("%.3f-[%.3f/%.3f]\n", (float)tv2.tv_sec + (float)tv2.tv_usec/1000000.0, (float)times2.tms_utime / (float)cps, (float)times2.tms_stime / (float)cps);
+    while ( children-- )
+    {
+        wait(NULL);
+    }
 
     return 0;
 }
