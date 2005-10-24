@@ -162,8 +162,7 @@ static void setCustomData(void* self, int id, void* data, int size)
     }
     else
     {
-        storage = talpa_alloc(sizeof(*storage));
-        memset(storage, 0, sizeof(*storage));
+        storage = talpa_zalloc(sizeof(*storage));
         TALPA_INIT_LIST_HEAD(&storage->list);
         storage->id = id;
         talpa_list_add_tail(&storage->list, &(this->mCustom));

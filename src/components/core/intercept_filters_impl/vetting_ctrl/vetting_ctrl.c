@@ -1289,15 +1289,13 @@ static VettingClient* initializeClient(void* self)
 {
     VettingClient* client;
 
-    client = talpa_alloc(sizeof(VettingClient));
+    client = talpa_zalloc(sizeof(VettingClient));
 
     if ( !client )
     {
         err("Failed to allocate client!");
         return NULL;
     }
-
-    memset(client, 0, sizeof(VettingClient));
 
     client->streamSize = MAX_STREAM_PACKET_SIZE;
 
