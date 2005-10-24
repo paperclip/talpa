@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     int forks = 1;
     int children = 0;
     pid_t child;
+    struct timespec ts;
 
     cps = sysconf(_SC_CLK_TCK);
 
@@ -61,12 +62,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    ts.tv_sec = 0;
+    ts.tv_nsec = 200000000;
+
     while ( forks-- )
     {
         child = fork();
 
         if ( child == 0 )
         {
+            nanosleep(&ts, NULL);
             gettimeofday(&tv1, NULL);
             times(&times1);
             while ( loops-- )
