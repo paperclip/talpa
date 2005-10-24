@@ -19,12 +19,13 @@
 
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 
 #define TALPA_SUBSYS "procexcl"
 #include "common/talpa.h"
 #include "process_exclusion.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -113,7 +114,7 @@ ProcessExclusionProcessor* newProcessExclusionProcessor(void)
     ProcessExclusionProcessor* object;
 
 
-    object = kmalloc(sizeof(template_ProcessExclusionProcessor), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_ProcessExclusionProcessor));
     if ( object )
     {
         dbg("object at 0x%p", object);
@@ -145,12 +146,12 @@ static void deleteProcessExclusionProcessor(struct tag_ProcessExclusionProcessor
     {
         process = talpa_list_entry(excluded, ProcessExcluded, head);
         talpa_list_del_rcu(excluded);
-        kfree(process);
+        talpa_free(process);
     }
     talpa_rcu_write_unlock(&object->mExcludedLock);
     talpa_rcu_synchronize();
 
-    kfree(object);
+    talpa_free(object);
     return;
 }
 
@@ -225,7 +226,7 @@ static ProcessExcluded* registerProcess(void* self)
 {
     ProcessExcluded* process;
 
-    process = kmalloc(sizeof(ProcessExcluded), GFP_KERNEL);
+    process = talpa_alloc(sizeof(ProcessExcluded));
 
     if ( !process )
     {
@@ -262,7 +263,7 @@ static void deregisterProcess(void* self, ProcessExcluded* obj)
     talpa_rcu_write_unlock(&this->mExcludedLock);
     dbg("Process [%u/%u] deregistered", obj->processID, obj->threadID);
     talpa_rcu_synchronize();
-    kfree(obj);
+    talpa_free(obj);
 
     return;
 }

@@ -18,12 +18,13 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 
 #define TALPA_SUBSYS "inclusion"
 #include "common/talpa.h"
 #include "filesystem_inclusion_processor.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -104,7 +105,7 @@ FilesystemInclusionProcessor* newFilesystemInclusionProcessor(void)
     FilesystemInclusionProcessor* object;
 
 
-    object = kmalloc(sizeof(template_FilesystemInclusionProcessor), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_FilesystemInclusionProcessor));
     if ( object )
     {
         memcpy(object, &template_FilesystemInclusionProcessor, sizeof(template_FilesystemInclusionProcessor));
@@ -120,7 +121,7 @@ FilesystemInclusionProcessor* newFilesystemInclusionProcessor(void)
 
 static void deleteFilesystemInclusionProcessor(struct tag_FilesystemInclusionProcessor* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

@@ -19,13 +19,14 @@
 
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 
 #define TALPA_SUBSYS "degrmode"
 #include "common/talpa.h"
 #include "degraded_mode.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -117,7 +118,7 @@ DegradedModeProcessor* newDegradedModeProcessor(void)
     DegradedModeProcessor* object;
 
 
-    object = kmalloc(sizeof(template_DegradedModeProcessor), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_DegradedModeProcessor));
     if ( object )
     {
         dbg("object at 0x%p", object);
@@ -139,7 +140,7 @@ DegradedModeProcessor* newDegradedModeProcessor(void)
 
 static void deleteDegradedModeProcessor(struct tag_DegradedModeProcessor* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

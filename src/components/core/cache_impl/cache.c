@@ -18,14 +18,13 @@
  */
 
 #include <linux/kernel.h>
-
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/string.h>
 
 #define TALPA_SUBSYS "cache"
 #include "common/talpa.h"
 #include "cache.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -138,7 +137,7 @@ Cache* newCache(void)
     Cache* object;
 
 
-    object = kmalloc(sizeof(template_Cache), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_Cache));
     if ( object )
     {
         unsigned int i;
@@ -159,7 +158,7 @@ Cache* newCache(void)
 
         if ( !allocateCache(object, object->mEntries) )
         {
-            kfree(object);
+            talpa_free(object);
             return NULL;
         }
 
@@ -189,12 +188,12 @@ static int allocateCache(void* self, unsigned int entries)
 
     if ( size > (128*1024) )
     {
-        cache = vmalloc(size);
+        cache = talpa_large_alloc(size);
         dbg("Vallocation of %u bytes returned 0x%p", size, cache);
     }
     else
     {
-        cache = kmalloc(size, GFP_KERNEL);
+        cache = talpa_alloc(size);
         dbg("Kallocation of %u bytes returned 0x%p", size, cache);
     }
 
@@ -214,11 +213,11 @@ static void freeCache(void* self)
 {
     if ( this->mCacheBytes > (128*1024) )
     {
-        vfree(this->mCache);
+        talpa_large_free(this->mCache);
     }
     else
     {
-        kfree(this->mCache);
+        talpa_free(this->mCache);
     }
 
     this->mCache = NULL;
@@ -239,11 +238,11 @@ static void deleteCache(struct tag_Cache* object)
         talpa_list_del(&obj->head);
         freeObject(obj);
     }
-    kfree(object->mFilesystemsSet);
+    talpa_free(object->mFilesystemsSet);
     talpa_rcu_write_unlock(&object->mConfigLock);
 
     freeCache(object);
-    kfree(object);
+    talpa_free(object);
 
     return;
 }
@@ -468,15 +467,15 @@ static CacheConfigObject* newObject(void *self, const char* string)
 {
     CacheConfigObject* obj = NULL;
 
-    obj = kmalloc(sizeof(CacheConfigObject), GFP_KERNEL);
+    obj = talpa_alloc(sizeof(CacheConfigObject));
 
     if ( obj )
     {
         obj->len = strlen(string);
-        obj->string = kmalloc(obj->len + 1, GFP_KERNEL);
+        obj->string = talpa_alloc(obj->len + 1);
         if ( !obj->string )
         {
-            kfree(obj);
+            talpa_free(obj);
             return NULL;
         }
         strcpy(obj->string, string);
@@ -487,8 +486,8 @@ static CacheConfigObject* newObject(void *self, const char* string)
 
 static void freeObject(CacheConfigObject* obj)
 {
-    kfree(obj->string);
-    kfree(obj);
+    talpa_free(obj->string);
+    talpa_free(obj);
 
     return;
 }
@@ -517,7 +516,7 @@ try_alloc:
     /* We do not allocate anything in first pass. */
     if ( alloc_len )
     {
-        newset = kmalloc(alloc_len, GFP_KERNEL);
+        newset = talpa_alloc(alloc_len);
         if ( !newset )
         {
             err("Failed to create string set!");
@@ -537,12 +536,12 @@ try_alloc:
     {
         talpa_rcu_read_unlock(&this->mConfigLock);
         alloc_len = len + 1;
-        kfree(newset);
+        talpa_free(newset);
         goto try_alloc;
     }
 
     out = newset;
-    kfree(*set);
+    talpa_free(*set);
     talpa_list_for_each_entry_rcu(obj, list, head)
     {
         strcpy(out, obj->string);
@@ -563,7 +562,7 @@ try_alloc:
 
 static void destroyStringSet(void *self, char **set)
 {
-    kfree(*set);
+    talpa_free(*set);
     *set = NULL;
     return;
 }

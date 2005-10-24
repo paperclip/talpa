@@ -18,11 +18,11 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 
 #include "evaluation_report_impl.h"
 
+#include "platform/alloc.h"
 /*
  * Forward declare implementation methods.
  */
@@ -75,7 +75,7 @@ EvaluationReportImpl* newEvaluationReportImpl(int current_timeouts)
     EvaluationReportImpl* object;
 
 
-    object = kmalloc(sizeof(template_EvaluationReportImpl), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_EvaluationReportImpl));
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_EvaluationReportImpl, sizeof(template_EvaluationReportImpl));
@@ -102,10 +102,10 @@ static void deleteEvaluationReportImpl(struct tag_EvaluationReportImpl* object)
         talpa_list_for_each_safe(posptr, nptr, &object->mCustom)
         {
             talpa_list_del(posptr);
-            kfree(talpa_list_entry(posptr, EvaluationStorage, list)->data);
-            kfree(talpa_list_entry(posptr, EvaluationStorage, list));
+            talpa_free(talpa_list_entry(posptr, EvaluationStorage, list)->data);
+            talpa_free(talpa_list_entry(posptr, EvaluationStorage, list));
         }
-        kfree(object);
+        talpa_free(object);
     }
     return;
 }
@@ -155,14 +155,14 @@ static void setCustomData(void* self, int id, void* data, int size)
     {
         if ( storage->size != size )
         {
-            kfree(storage->data);
+            talpa_free(storage->data);
             storage->data = NULL;
             storage->size = 0;
         }
     }
     else
     {
-        storage = kmalloc(sizeof(*storage), GFP_KERNEL);
+        storage = talpa_alloc(sizeof(*storage));
         memset(storage, 0, sizeof(*storage));
         TALPA_INIT_LIST_HEAD(&storage->list);
         storage->id = id;
@@ -171,7 +171,7 @@ static void setCustomData(void* self, int id, void* data, int size)
 
     if ( !storage->data )
     {
-        storage->data = kmalloc(size, GFP_KERNEL);
+        storage->data = talpa_alloc(size);
     }
 
     if ( storage->data )

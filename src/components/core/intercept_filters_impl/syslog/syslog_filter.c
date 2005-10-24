@@ -18,13 +18,14 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 
 #define TALPA_SUBSYS "syslog"
 #include "common/talpa.h"
 #include "syslog_filter.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -103,7 +104,7 @@ SyslogFilter* newSyslogFilter(const char *name)
     SyslogFilter* object;
 
 
-    object = kmalloc(sizeof(template_SyslogFilter), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_SyslogFilter));
     if ( object )
     {
         memcpy(object, &template_SyslogFilter, sizeof(template_SyslogFilter));
@@ -122,7 +123,7 @@ SyslogFilter* newSyslogFilter(const char *name)
 
 static void deleteSyslogFilter(struct tag_SyslogFilter* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

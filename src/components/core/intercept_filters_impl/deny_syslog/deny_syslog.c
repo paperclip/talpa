@@ -18,13 +18,14 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 
 #define TALPA_SUBSYS "deny"
 #include "common/talpa.h"
 #include "deny_syslog.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -96,7 +97,7 @@ DenySyslogFilter* newDenySyslogFilter(const char *name)
     DenySyslogFilter* object;
 
 
-    object = kmalloc(sizeof(template_DenySyslogFilter), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_DenySyslogFilter));
     if ( object )
     {
         memcpy(object, &template_DenySyslogFilter, sizeof(template_DenySyslogFilter));
@@ -115,7 +116,7 @@ DenySyslogFilter* newDenySyslogFilter(const char *name)
 
 static void deleteDenySyslogFilter(struct tag_DenySyslogFilter* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

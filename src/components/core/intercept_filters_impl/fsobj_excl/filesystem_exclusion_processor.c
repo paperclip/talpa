@@ -18,13 +18,14 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/stat.h>
 
 #define TALPA_SUBSYS "exclusion"
 #include "common/talpa.h"
 #include "filesystem_exclusion_processor.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -142,7 +143,7 @@ FilesystemExclusionProcessor* newFilesystemExclusionProcessor(void)
     FilesystemExclusionProcessor* object;
 
 
-    object = kmalloc(sizeof(template_FilesystemExclusionProcessor), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_FilesystemExclusionProcessor));
     if ( object )
     {
         memcpy(object, &template_FilesystemExclusionProcessor, sizeof(template_FilesystemExclusionProcessor));
@@ -200,12 +201,12 @@ static void deleteFilesystemExclusionProcessor(struct tag_FilesystemExclusionPro
         freeObject(obj);
     }
 
-    kfree(object->mPathsSet);
-    kfree(object->mFilesystemsSet);
-    kfree(object->mMountPathsSet);
-    kfree(object->mMountFilesystemsSet);
+    talpa_free(object->mPathsSet);
+    talpa_free(object->mFilesystemsSet);
+    talpa_free(object->mMountPathsSet);
+    talpa_free(object->mMountFilesystemsSet);
 
-    kfree(object);
+    talpa_free(object);
 
     return;
 }
@@ -418,16 +419,16 @@ static FSEPObject* newObject(void *self, const char* string)
 {
     FSEPObject* obj = NULL;
 
-    obj = kmalloc(sizeof(FSEPObject), GFP_KERNEL);
+    obj = talpa_alloc(sizeof(FSEPObject));
 
     if ( obj )
     {
         TALPA_INIT_LIST_HEAD(&obj->head);
         obj->len = strlen(string);
-        obj->value = kmalloc(obj->len + 1, GFP_KERNEL);
+        obj->value = talpa_alloc(obj->len + 1);
         if ( !obj->value )
         {
-            kfree(obj);
+            talpa_free(obj);
             return NULL;
         }
         strcpy(obj->value, string);
@@ -438,8 +439,8 @@ static FSEPObject* newObject(void *self, const char* string)
 
 static void freeObject(FSEPObject* obj)
 {
-    kfree(obj->value);
-    kfree(obj);
+    talpa_free(obj->value);
+    talpa_free(obj);
 
     return;
 }
@@ -501,7 +502,7 @@ try_alloc:
     /* We do not allocate anything in first pass. */
     if ( alloc_len )
     {
-        newset = kmalloc(alloc_len, GFP_KERNEL);
+        newset = talpa_alloc(alloc_len);
         if ( !newset )
         {
             err("Failed to create string set!");
@@ -521,12 +522,12 @@ try_alloc:
     {
         talpa_rcu_read_unlock(&this->mConfigLock);
         alloc_len = len + 1;
-        kfree(newset);
+        talpa_free(newset);
         goto try_alloc;
     }
 
     out = newset;
-    kfree(*set);
+    talpa_free(*set);
     talpa_list_for_each_entry_rcu(obj, list, head)
     {
         strcpy(out, obj->value);
@@ -547,7 +548,7 @@ try_alloc:
 
 static void destroyStringSet(void *self, char **set)
 {
-    kfree(*set);
+    talpa_free(*set);
     *set = NULL;
     return;
 }

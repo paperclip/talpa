@@ -18,7 +18,6 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 
 #include <asm/errno.h>
@@ -33,6 +32,9 @@
 #include "evaluation_report_impl.h"
 
 #include "std_intercept_processor.h"
+
+#include "platform/alloc.h"
+
 /*
  * Forward declare implementation methods.
  */
@@ -116,7 +118,7 @@ StandardInterceptProcessor* newStandardInterceptProcessor(void)
     StandardInterceptProcessor* object;
 
 
-    object = kmalloc(sizeof(template_StandardInterceptProcessor), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_StandardInterceptProcessor));
     if ( object )
     {
         memcpy(object, &template_StandardInterceptProcessor, sizeof(template_StandardInterceptProcessor));
@@ -141,7 +143,7 @@ static void deleteStandardInterceptProcessor(struct tag_StandardInterceptProcess
     resetAllowFilters(object);
     resetDenyFilters(object);
 
-    kfree(object);
+    talpa_free(object);
 
     return;
 }
@@ -461,7 +463,7 @@ static void addEvaluationFilter(void* self, IInterceptFilter* filter)
     FilterEntry*    filterInfo;
 
 
-    filterInfo = kmalloc(sizeof(FilterEntry), SLAB_KERNEL);
+    filterInfo = talpa_alloc(sizeof(FilterEntry));
     if ( filterInfo )
     {
         filterInfo->filter = filter;
@@ -475,7 +477,7 @@ static void addAllowFilter(void* self, IInterceptFilter* filter)
     FilterEntry*    filterInfo;
 
 
-    filterInfo = kmalloc(sizeof(FilterEntry), SLAB_KERNEL);
+    filterInfo = talpa_alloc(sizeof(FilterEntry));
     if ( filterInfo )
     {
         filterInfo->filter = filter;
@@ -489,7 +491,7 @@ static void addDenyFilter(void* self, IInterceptFilter* filter)
     FilterEntry*    filterInfo;
 
 
-    filterInfo = kmalloc(sizeof(FilterEntry), SLAB_KERNEL);
+    filterInfo = talpa_alloc(sizeof(FilterEntry));
     if ( filterInfo )
     {
         filterInfo->filter = filter;
@@ -508,7 +510,7 @@ static void removeEvaluationFilter(void* self, const IInterceptFilter* filter)
         if (posptr->filter == filter)
         {
             talpa_list_del(&posptr->list);
-            kfree(posptr);
+            talpa_free(posptr);
             break;
         }
     }
@@ -525,7 +527,7 @@ static void removeAllowFilter(void* self, const IInterceptFilter* filter)
         if (posptr->filter == filter)
         {
             talpa_list_del(&posptr->list);
-            kfree(posptr);
+            talpa_free(posptr);
             break;
         }
     }
@@ -542,7 +544,7 @@ static void removeDenyFilter(void* self, const IInterceptFilter* filter)
         if (posptr->filter == filter)
         {
             talpa_list_del(&posptr->list);
-            kfree(posptr);
+            talpa_free(posptr);
             break;
         }
     }
@@ -558,7 +560,7 @@ static void resetEvaluationFilters(void* self)
     talpa_list_for_each_safe(posptr, nptr, &this->mEvaluationActions)
     {
         talpa_list_del(posptr);
-        kfree(talpa_list_entry(posptr, FilterEntry, list));
+        talpa_free(talpa_list_entry(posptr, FilterEntry, list));
     }
     return;
 }
@@ -572,7 +574,7 @@ static void resetAllowFilters(void* self)
     talpa_list_for_each_safe(posptr, nptr, &this->mAllowActions)
     {
         talpa_list_del(posptr);
-        kfree(talpa_list_entry(posptr, FilterEntry, list));
+        talpa_free(talpa_list_entry(posptr, FilterEntry, list));
     }
     return;
 }
@@ -586,7 +588,7 @@ static void resetDenyFilters(void* self)
     talpa_list_for_each_safe(posptr, nptr, &this->mDenyActions)
     {
         talpa_list_del(posptr);
-        kfree(talpa_list_entry(posptr, FilterEntry, list));
+        talpa_free(talpa_list_entry(posptr, FilterEntry, list));
     }
     return;
 }

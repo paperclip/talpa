@@ -18,11 +18,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 
 #define TALPA_SUBSYS "cache-eval"
 #include "common/talpa.h"
 #include "cache_eval.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -62,7 +63,7 @@ CacheEval* newCacheEval(ICache* cache)
     CacheEval* object;
 
 
-    object = kmalloc(sizeof(template_CacheEval), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_CacheEval));
     if ( object )
     {
         memcpy(object, &template_CacheEval, sizeof(template_CacheEval));
@@ -74,7 +75,7 @@ CacheEval* newCacheEval(ICache* cache)
 
 static void deleteCacheEval(struct tag_CacheEval* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

@@ -18,11 +18,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 
 #define TALPA_SUBSYS "cache-deny"
 #include "common/talpa.h"
 #include "cache_deny.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -63,7 +64,7 @@ CacheDeny* newCacheDeny(ICache* cache)
     CacheDeny* object;
 
 
-    object = kmalloc(sizeof(template_CacheDeny), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_CacheDeny));
     if ( object )
     {
         memcpy(object, &template_CacheDeny, sizeof(template_CacheDeny));
@@ -75,7 +76,7 @@ CacheDeny* newCacheDeny(ICache* cache)
 
 static void deleteCacheDeny(struct tag_CacheDeny* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

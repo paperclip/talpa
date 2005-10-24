@@ -18,11 +18,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 
 #define TALPA_SUBSYS "cache-allow"
 #include "common/talpa.h"
 #include "cache_allow.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -63,7 +64,7 @@ CacheAllow* newCacheAllow(ICache* cache)
     CacheAllow* object;
 
 
-    object = kmalloc(sizeof(template_CacheAllow), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_CacheAllow));
     if ( object )
     {
         memcpy(object, &template_CacheAllow, sizeof(template_CacheAllow));
@@ -75,7 +76,7 @@ CacheAllow* newCacheAllow(ICache* cache)
 
 static void deleteCacheAllow(struct tag_CacheAllow* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

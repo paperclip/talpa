@@ -18,13 +18,14 @@
  */
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <asm/fcntl.h>
 
 #define TALPA_SUBSYS "opexcl"
 #include "common/talpa.h"
 #include "operation_excl.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -101,7 +102,7 @@ OperationExclusionProcessor* newOperationExclusionProcessor(void)
     OperationExclusionProcessor* object;
 
 
-    object = kmalloc(sizeof(template_OperationExclusionProcessor), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_OperationExclusionProcessor));
     if ( object )
     {
         memcpy(object, &template_OperationExclusionProcessor, sizeof(template_OperationExclusionProcessor));
@@ -119,7 +120,7 @@ OperationExclusionProcessor* newOperationExclusionProcessor(void)
 
 static void deleteOperationExclusionProcessor(struct tag_OperationExclusionProcessor* object)
 {
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

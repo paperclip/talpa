@@ -19,7 +19,6 @@
 
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/limits.h>
 #include <linux/sched.h>
@@ -34,6 +33,8 @@
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "filesystem/efilesystem_operation.h"
 #include "platform/glue.h"
+
+#include "platform/alloc.h"
 
 /*
  * Forward declare implementation methods.
@@ -205,7 +206,7 @@ VettingController* newVettingController(void)
     VettingController* object;
 
 
-    object = kmalloc(sizeof(template_VettingController), SLAB_KERNEL);
+    object = talpa_alloc(sizeof(template_VettingController));
     if ( object )
     {
         unsigned int group;
@@ -263,10 +264,10 @@ static void deleteVettingController(struct tag_VettingController* object)
         talpa_list_del(&obj->head);
         freeObject(obj);
     }
-    kfree(object->mRoutingsSet);
+    talpa_free(object->mRoutingsSet);
     talpa_rcu_write_unlock(&object->mConfigLock);
 
-    kfree(object);
+    talpa_free(object);
 
     return;
 }
@@ -559,7 +560,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     }
 
     /* Construct a new VettingDetail */
-    details = kmalloc(sizeof(VettingDetails), GFP_KERNEL);
+    details = talpa_alloc(sizeof(VettingDetails));
     if ( unlikely(!details) )
     {
         err("Not enough memory to create vetting details!");
@@ -587,12 +588,12 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     operation = info->operation(info);
 
     /* Allocate it */
-    packet = kmalloc(len, GFP_KERNEL);
+    packet = talpa_alloc(len);
     if ( unlikely(!packet) )
     {
         err("Not enough memory to create vetting details packet!");
         threadInfo->delete(threadInfo);
-        kfree(details);
+        talpa_free(details);
         return;
     }
 
@@ -746,8 +747,8 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     file_create_failed:
     report->setRecommendedAction(report->object, EIA_Error);
     report->setErrorCode(report->object, -ret);
-    kfree(packet);
-    kfree(details);
+    talpa_free(packet);
+    talpa_free(details);
     threadInfo->delete(threadInfo);
 
     return;
@@ -812,7 +813,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     }
 
     /* Construct a new VettingDetail */
-    details = kmalloc(sizeof(VettingDetails), GFP_KERNEL);
+    details = talpa_alloc(sizeof(VettingDetails));
     if ( unlikely(!details) )
     {
         err("Not enough memory to create vetting details!");
@@ -842,12 +843,12 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     operation = info->operation(info);
 
     /* Allocate it */
-    packet = kmalloc(len, GFP_KERNEL);
+    packet = talpa_alloc(len);
     if ( unlikely(!packet) )
     {
         err("Not enough memory to create vetting details packet!");
         threadInfo->delete(threadInfo);
-        kfree(details);
+        talpa_free(details);
         return;
     }
 
@@ -960,7 +961,7 @@ static VetCtrlConfigObject* newObject(void *self, EVetCtrlRoutingType type, cons
 {
     VetCtrlConfigObject* obj = NULL;
 
-    obj = kmalloc(sizeof(VetCtrlConfigObject), GFP_KERNEL);
+    obj = talpa_alloc(sizeof(VetCtrlConfigObject));
 
     if ( obj )
     {
@@ -968,10 +969,10 @@ static VetCtrlConfigObject* newObject(void *self, EVetCtrlRoutingType type, cons
         obj->type = type;
         obj->group = group;
         obj->len = strlen(string);
-        obj->string = kmalloc(obj->len + 1, GFP_KERNEL);
+        obj->string = talpa_alloc(obj->len + 1);
         if ( !obj->string )
         {
-            kfree(obj);
+            talpa_free(obj);
             return NULL;
         }
         strcpy(obj->string, string);
@@ -982,8 +983,8 @@ static VetCtrlConfigObject* newObject(void *self, EVetCtrlRoutingType type, cons
 
 static void freeObject(VetCtrlConfigObject* obj)
 {
-    kfree(obj->string);
-    kfree(obj);
+    talpa_free(obj->string);
+    talpa_free(obj);
 
     return;
 }
@@ -1012,7 +1013,7 @@ try_alloc:
     /* We do not allocate anything in first pass. */
     if ( alloc_len )
     {
-        newset = kmalloc(alloc_len, GFP_KERNEL);
+        newset = talpa_alloc(alloc_len);
         if ( !newset )
         {
             err("Failed to create string set!");
@@ -1032,12 +1033,12 @@ try_alloc:
     {
         talpa_rcu_read_unlock(&this->mConfigLock);
         alloc_len = len + 1;
-        kfree(newset);
+        talpa_free(newset);
         goto try_alloc;
     }
 
     out = newset;
-    kfree(*set);
+    talpa_free(*set);
     talpa_list_for_each_entry_rcu(obj, list, head)
     {
         len = 0;
@@ -1072,7 +1073,7 @@ try_alloc:
 
 static void destroyStringSet(void *self, char **set)
 {
-    kfree(*set);
+    talpa_free(*set);
     *set = NULL;
     return;
 }
@@ -1288,7 +1289,7 @@ static VettingClient* initializeClient(void* self)
 {
     VettingClient* client;
 
-    client = kmalloc(sizeof(VettingClient), GFP_KERNEL);
+    client = talpa_alloc(sizeof(VettingClient));
 
     if ( !client )
     {
@@ -1302,7 +1303,7 @@ static VettingClient* initializeClient(void* self)
 
     while ( client->streamSize >= MIN_STREAM_PACKET_SIZE )
     {
-        client->stream = kmalloc(client->streamSize, GFP_KERNEL);
+        client->stream = talpa_alloc(client->streamSize);
         if ( client->stream )
         {
             break;
@@ -1313,13 +1314,13 @@ static VettingClient* initializeClient(void* self)
     /* Account for the posibility that max packet size is very small to begin with */
     if ( !client->stream )
     {
-        client->stream = kmalloc(client->streamSize, GFP_KERNEL);
+        client->stream = talpa_alloc(client->streamSize);
     }
 
     if ( !client->stream )
     {
         err("Failed to allocate stream buffer!");
-        kfree(client);
+        talpa_free(client);
         return NULL;
     }
 
@@ -1345,8 +1346,8 @@ static void destroyClient(void* self, VettingClient* client)
         deregisterClient(this, client, NULL);
     }
 
-    kfree(client->stream);
-    kfree(client);
+    talpa_free(client->stream);
+    talpa_free(client);
 
     return;
 }
@@ -1479,9 +1480,9 @@ static void destroyVettingDetails(VettingDetails* details)
             details->file->delete(details->file->object);
         }
 
-        kfree(details->vettingDetails);
-        kfree(details->extendedInfo);
-        kfree(details);
+        talpa_free(details->vettingDetails);
+        talpa_free(details->extendedInfo);
+        talpa_free(details);
     }
 
     return;
@@ -1776,7 +1777,7 @@ static struct TalpaProtocolHeader* obtainVettingDetails(void* self, VettingClien
         job = client->vettingDetails;
         dbg("[client %u-%u-%u] client wants extended info for details 0x%p", processParentPID(current), current->tgid, current->pid, job);
         client->extDetailsRequested = true;
-        job->extendedInfo = kmalloc(sizeof(struct TalpaPacket_ExtDetailsOnly) + job->threadInfo->environmentSize(job->threadInfo), GFP_KERNEL);
+        job->extendedInfo = talpa_alloc(sizeof(struct TalpaPacket_ExtDetailsOnly) + job->threadInfo->environmentSize(job->threadInfo));
         if ( likely(job->extendedInfo != NULL) )
         {
             dbg("[client %u-%u-%u] extInfo allocated %lu bytes at 0x%p", processParentPID(current), current->tgid, current->pid, sizeof(struct TalpaPacket_ExtDetailsOnly) + job->threadInfo->environmentSize(job->threadInfo), job->extendedInfo);
