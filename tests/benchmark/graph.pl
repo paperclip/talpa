@@ -183,7 +183,9 @@ sub draw_graph
         t_margin          => 10,
         b_margin          => 10,
         l_margin          => 10,
-        r_margin          => 10
+        r_margin          => 10,
+#        y_max_value       => 500000,
+        y_min_value       => 0
     ) or die;
 
     $graph->set_legend(@tests);
