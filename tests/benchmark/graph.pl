@@ -108,7 +108,7 @@ sub parse_stdin
 
                 if ( $test =~ /scan/ )
                 {
-                    $ops = ($open_loops/100) / $1;
+                    $ops = ($open_loops/10) / $1;
                 }
                 else
                 {

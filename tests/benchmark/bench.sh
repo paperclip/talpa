@@ -274,7 +274,7 @@ for interceptor in $interceptors; do
     vetting_test
 
     old_loops=$open_loops
-    let open_loops=($open_loops)/100
+    let open_loops=($open_loops)/10
     vetting_test "scan"
     open_loops=$old_loops
 
