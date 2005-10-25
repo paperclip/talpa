@@ -105,14 +105,15 @@ sub parse_stdin
         foreach $res (@ares) {
             if ( $res =~ /(\d+.\d{1,3})-\[(\d+.\d{1,3})\/(\d+.\d{1,3})/ ) {
                 my $ops;
+                my $time = $1;
 
                 if ( $test =~ /scan/ )
                 {
-                    $ops = ($open_loops/10) / $1;
+                    $ops = ($open_loops/10) / $time;
                 }
                 else
                 {
-                    $ops = $open_loops / $1;
+                    $ops = $open_loops / $time;
                 }
 #                 print "--- $1 $ops\n";
                 $subtot += $ops;
