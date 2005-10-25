@@ -1,5 +1,5 @@
 /*
- * talpa.h
+ * linux_compiler.h
  *
  * TALPA Filesystem Interceptor
  *
@@ -16,25 +16,16 @@
  * write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-#ifndef H_TALPA
-#define H_TALPA
+#ifndef H_LINUXCOMPILER
+#define H_LINUXCOMPILER
 
-#include "platform/alloc.h"
-#include "platform/glue.h"
-#include "platform/compiler.h"
-#include "platform/log.h"
-#include "platform/waitq.h"
 
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#if __GNUC__ == 2 && __GNUC_MINOR__ < 96
+#define __builtin_expect(x, expected_value) (x)
 #endif
 
 #endif
 
 /*
- * End of talpa.h
+ * End of liunx_compiler.h
  */

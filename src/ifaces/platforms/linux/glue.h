@@ -22,15 +22,14 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/autoconf.h>
+#include <linux/module.h>
+#include <linux/dcache.h>
+#include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <asm/param.h>
 #include <linux/types.h>
 #include <asm/page.h>
-#include <linux/dcache.h>
-#include <linux/fs.h>
-#include <asm/atomic.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
-#include <linux/module.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 #include <linux/mount.h>
@@ -44,6 +43,13 @@
 #define inode_dev(i) ((i)->i_dev)
 #endif
 
+#ifndef likely
+#define likely(x)       __builtin_expect(!!(x), 1)
+#endif
+
+#ifndef unlikely
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#endif
 
 
 /* FIXME: This is not really a fixme, but a reminder that
@@ -66,6 +72,20 @@
     1; \
 })
 
+#endif
+
+#ifndef MODULE_LICENSE
+#define MODULE_LICENSE(x) const char module_license[] = x
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) || defined TALPA_HAS_NEW_PARENT
+#define processParentPID(task) task->parent->pid
+#else
+#define processParentPID(task) task->p_pptr->pid
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,10) && !defined TALPA_HAS_SNPRINTF
+#define snprintf(string, len, arg...) sprintf(string, ## arg)
 #endif
 
 char * talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
@@ -134,46 +154,6 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 #endif /* version < 2.6.7 */
 
 #endif /* version < 2.6.0 */
-
-
-/* Emulate completion on old 2.4 kernels */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,6)
-
-struct talpa_completion
-{
-    atomic_t            complete;
-    wait_queue_head_t   wait;
-};
-
-static inline void talpa_init_completion(struct talpa_completion *c)
-{
-    atomic_set(&c->complete, 0);
-    init_waitqueue_head(&c->wait);
-}
-
-static inline void talpa_wait_for_completion(struct talpa_completion *c)
-{
-    wait_event(c->wait, atomic_read(&c->complete));
-    atomic_set(&c->complete, 0);
-}
-
-static inline void talpa_complete(struct talpa_completion *c)
-{
-    atomic_set(&c->complete, 1);
-    wake_up(&c->wait);
-}
-
-#else
-
-#include <linux/completion.h>
-
-#define talpa_completion            completion
-#define talpa_init_completion       init_completion
-#define talpa_wait_for_completion   wait_for_completion
-#define talpa_complete              complete
-
-#endif /* < 2.4.6 (completion) */
-
 
 #endif
 
