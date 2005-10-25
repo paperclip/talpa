@@ -34,7 +34,7 @@ link-sources:
 		ln -s @abs_top_srcdir@/include include; \
 	fi
 
-EXTRA_DIST = tlp-test.h Makefile
+EXTRA_DIST = tlp-test.h Makefile26.in
 
 if KBUILD26
 

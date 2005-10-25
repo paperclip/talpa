@@ -634,7 +634,7 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@execve@/"${execve}"/ ${srcdir}/Makefile
     ${SED} -i s/@xhack@/"${xhack}"/ ${srcdir}/Makefile
 
-    ${SED} -i s/@debug@/"${debug}"/ ${srcdir}/tests/modules/Makefile
+    ${SED} s/@debug@/"${debug}"/ ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
     ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/tests/modules/Makefile
     ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/tests/modules/Makefile
 else
