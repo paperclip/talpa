@@ -20,7 +20,7 @@ rmmod="/sbin/rmmod"
 
 openclose="./open-bench"
 
-nr_cpus=`grep "processor" /proc/cpuinfo | wc -l`
+nr_cpus=`grep "processor" /proc/cpuinfo | wc -l | tr -d " \t"`
 
 
 if [ -z $FILE ]; then
@@ -30,7 +30,7 @@ else
 fi
 
 if [ -z $LOOPS ]; then
-    open_loops=100000
+    open_loops=500000
 else
     open_loops=$LOOPS
 fi
@@ -273,7 +273,10 @@ for interceptor in $interceptors; do
 
     vetting_test
 
+    old_loops=$open_loops
+    let open_loops=($open_loops)/100
     vetting_test "scan"
+    open_loops=$old_loops
 
     vetting_test "cache"
 

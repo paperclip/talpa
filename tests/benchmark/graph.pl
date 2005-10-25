@@ -106,7 +106,14 @@ sub parse_stdin
             if ( $res =~ /(\d+.\d{1,3})-\[(\d+.\d{1,3})\/(\d+.\d{1,3})/ ) {
                 my $ops;
 
-                $ops = $open_loops / $1;
+                if ( $test =~ /scan/ )
+                {
+                    $ops = ($open_loops/100) / $1;
+                }
+                else
+                {
+                    $ops = $open_loops / $1;
+                }
 #                 print "--- $1 $ops\n";
                 $subtot += $ops;
             }
