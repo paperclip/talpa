@@ -67,6 +67,12 @@ AC_ARG_ENABLE(debug,
                     AC_SUBST(debug,"-DDEBUG -g")
                 fi])
 
+AC_ARG_ENABLE(assertions,
+              [  --enable-assertions            turn on assertions],
+              [ if test "$enableval" = "yes"; then
+                    AC_SUBST(assert,"-DASSERT")
+                fi])
+
 AC_ARG_ENABLE(hidden-syscall-table,
                 [  --enable-hidden-syscall-table  enable hunting for a hidden syscall table [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -620,6 +626,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     ${SED} s/@debug@/"${debug}"/ ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -i s/@assert@/"${assert}"/ ${srcdir}/Makefile
     ${SED} -i s/@newparent@/"${newparent}"/ ${srcdir}/Makefile
     ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/Makefile
     ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/Makefile
@@ -635,6 +642,7 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -i s/@xhack@/"${xhack}"/ ${srcdir}/Makefile
 
     ${SED} s/@debug@/"${debug}"/ ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -i s/@assert@/"${assert}"/ ${srcdir}/tests/modules/Makefile
     ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/tests/modules/Makefile
     ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/tests/modules/Makefile
 else

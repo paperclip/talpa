@@ -43,6 +43,10 @@
 #define inode_dev(i) ((i)->i_dev)
 #endif
 
+#include "platform/compiler.h"
+
+
+
 #ifndef likely
 #define likely(x)       __builtin_expect(!!(x), 1)
 #endif

@@ -76,7 +76,7 @@ clean-local :
 
 else
 
-modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @debug@ @newparent@ @inodeallocsem@ @backportedprefetch@ @snprintf@
+modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @debug@ @assert@ @newparent@ @inodeallocsem@ @backportedprefetch@ @snprintf@
 modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/../../include -I$(srcdir)/../../src -I$(srcdir)/../../src/ifaces @kernelincludes@
 MODULELINKCMD           =   $(MODULELINKER) -m elf_i386 -r -o $@
 
