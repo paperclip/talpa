@@ -138,8 +138,9 @@ void sigint(int val)
 {
     unsigned int t;
 
+#ifndef NDEBUG
     printf("Interrupted!\n");
-
+#endif
     for ( t = 0; t < nr_threads; t++ )
     {
         threads[t].run = 0;

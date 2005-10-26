@@ -34,8 +34,9 @@ int run = 1;
 
 void sigint(int val)
 {
+#ifndef NDEBUG
     printf("Interrupted!\n");
-
+#endif
     run = 0;
 }
 
