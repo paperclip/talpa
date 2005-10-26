@@ -134,20 +134,14 @@ static VFSHookInterceptor GL_object =
         TALPA_LIST_HEAD_INIT(GL_object.mSkipFilesystems),
         NULL,
         {
-            {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, VFSHOOK_CFGDATASIZE, true, true },
-            {GL_object.mOpsConfigData[0].name, GL_object.mOpsConfigData[0].value, VFSHOOK_OPSCFGDATASIZE, true, false },
-            {GL_object.mFSConfigData[0].name, GL_object.mFSConfigData[0].value, VFSHOOK_FSCFGDATASIZE, true, false },
+            {GL_object.mConfigData.name, GL_object.mConfigData.value, VFSHOOK_CFGDATASIZE, true, true },
+            {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, VFSHOOK_OPSCFGDATASIZE, true, false },
+            {GL_object.mFSConfigData.name, GL_object.mFSConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_DISABLED }
-        },
-        {
-            { CFG_OPS, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_FS, CFG_VALUE_DUMMY }
-        },
+        { CFG_STATUS, CFG_VALUE_DISABLED },
+        { CFG_OPS, CFG_VALUE_DUMMY },
+        { CFG_FS, CFG_VALUE_DUMMY },
         NULL,
         NULL,
         {
@@ -1653,7 +1647,7 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     if ( object->mInterceptMask )
     {
         object->mInterceptMask = 0;
-        strcpy(object->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(object->mConfigData.value, CFG_VALUE_DISABLED);
     }
 
     object->mLinuxFilesystemFactory = NULL;
@@ -1898,7 +1892,7 @@ while ( 0 )
 
 static void constructSpecialSet(void* self)
 {
-    char* out = this->mOpsConfigData[0].value;
+    char* out = this->mOpsConfigData.value;
 
     *out = 0;
 
@@ -1965,7 +1959,7 @@ static bool enable(void* self)
         {
             atomic_inc(&this->mUseCnt);
             this->mInterceptMask = this->mHookingMask;
-            strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+            strcpy(this->mConfigData.value, CFG_VALUE_ENABLED);
             info("Enabled");
             return true;
         }
@@ -1983,7 +1977,7 @@ static void disable(void* self)
     if ( this->mInterceptMask )
     {
         this->mInterceptMask = 0;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mConfigData.value, CFG_VALUE_DISABLED);
         atomic_dec(&this->mUseCnt);
         module_put(THIS_MODULE);
         info("Disabled");

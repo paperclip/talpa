@@ -73,12 +73,12 @@ typedef struct tag_FilesystemExclusionProcessor
     talpa_list_head             mMountFilesystems;
     unsigned int                mSpecialsMask;
     PODConfigurationElement     mConfig[7];
-    FSEPStateConfigData         mStateConfigData[1];
-    FSEPPathConfigData          mPathConfigData[1];
-    FSEPFSConfigData            mFSConfigData[1];
-    FSEPSpecialConfigData       mSpecialConfigData[1];
-    FSEPPathConfigData          mMountPathConfigData[1];
-    FSEPFSConfigData            mMountFSConfigData[1];
+    FSEPStateConfigData         mStateConfigData;
+    FSEPPathConfigData          mPathConfigData;
+    FSEPFSConfigData            mFSConfigData;
+    FSEPSpecialConfigData       mSpecialConfigData;
+    FSEPPathConfigData          mMountPathConfigData;
+    FSEPFSConfigData            mMountFSConfigData;
     char*                       mPathsSet;
     char*                       mFilesystemsSet;
     char*                       mMountPathsSet;

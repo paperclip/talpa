@@ -40,8 +40,8 @@ typedef struct tag_OperationExclusionProcessor
     bool                                    mOnlyBlockDev;
     talpa_mutex_t                           mConfigSerialize;
     PODConfigurationElement                 mConfig[3];
-    OperationExclusionProcessorConfigData   mConfigStatus[1];
-    OperationExclusionProcessorConfigData   mConfigOnlyBlockDev[1];
+    OperationExclusionProcessorConfigData   mConfigStatus;
+    OperationExclusionProcessorConfigData   mConfigOnlyBlockDev;
 } OperationExclusionProcessor;
 
 /*

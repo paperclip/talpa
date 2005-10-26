@@ -40,7 +40,7 @@ typedef struct tag_DenySyslogFilter
     bool                        mEnabled;
     char                        mName[64];
     PODConfigurationElement     mConfig[2];
-    DenySyslogFilterConfigData  mConfigData[1];
+    DenySyslogFilterConfigData  mConfigData;
 } DenySyslogFilter;
 
 /*

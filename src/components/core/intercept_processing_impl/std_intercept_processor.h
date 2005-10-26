@@ -49,7 +49,7 @@ typedef struct tag_StandardInterceptProcessor
     talpa_list_head             mDenyActions;
     atomic_t                    mNumConsecutiveTimeouts;
     PODConfigurationElement     mConfig[2];
-    StdIntProcConfigData        mConfigData[1];
+    StdIntProcConfigData        mConfigData;
 } StandardInterceptProcessor;
 
 /*

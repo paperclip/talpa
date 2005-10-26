@@ -114,18 +114,10 @@ static Cache template_Cache =
             {NULL, NULL, CACHE_PARAMSCFGDATASIZE, true, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_DISABLED }
-        },
-        {
-            { CFG_STAT, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_FSTYPES, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_PARAMS, CFG_VALUE_DUMMY }
-        },
+        { CFG_STATUS, CFG_VALUE_DISABLED },
+        { CFG_STAT, CFG_VALUE_DUMMY },
+        { CFG_FSTYPES, CFG_VALUE_DUMMY },
+        { CFG_PARAMS, CFG_VALUE_DUMMY }
     };
 #define this    ((Cache*)self)
 
@@ -147,14 +139,14 @@ Cache* newCache(void)
 
         object->i_ICache.object = object->i_IConfigurable.object = object;
 
-        object->mConfig[0].name  = object->mStateConfigData[0].name;
-        object->mConfig[0].value = object->mStateConfigData[0].value;
-        object->mConfig[1].name  = object->mStatisticsData[0].name;
-        object->mConfig[1].value = object->mStatisticsData[0].value;
-        object->mConfig[2].name  = object->mFSConfigData[0].name;
-        object->mConfig[2].value = object->mFSConfigData[0].value;
-        object->mConfig[3].name  = object->mParamsConfigData[0].name;
-        object->mConfig[3].value = object->mParamsConfigData[0].value;
+        object->mConfig[0].name  = object->mStateConfigData.name;
+        object->mConfig[0].value = object->mStateConfigData.value;
+        object->mConfig[1].name  = object->mStatisticsData.name;
+        object->mConfig[1].value = object->mStatisticsData.value;
+        object->mConfig[2].name  = object->mFSConfigData.name;
+        object->mConfig[2].value = object->mFSConfigData.value;
+        object->mConfig[3].name  = object->mParamsConfigData.name;
+        object->mConfig[3].value = object->mParamsConfigData.value;
 
         if ( !allocateCache(object, object->mEntries) )
         {
@@ -168,7 +160,7 @@ Cache* newCache(void)
             object->mCache[i].inode = 0;
         }
 
-        sprintf(object->mConfig[3].value, "%u,%u,%u", object->mEntries, object->mPrime, object->mSetSize);
+        sprintf(object->mStatisticsData.value, "%u,%u,%u", object->mEntries, object->mPrime, object->mSetSize);
 
         talpa_cache_lock_init(&object->mCacheLock);
         talpa_rcu_lock_init(&object->mConfigLock);
@@ -839,7 +831,7 @@ static void configureCache(void* self, const char *string)
             this->mEntries = entries;
             this->mPrime = prime;
             this->mSetSize = set;
-            sprintf(this->mConfig[3].value, "%u,%u,%u", this->mEntries, this->mPrime, this->mSetSize);
+            sprintf(this->mStatisticsData.value, "%u,%u,%u", this->mEntries, this->mPrime, this->mSetSize);
             notice("Cache now has %u entries, %u-way associated, 2nd hash prime is %u", entries, set, prime);
         }
     }
@@ -862,7 +854,7 @@ static bool enable(void* self)
         this->mHits = this->mMisses = this->mReplacement = this->mFill = 0;
 
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     return true;
@@ -874,7 +866,7 @@ static void disable(void* self)
     {
         this->mHits = this->mMisses = this->mReplacement = this->mFill = 0;
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     return;

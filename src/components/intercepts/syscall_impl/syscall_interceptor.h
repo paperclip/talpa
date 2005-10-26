@@ -56,8 +56,8 @@ typedef struct tag_SyscallInterceptor
     unsigned int                    mHookingMask;
     IInterceptProcessor*            mTargetProcessor;
     PODConfigurationElement         mConfig[3];
-    SyscallStatusConfigData         mConfigData[1];
-    SyscallOpsConfigData            mOpsConfigData[1];
+    SyscallStatusConfigData         mConfigData;
+    SyscallOpsConfigData            mOpsConfigData;
     LinuxFilesystemFactoryImpl*     mLinuxFilesystemFactory;
     int                             (*syscallhook_register)(struct talpa_syscall_operations* ops);
     void                            (*syscallhook_unregister)(struct talpa_syscall_operations* ops);

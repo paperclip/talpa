@@ -103,9 +103,7 @@ static StandardInterceptProcessor template_StandardInterceptProcessor =
             {NULL, NULL, STDINTPROC_CFGDATASIZE, false, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        }
+        { CFG_STATUS, CFG_VALUE_ENABLED }
     };
 #define this    ((StandardInterceptProcessor*)self)
 
@@ -123,8 +121,8 @@ StandardInterceptProcessor* newStandardInterceptProcessor(void)
     {
         memcpy(object, &template_StandardInterceptProcessor, sizeof(template_StandardInterceptProcessor));
         object->i_IInterceptProcessor.object = object->i_IConfigurable.object = object;
-        object->mConfig[0].name  = object->mConfigData[0].name;
-        object->mConfig[0].value = object->mConfigData[0].value;
+        object->mConfig[0].name  = object->mConfigData.name;
+        object->mConfig[0].value = object->mConfigData.value;
         TALPA_INIT_LIST_HEAD(&object->mEvaluationActions);
         TALPA_INIT_LIST_HEAD(&object->mAllowActions);
         TALPA_INIT_LIST_HEAD(&object->mDenyActions);

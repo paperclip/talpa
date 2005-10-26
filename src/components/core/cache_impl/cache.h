@@ -101,10 +101,10 @@ typedef struct tag_Cache
     char*                   mFilesystemsSet;
 
     PODConfigurationElement mConfig[5];
-    CacheConfigData         mStateConfigData[1];
-    CacheStatisticsData     mStatisticsData[1];
-    CacheFSConfigData       mFSConfigData[1];
-    CacheParamsConfigData   mParamsConfigData[1];
+    CacheConfigData         mStateConfigData;
+    CacheStatisticsData     mStatisticsData;
+    CacheFSConfigData       mFSConfigData;
+    CacheParamsConfigData   mParamsConfigData;
 
 } Cache;
 

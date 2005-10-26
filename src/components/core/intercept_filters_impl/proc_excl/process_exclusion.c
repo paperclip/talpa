@@ -98,9 +98,7 @@ static ProcessExclusionProcessor template_ProcessExclusionProcessor =
             {NULL, NULL, PROCEXCL_CFGDATASIZE, true, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        },
+        { CFG_STATUS, CFG_VALUE_ENABLED }
     };
 #define this    ((ProcessExclusionProcessor*)self)
 
@@ -127,8 +125,8 @@ ProcessExclusionProcessor* newProcessExclusionProcessor(void)
         talpa_rcu_lock_init(&object->mExcludedLock);
         TALPA_INIT_LIST_HEAD(&object->mExcluded);
 
-        object->mConfig[0].name  = object->mStateConfigData[0].name;
-        object->mConfig[0].value = object->mStateConfigData[0].value;
+        object->mConfig[0].name  = object->mStateConfigData.name;
+        object->mConfig[0].value = object->mStateConfigData.value;
     }
     return object;
 }
@@ -307,7 +305,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     talpa_mutex_unlock(&this->mConfigSerialize);
@@ -320,7 +318,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     talpa_mutex_unlock(&this->mConfigSerialize);

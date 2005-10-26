@@ -61,7 +61,7 @@ typedef struct tag_DeviceDriverVettingClient
     void                        (*delete)(struct tag_DeviceDriverVettingClient* object);
     IVettingServer*             mServer;
     PODConfigurationElement     mConfig[2];
-    DDVettingClientConfigData   mConfigData[1];
+    DDVettingClientConfigData   mConfigData;
 } DeviceDriverVettingClient;
 
 

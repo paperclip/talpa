@@ -112,16 +112,12 @@ static SyscallInterceptor GL_object =
         HOOK_DEFAULT,
         NULL,
         {
-            {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, SYSCALL_CFGDATASIZE, true, true },
-            {GL_object.mOpsConfigData[0].name, GL_object.mOpsConfigData[0].value, SYSCALL_OPSCFGDATASIZE, true, false },
+            {GL_object.mConfigData.name, GL_object.mConfigData.value, SYSCALL_CFGDATASIZE, true, true },
+            {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, SYSCALL_OPSCFGDATASIZE, true, false },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_DISABLED }
-        },
-        {
-            { CFG_OPS, CFG_VALUE_DUMMY }
-        },
+        { CFG_STATUS, CFG_VALUE_DISABLED },
+        { CFG_OPS, CFG_VALUE_DUMMY },
         NULL,
         NULL,
         NULL,
@@ -177,7 +173,7 @@ static void deleteSyscallInterceptor(struct tag_SyscallInterceptor* object)
     {
         unhook(object);
         object->mInterceptEnabled = false;
-        strcpy(object->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(object->mConfigData.value, CFG_VALUE_DISABLED);
     }
 
     object->mLinuxFilesystemFactory->delete(object->mLinuxFilesystemFactory);
@@ -630,7 +626,7 @@ while ( 0 )
 
 static void constructSpecialSet(void* self)
 {
-    char* out = this->mOpsConfigData[0].value;
+    char* out = this->mOpsConfigData.value;
 
     *out = 0;
 
@@ -702,7 +698,7 @@ static bool enable(void* self)
             if ( hook(self) )
             {
                 this->mInterceptEnabled = true;
-                strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+                strcpy(this->mConfigData.value, CFG_VALUE_ENABLED);
             }
         }
         else
@@ -721,7 +717,7 @@ static void disable(void* self)
         if ( unhook(self) )
         {
             this->mInterceptEnabled = false;
-            strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+            strcpy(this->mConfigData.value, CFG_VALUE_DISABLED);
         }
     }
     return;

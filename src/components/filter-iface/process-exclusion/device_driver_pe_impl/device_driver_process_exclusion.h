@@ -72,8 +72,8 @@ typedef struct tag_DeviceDriverProcessExclusion
     IConfigurator*              mConfigurator;
     bool                        mAttached;
     PODConfigurationElement     mConfig[3];
-    DDPEConfigData              mDeviceConfigData[1];
-    DDPELocationConfigData      mLocationConfigData[1];
+    DDPEConfigData              mDeviceConfigData;
+    DDPELocationConfigData      mLocationConfigData;
 } DeviceDriverProcessExclusion;
 
 

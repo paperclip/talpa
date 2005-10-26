@@ -77,12 +77,10 @@ static DeviceDriverVettingClient GL_object =
         deleteDeviceDriverVettingClient,
         NULL,
         {
-            {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, DDVETTINGCLIENT_CFGDATASIZE, false, true },
+            {GL_object.mConfigData.name, GL_object.mConfigData.value, DDVETTINGCLIENT_CFGDATASIZE, false, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_DEVICE, CFG_VALUE_DEVICE }
-        }
+        { CFG_DEVICE, CFG_VALUE_DEVICE }
 
     };
 #define this    ((DeviceDriverVettingClient*)self)
@@ -137,7 +135,7 @@ DeviceDriverVettingClient* newDeviceDriverVettingClient(IVettingServer* server)
         return NULL;
     }
 
-    sprintf(GL_object.mConfigData[0].value, "%d,%d", MISC_MAJOR, ddvc_dev.minor);
+    sprintf(GL_object.mConfigData.value, "%d,%d", MISC_MAJOR, ddvc_dev.minor);
 
     GL_object.mServer = server;
 

@@ -101,9 +101,9 @@ typedef struct tag_VFSHookInterceptor
     talpa_list_head                 mSkipFilesystems;
     IInterceptProcessor*            mTargetProcessor;
     PODConfigurationElement         mConfig[4];
-    VFSHookStatusConfigData         mConfigData[1];
-    VFSHookOpsConfigData            mOpsConfigData[1];
-    VFSHookFSConfigData             mFSConfigData[1];
+    VFSHookStatusConfigData         mConfigData;
+    VFSHookOpsConfigData            mOpsConfigData;
+    VFSHookFSConfigData             mFSConfigData;
     LinuxFilesystemFactoryImpl*     mLinuxFilesystemFactory;
     LinuxSystemRoot*                mLinuxSystemRoot;
     struct talpa_syscall_operations mSyscallOps;

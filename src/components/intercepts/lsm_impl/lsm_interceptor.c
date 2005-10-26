@@ -114,16 +114,12 @@ static LSMInterceptor GL_object =
         HOOK_DEFAULT,
         NULL,
         {
-            {GL_object.mConfigData[0].name, GL_object.mConfigData[0].value, LSM_CFGDATASIZE, true, true },
-            {GL_object.mOpsConfigData[0].name, GL_object.mOpsConfigData[0].value, LSM_OPSCFGDATASIZE, true, false },
+            {GL_object.mConfigData.name, GL_object.mConfigData.value, LSM_CFGDATASIZE, true, true },
+            {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, LSM_OPSCFGDATASIZE, true, false },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_DISABLED }
-        },
-        {
-            { CFG_OPS, CFG_VALUE_DUMMY }
-        },
+        { CFG_STATUS, CFG_VALUE_DISABLED },
+        { CFG_OPS, CFG_VALUE_DUMMY },
         NULL
 };
 
@@ -957,7 +953,7 @@ static void deleteLSMInterceptor(struct tag_LSMInterceptor* object)
     if ( object->mInterceptMask )
     {
         object->mInterceptMask = 0;
-        strcpy(object->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(object->mConfigData.value, CFG_VALUE_DISABLED);
     }
 
     object->mLinuxFilesystemFactory = NULL;
@@ -1021,7 +1017,7 @@ while ( 0 )
 
 static void constructSpecialSet(void* self)
 {
-    char* out = this->mOpsConfigData[0].value;
+    char* out = this->mOpsConfigData.value;
 
     *out = 0;
 
@@ -1093,7 +1089,7 @@ static bool enable(void* self)
         {
             atomic_inc(&this->mUseCnt);
             this->mInterceptMask = this->mHookingMask;
-            strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+            strcpy(this->mConfigData.value, CFG_VALUE_ENABLED);
             info("Enabled");
             return true;
         }
@@ -1112,7 +1108,7 @@ static void disable(void* self)
     {
         this->mInterceptMask = 0;
         atomic_dec(&this->mUseCnt);
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mConfigData.value, CFG_VALUE_DISABLED);
         module_put(THIS_MODULE);
         info("Disabled");
     }

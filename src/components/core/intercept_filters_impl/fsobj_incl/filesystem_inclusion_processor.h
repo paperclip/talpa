@@ -48,8 +48,8 @@ typedef struct tag_FilesystemInclusionProcessor
     char                        mPath[PATH_MAX];
     unsigned int                mPathLen;
     PODConfigurationElement     mConfig[3];
-    FSIPStateConfigData         mStateConfigData[1];
-    FSIPPathConfigData          mPathConfigData[1];
+    FSIPStateConfigData         mStateConfigData;
+    FSIPPathConfigData          mPathConfigData;
 } FilesystemInclusionProcessor;
 
 /*

@@ -82,12 +82,8 @@ static OperationExclusionProcessor template_OperationExclusionProcessor =
             {NULL, NULL, OPERATIONEXCLUSIONPROCESSOR_CFGDATASIZE, true, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        },
-        {
-            { CFG_ONLYBLOCKDEV, CFG_VALUE_ENABLED }
-        }
+        { CFG_STATUS, CFG_VALUE_ENABLED },
+        { CFG_ONLYBLOCKDEV, CFG_VALUE_ENABLED }
 
     };
 #define this    ((OperationExclusionProcessor*)self)
@@ -110,10 +106,10 @@ OperationExclusionProcessor* newOperationExclusionProcessor(void)
 
         talpa_mutex_init(&object->mConfigSerialize);
 
-        object->mConfig[0].name  = object->mConfigStatus[0].name;
-        object->mConfig[0].value = object->mConfigStatus[0].value;
-        object->mConfig[1].name  = object->mConfigOnlyBlockDev[0].name;
-        object->mConfig[1].value = object->mConfigOnlyBlockDev[0].value;
+        object->mConfig[0].name  = object->mConfigStatus.name;
+        object->mConfig[0].value = object->mConfigStatus.value;
+        object->mConfig[1].name  = object->mConfigOnlyBlockDev.name;
+        object->mConfig[1].value = object->mConfigOnlyBlockDev.value;
     }
     return object;
 }
@@ -176,7 +172,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mConfigStatus.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     return true;
@@ -187,7 +183,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mConfigStatus.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     return;
@@ -198,13 +194,13 @@ static void onlyBlockDev(void* self, bool state)
     if ( !this->mOnlyBlockDev && state )
     {
         this->mOnlyBlockDev = true;
-        strcpy(this->mConfig[1].value, CFG_VALUE_ENABLED);
+        strcpy(this->mConfigOnlyBlockDev.value, CFG_VALUE_ENABLED);
         info("Ignoring non-block device mount operations");
     }
     else if ( this->mOnlyBlockDev && !state )
     {
         this->mOnlyBlockDev = false;
-        strcpy(this->mConfig[1].value, CFG_VALUE_DISABLED);
+        strcpy(this->mConfigOnlyBlockDev.value, CFG_VALUE_DISABLED);
         info("Intercepting all mount operations");
     }
     return;

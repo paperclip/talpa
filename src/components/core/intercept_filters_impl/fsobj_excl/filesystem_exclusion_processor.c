@@ -108,24 +108,12 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
             {NULL, NULL, FSEXCPROC_FSCFGDATASIZE, true, false },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        },
-        {
-            { CFG_PATHS, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_FSTYPES, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_SPECIALS, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_MOUNTPATHS, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_MOUNTFSTYPES, CFG_VALUE_DUMMY }
-        },
+        { CFG_STATUS, CFG_VALUE_ENABLED },
+        { CFG_PATHS, CFG_VALUE_DUMMY },
+        { CFG_FSTYPES, CFG_VALUE_DUMMY },
+        { CFG_SPECIALS, CFG_VALUE_DUMMY },
+        { CFG_MOUNTPATHS, CFG_VALUE_DUMMY },
+        { CFG_MOUNTFSTYPES, CFG_VALUE_DUMMY },
         NULL,
         NULL,
         NULL,
@@ -148,18 +136,20 @@ FilesystemExclusionProcessor* newFilesystemExclusionProcessor(void)
     {
         memcpy(object, &template_FilesystemExclusionProcessor, sizeof(template_FilesystemExclusionProcessor));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
-        object->mConfig[0].name  = object->mStateConfigData[0].name;
-        object->mConfig[0].value = object->mStateConfigData[0].value;
-        object->mConfig[1].name  = object->mPathConfigData[0].name;
-        object->mConfig[1].value = object->mPathConfigData[0].value;
-        object->mConfig[2].name  = object->mFSConfigData[0].name;
-        object->mConfig[2].value = object->mFSConfigData[0].value;
-        object->mConfig[3].name  = object->mSpecialConfigData[0].name;
-        object->mConfig[3].value = object->mSpecialConfigData[0].value;
-        object->mConfig[4].name  = object->mMountPathConfigData[0].name;
-        object->mConfig[4].value = object->mMountPathConfigData[0].value;
-        object->mConfig[5].name  = object->mMountFSConfigData[0].name;
-        object->mConfig[5].value = object->mMountFSConfigData[0].value;
+
+        object->mConfig[0].name  = object->mStateConfigData.name;
+        object->mConfig[0].value = object->mStateConfigData.value;
+        object->mConfig[1].name  = object->mPathConfigData.name;
+        object->mConfig[1].value = object->mPathConfigData.value;
+        object->mConfig[2].name  = object->mFSConfigData.name;
+        object->mConfig[2].value = object->mFSConfigData.value;
+        object->mConfig[3].name  = object->mSpecialConfigData.name;
+        object->mConfig[3].value = object->mSpecialConfigData.value;
+        object->mConfig[4].name  = object->mMountPathConfigData.name;
+        object->mConfig[4].value = object->mMountPathConfigData.value;
+        object->mConfig[5].name  = object->mMountFSConfigData.name;
+        object->mConfig[5].value = object->mMountFSConfigData.value;
+
         talpa_rcu_lock_init(&object->mConfigLock);
         talpa_mutex_init(&object->mConfigSerialize);
         TALPA_INIT_LIST_HEAD(&object->mPaths);
@@ -470,7 +460,7 @@ while ( 0 )
 
 static void constructSpecialSet(void* self)
 {
-    char* out = this->mSpecialConfigData[0].value;
+    char* out = this->mSpecialConfigData.value;
 
     *out = 0;
 
@@ -685,7 +675,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     return true;
@@ -696,7 +686,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     return;

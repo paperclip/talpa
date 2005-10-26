@@ -88,16 +88,12 @@ static DeviceDriverProcessExclusion GL_object =
         NULL,
         false, /* mAttached */
         {
-            {GL_object.mDeviceConfigData[0].name, GL_object.mDeviceConfigData[0].value, DDPE_CFGDATASIZE, false, true },
-            {GL_object.mLocationConfigData[0].name, GL_object.mLocationConfigData[0].value, DDPE_CFGLOCATIONSIZE, true, true },
+            {GL_object.mDeviceConfigData.name, GL_object.mDeviceConfigData.value, DDPE_CFGDATASIZE, false, true },
+            {GL_object.mLocationConfigData.name, GL_object.mLocationConfigData.value, DDPE_CFGLOCATIONSIZE, true, true },
             {NULL, NULL, 0, false, false },
         },
-        {
-            { CFG_DEVICE, CFG_VALUE_DEVICE }
-        },
-        {
-            { CFG_LOCATION, CFG_VALUE_DUMMY }
-        }
+        { CFG_DEVICE, CFG_VALUE_DEVICE },
+        { CFG_LOCATION, CFG_VALUE_DUMMY }
     };
 #define this    ((DeviceDriverProcessExclusion*)self)
 
@@ -141,7 +137,7 @@ DeviceDriverProcessExclusion* newDeviceDriverProcessExclusion(void)
         return NULL;
     }
 
-    sprintf(GL_object.mDeviceConfigData[0].value, "%d,%d", MISC_MAJOR, ddpe_dev.minor);
+    sprintf(GL_object.mDeviceConfigData.value, "%d,%d", MISC_MAJOR, ddpe_dev.minor);
 
     init_rwsem(&GL_object.mSem);
     TALPA_INIT_LIST_HEAD(&GL_object.mContextList);
@@ -508,7 +504,7 @@ static void  setConfig(void* self, const char* name, const char* value)
      */
     if (strcmp(name, CFG_LOCATION) == 0)
     {
-        strncpy(this->mLocationConfigData[0].value, value, DDPE_CFGLOCATIONSIZE);
+        strncpy(this->mLocationConfigData.value, value, DDPE_CFGLOCATIONSIZE);
     }
 
     return;

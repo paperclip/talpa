@@ -50,9 +50,9 @@ typedef struct tag_DegradedModeProcessor
     talpa_mutex_t             mConfigSerialize;
 
     PODConfigurationElement   mConfig[4];
-    DegrModeConfigData        mStateConfigData[1];
-    DegrModeConfigData        mThresholdConfigData[1];
-    DegrModeConfigData        mActiveConfigData[1];
+    DegrModeConfigData        mStateConfigData;
+    DegrModeConfigData        mThresholdConfigData;
+    DegrModeConfigData        mActiveConfigData;
 } DegradedModeProcessor;
 
 /*

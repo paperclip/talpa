@@ -92,11 +92,11 @@ typedef struct tag_VettingController
     char*                     mRoutingsSet;
 
     PODConfigurationElement   mConfig[6];
-    VetCtrlConfigData         mStateConfigData[1];
-    VetCtrlConfigData         mTimeoutConfigData[1];
-    VetCtrlConfigData         mFSTimeoutConfigData[1];
-    VetCtrlRoutingConfigData  mRoutingConfigData[1];
-    VetCtrlConfigData         mXHackConfigData[1];
+    VetCtrlConfigData         mStateConfigData;
+    VetCtrlConfigData         mTimeoutConfigData;
+    VetCtrlConfigData         mFSTimeoutConfigData;
+    VetCtrlRoutingConfigData  mRoutingConfigData;
+    VetCtrlConfigData         mXHackConfigData;
 
     IFilesystemFactory*       mFilesystemFactory;
     IThreadAndProcessFactory* mThreadFactory;

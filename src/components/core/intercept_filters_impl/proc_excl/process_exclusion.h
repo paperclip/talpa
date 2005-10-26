@@ -51,7 +51,7 @@ typedef struct tag_ProcessExclusionProcessor
     talpa_list_head           mExcluded;
 
     PODConfigurationElement   mConfig[2];
-    ProcExclConfigData        mStateConfigData[1];
+    ProcExclConfigData        mStateConfigData;
 } ProcessExclusionProcessor;
 
 /*

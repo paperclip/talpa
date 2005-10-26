@@ -175,21 +175,11 @@ static VettingController template_VettingController =
             {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        },
-        {
-            { CFG_TIMEOUT, CFG_VALUE_TIMEOUT }
-        },
-        {
-            { CFG_FSTIMEOUT, CFG_VALUE_FSTIMEOUT }
-        },
-        {
-            { CFG_ROUTING, CFG_VALUE_DUMMY }
-        },
-        {
-            { CFG_XHACK, CFG_VALUE_ENABLED }
-        },
+        { CFG_STATUS, CFG_VALUE_ENABLED },
+        { CFG_TIMEOUT, CFG_VALUE_TIMEOUT },
+        { CFG_FSTIMEOUT, CFG_VALUE_FSTIMEOUT },
+        { CFG_ROUTING, CFG_VALUE_DUMMY },
+        { CFG_XHACK, CFG_VALUE_ENABLED },
 
         NULL,
         NULL
@@ -238,16 +228,16 @@ VettingController* newVettingController(void)
         atomic_set(&object->mTimeout, msecs_to_jiffies(CFG_DEFAULT_TIMEOUT));
         atomic_set(&object->mFSTimeout, msecs_to_jiffies(CFG_DEFAULT_FSTIMEOUT));
 
-        object->mConfig[0].name  = object->mStateConfigData[0].name;
-        object->mConfig[0].value = object->mStateConfigData[0].value;
-        object->mConfig[1].name  = object->mTimeoutConfigData[0].name;
-        object->mConfig[1].value = object->mTimeoutConfigData[0].value;
-        object->mConfig[2].name  = object->mFSTimeoutConfigData[0].name;
-        object->mConfig[2].value = object->mFSTimeoutConfigData[0].value;
-        object->mConfig[3].name  = object->mRoutingConfigData[0].name;
-        object->mConfig[3].value = object->mRoutingConfigData[0].value;
-        object->mConfig[4].name  = object->mXHackConfigData[0].name;
-        object->mConfig[4].value = object->mXHackConfigData[0].value;
+        object->mConfig[0].name  = object->mStateConfigData.name;
+        object->mConfig[0].value = object->mStateConfigData.value;
+        object->mConfig[1].name  = object->mTimeoutConfigData.name;
+        object->mConfig[1].value = object->mTimeoutConfigData.value;
+        object->mConfig[2].name  = object->mFSTimeoutConfigData.name;
+        object->mConfig[2].value = object->mFSTimeoutConfigData.value;
+        object->mConfig[3].name  = object->mRoutingConfigData.name;
+        object->mConfig[3].value = object->mRoutingConfigData.value;
+        object->mConfig[4].name  = object->mXHackConfigData.name;
+        object->mConfig[4].value = object->mXHackConfigData.value;
     }
     return object;
 }
@@ -2145,7 +2135,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     return true;
@@ -2156,7 +2146,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     return;
@@ -2168,7 +2158,7 @@ static void setTimeout(const void* self, const char* string)
     char* res;
 
     ms = simple_strtoul(string, &res, 10);
-    snprintf(this->mConfig[1].value, VETCTRL_CFGDATASIZE, "%u", ms);
+    snprintf(this->mTimeoutConfigData.value, VETCTRL_CFGDATASIZE, "%u", ms);
     atomic_set(&this->mTimeout, msecs_to_jiffies(ms));
     dbg("Timeout set to %ums", ms);
 
@@ -2181,7 +2171,7 @@ static void setFSTimeout(const void* self, const char* string)
     char* res;
 
     ms = simple_strtoul(string, &res, 10);
-    snprintf(this->mConfig[2].value, VETCTRL_CFGDATASIZE, "%u", ms);
+    snprintf(this->mFSTimeoutConfigData.value, VETCTRL_CFGDATASIZE, "%u", ms);
     atomic_set(&this->mFSTimeout, msecs_to_jiffies(ms));
     dbg("FS-Timeout set to %ums", ms);
 
@@ -2306,12 +2296,12 @@ static void  setConfig(void* self, const char* name, const char* value)
         if (strcmp(value, CFG_ACTION_ENABLE) == 0)
         {
             this->mXHack = true;
-            strcpy(this->mConfig[4].value, CFG_VALUE_ENABLED);
+            strcpy(this->mXHackConfigData.value, CFG_VALUE_ENABLED);
         }
         else if (strcmp(value, CFG_ACTION_DISABLE) == 0)
         {
             this->mXHack = false;
-            strcpy(this->mConfig[4].value, CFG_VALUE_DISABLED);
+            strcpy(this->mXHackConfigData.value, CFG_VALUE_DISABLED);
         }
     }
 

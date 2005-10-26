@@ -63,8 +63,8 @@ typedef struct tag_LSMInterceptor
     unsigned int                mHookingMask;
     IInterceptProcessor*        mTargetProcessor;
     PODConfigurationElement     mConfig[3];
-    LSMStatusConfigData         mConfigData[1];
-    LSMOpsConfigData            mOpsConfigData[1];
+    LSMStatusConfigData         mConfigData;
+    LSMOpsConfigData            mOpsConfigData;
     LinuxFilesystemFactoryImpl* mLinuxFilesystemFactory;
 } LSMInterceptor;
 

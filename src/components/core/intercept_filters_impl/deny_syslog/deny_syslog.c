@@ -80,9 +80,7 @@ static DenySyslogFilter template_DenySyslogFilter =
             {NULL, NULL, DENYSYSLOGFILTER_CFGDATASIZE, true, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        }
+        { CFG_STATUS, CFG_VALUE_ENABLED }
 
     };
 #define this    ((DenySyslogFilter*)self)
@@ -108,8 +106,8 @@ DenySyslogFilter* newDenySyslogFilter(const char *name)
         strncpy(object->mName, name, sizeof(object->mName)-1);
         object->mName[sizeof(object->mName)-1] = 0x00;
 
-        object->mConfig[0].name  = object->mConfigData[0].name;
-        object->mConfig[0].value = object->mConfigData[0].value;
+        object->mConfig[0].name  = object->mConfigData.name;
+        object->mConfig[0].value = object->mConfigData.value;
     }
     return object;
 }
@@ -223,7 +221,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     talpa_mutex_unlock(&this->mConfigSerialize);
@@ -236,7 +234,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     talpa_mutex_unlock(&this->mConfigSerialize);

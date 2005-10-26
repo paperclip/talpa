@@ -96,15 +96,9 @@ static DegradedModeProcessor template_DegradedModeProcessor =
             {NULL, NULL, DMD_CFGDATASIZE, true, true },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_ENABLED }
-        },
-        {
-            { CFG_THRESHOLD, CFG_VALUE_THRESHOLD }
-        },
-        {
-            { CFG_ACTIVE, CFG_VALUE_ACTIVE }
-        }
+        { CFG_STATUS, CFG_VALUE_ENABLED },
+        { CFG_THRESHOLD, CFG_VALUE_THRESHOLD },
+        { CFG_ACTIVE, CFG_VALUE_ACTIVE }
     };
 #define this    ((DegradedModeProcessor*)self)
 
@@ -128,12 +122,12 @@ DegradedModeProcessor* newDegradedModeProcessor(void)
         talpa_simple_init(&object->mLock);
         talpa_mutex_init(&object->mConfigSerialize);
 
-        object->mConfig[0].name  = object->mStateConfigData[0].name;
-        object->mConfig[0].value = object->mStateConfigData[0].value;
-        object->mConfig[1].name  = object->mThresholdConfigData[0].name;
-        object->mConfig[1].value = object->mThresholdConfigData[0].value;
-        object->mConfig[2].name  = object->mActiveConfigData[0].name;
-        object->mConfig[2].value = object->mActiveConfigData[0].value;
+        object->mConfig[0].name  = object->mStateConfigData.name;
+        object->mConfig[0].value = object->mStateConfigData.value;
+        object->mConfig[1].name  = object->mThresholdConfigData.name;
+        object->mConfig[1].value = object->mThresholdConfigData.value;
+        object->mConfig[2].name  = object->mActiveConfigData.name;
+        object->mConfig[2].value = object->mActiveConfigData.value;
     }
     return object;
 }
@@ -155,7 +149,7 @@ static inline bool checkDegraded(const void* self, IEvaluationReport* report)
         {
             info("Activated");
             this->mActive = true;
-            strcpy(this->mConfig[2].value, "true");
+            strcpy(this->mActiveConfigData.value, "true");
         }
         if ( !current->uid )
         {
@@ -167,7 +161,7 @@ static inline bool checkDegraded(const void* self, IEvaluationReport* report)
     {
         info("Deactivated");
         this->mActive = false;
-        strcpy(this->mConfig[2].value, "false");
+        strcpy(this->mActiveConfigData.value, "false");
     }
     talpa_simple_unlock(&this->mLock);
 
@@ -207,7 +201,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     return true;
@@ -218,7 +212,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     return;
@@ -235,7 +229,7 @@ static void setThreshold(const void* self, const char* string)
     char* res;
 
     val = simple_strtoul(string, &res, 10);
-    snprintf(this->mConfig[1].value, DMD_CFGDATASIZE, "%u", val);
+    snprintf(this->mThresholdConfigData.value, DMD_CFGDATASIZE, "%u", val);
     talpa_simple_lock(&this->mLock);
     this->mThreshold = val;
     talpa_simple_unlock(&this->mLock);

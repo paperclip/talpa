@@ -86,12 +86,8 @@ static FilesystemInclusionProcessor template_FilesystemInclusionProcessor =
             {NULL, NULL, PATH_MAX, true, false },
             {NULL, NULL, 0, false, false }
         },
-        {
-            { CFG_STATUS, CFG_VALUE_DISABLED }
-        },
-        {
-            { CFG_INCLUDE_PATH, CFG_PATH_DEFAULT }
-        }
+        { CFG_STATUS, CFG_VALUE_DISABLED },
+        { CFG_INCLUDE_PATH, CFG_PATH_DEFAULT }
     };
 #define this    ((FilesystemInclusionProcessor*)self)
 
@@ -110,10 +106,10 @@ FilesystemInclusionProcessor* newFilesystemInclusionProcessor(void)
     {
         memcpy(object, &template_FilesystemInclusionProcessor, sizeof(template_FilesystemInclusionProcessor));
         object->i_IInterceptFilter.object = object->i_IConfigurable.object = object;
-        object->mConfig[0].name  = object->mStateConfigData[0].name;
-        object->mConfig[0].value = object->mStateConfigData[0].value;
-        object->mConfig[1].name  = object->mPathConfigData[0].name;
-        object->mConfig[1].value = object->mPathConfigData[0].value;
+        object->mConfig[0].name  = object->mStateConfigData.name;
+        object->mConfig[0].value = object->mStateConfigData.value;
+        object->mConfig[1].name  = object->mPathConfigData.name;
+        object->mConfig[1].value = object->mPathConfigData.value;
         talpa_rw_init(&object->mConfigLock);
     }
     return object;
@@ -242,7 +238,7 @@ static bool enable(void* self)
     if (!this->mEnabled)
     {
         this->mEnabled = true;
-        strcpy(this->mConfig[0].value, CFG_VALUE_ENABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_ENABLED);
         info("Enabled");
     }
     return true;
@@ -253,7 +249,7 @@ static void disable(void* self)
     if (this->mEnabled)
     {
         this->mEnabled = false;
-        strcpy(this->mConfig[0].value, CFG_VALUE_DISABLED);
+        strcpy(this->mStateConfigData.value, CFG_VALUE_DISABLED);
         info("Disabled");
     }
     return;
@@ -269,7 +265,7 @@ static void setPath(void* self, const char* path)
     talpa_write_lock(&this->mConfigLock);
     strcpy(this->mPath, path);
     this->mPathLen = strlen(path);
-    strcpy(this->mConfig[1].value, path);
+    strcpy(this->mPathConfigData.value, path);
     info("Path set to %s", path);
     if ( !strcmp(path, CFG_PATH_DEFAULT) )
     {
