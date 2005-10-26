@@ -16,11 +16,10 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-AM_CFLAGS = -I$(srcdir)/../../include
+AM_CFLAGS = -I$(srcdir)/../../include -O2 -DNDEBUG
 
 noinst_PROGRAMS = open-bench vc vc-scan 
 
-open_bench_CFLAGS = -O2 $(AM_CFLAGS)    
 vc_SOURCES = ../../clients/vc-quiet.c ../../clients/vc.h ../../clients/vc-lib.c
 vc_scan_CFLAGS =-DSCANFILE $(AM_CFLAGS)
 vc_scan_SOURCES = ../../clients/vc-quiet.c ../../clients/vc.h ../../clients/vc-lib.c
