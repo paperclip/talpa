@@ -162,7 +162,7 @@ function open_close_test()
     fi
 
     let spawn=($nr_cpus)*4
-    if [ $spawn -gt 4 ]; then
+    if [ $spawn -ge 4 ]; then
         open_close $spawn
     fi
 }
@@ -234,7 +234,7 @@ function vetting_test()
     fi
 
     let spawn=($nr_cpus)*4
-    if [ $spawn -gt 4 ]; then
+    if [ $spawn -ge 4 ]; then
         run_vetting_clients $vc $spawn
         open_close_test "$spawn vetting clients$extra"
         kill_vetting_clients
