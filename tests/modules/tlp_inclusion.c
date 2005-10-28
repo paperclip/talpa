@@ -94,7 +94,7 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
     switch ( cmd )
     {
         case TALPA_TEST_INCL_SETPATH:
-                ret = strlen_user((char *)parm);
+                ret = strnlen_user((char *)parm, PATH_MAX);
                 if ( ret > 0 )
                 {
                     ret = copy_from_user(GL_path, (void *)parm, ret); /* includes null-terminator! */
