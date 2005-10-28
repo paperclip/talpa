@@ -166,6 +166,8 @@ sub draw_graph
         $omax = $openers if $openers > $omax;
     }
 
+    return unless $omax > 0;
+
     my $xlegend;
     for ( my $i = 0; $i < $omax; $i++ ) {
         $xlegend .= 1<<$i;
@@ -193,7 +195,7 @@ sub draw_graph
         l_margin          => 10,
         r_margin          => 10,
 #        y_max_value       => 500000,
-        y_min_value       => 0
+#        y_min_value       => 0
     ) or die;
 
     $graph->set_legend(@tests);
