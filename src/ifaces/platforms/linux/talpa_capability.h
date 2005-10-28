@@ -26,7 +26,11 @@
 struct talpa_capability_interceptor
 {
     int (*inode_permission)(struct inode *inode, int mask, struct nameidata *nd);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    int (*inode_init_security)(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len);
+#else
     void (*inode_post_create)(struct inode *dir, struct dentry *dentry, int mode);
+#endif
     int (*bprm_check_security)(struct linux_binprm* bprm);
     void (*file_free_security)(struct file *file);
     int (*sb_mount)(char *dev_name, struct nameidata *nd, char *type, unsigned long flags, void *data);

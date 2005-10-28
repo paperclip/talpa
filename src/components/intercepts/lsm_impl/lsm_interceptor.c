@@ -314,6 +314,33 @@ static int talpa_cap_inode_permission(struct inode *inode, int mask, struct name
     return decision;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+static inline int talpa_inode_init_security(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len)
+{
+    if ( likely( GL_object.mInterceptMask & HOOK_OPEN) )
+    {
+        examineInode(&GL_object, EFS_Open, inode, O_CREAT | O_EXCL);
+    }
+
+    return -EOPNOTSUPP;
+}
+
+static int talpa_lsm_inode_init_security(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len)
+{
+    int decision;
+
+    hookEntry();
+
+    decision = talpa_inode_init_security(inode, dir, name, value, len);
+
+    hookExitRv(decision);
+}
+
+static int talpa_cap_inode_init_security(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len)
+{
+    return talpa_inode_init_security(inode, dir, name, value, len);
+}
+#else
 static inline void talpa_inode_post_create(struct inode *dir, struct dentry *dentry, int mode)
 {
     if ( likely( GL_object.mInterceptMask & HOOK_OPEN) )
@@ -335,6 +362,7 @@ static void talpa_cap_inode_post_create(struct inode *dir, struct dentry *dentry
 {
     talpa_inode_post_create(dir, dentry, mode);
 }
+#endif
 
 #else /* INODE_PERMISSION */
 
@@ -601,7 +629,11 @@ static int talpa_cap_sb_umount(struct vfsmount *mnt, int flags)
 static struct security_operations interceptor_ops_plain = {
 #ifdef INODE_PERMISSION
     .inode_permission =         talpa_lsm_inode_permission,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    .inode_init_security =      talpa_lsm_inode_init_security,
+#else
     .inode_post_create =        talpa_lsm_inode_post_create,
+#endif
 #else
     .file_alloc_security =      talpa_file_alloc_security,
     .file_permission =          talpa_file_permission,
@@ -627,7 +659,11 @@ static struct security_operations interceptor_ops_with_cap = {
 /* Talpa part */
 #ifdef INODE_PERMISSION
     .inode_permission =         talpa_lsm_inode_permission,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    .inode_init_security =      talpa_lsm_inode_init_security,
+#else
     .inode_post_create =        talpa_lsm_inode_post_create,
+#endif
 #else
     .file_alloc_security =      talpa_file_alloc_security,
     .file_permission =          talpa_file_permission,
@@ -641,7 +677,11 @@ static struct security_operations interceptor_ops_with_cap = {
 
 static struct talpa_capability_interceptor talpa_capability_ops = {
     .inode_permission =         talpa_cap_inode_permission,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    .inode_init_security =      talpa_cap_inode_init_security,
+#else
     .inode_post_create =        talpa_cap_inode_post_create,
+#endif
     .file_free_security =       talpa_cap_file_free_security,
     .bprm_check_security =      talpa_cap_bprm_check_security,
     .sb_mount =                 talpa_cap_sb_mount,

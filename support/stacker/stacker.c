@@ -114,19 +114,23 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, inode_alloc_security);
     set_to_null_if_dummy(ops, inode_free_security);
     set_to_null_if_dummy(ops, inode_create);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    set_to_null_if_dummy(ops, inode_init_security);
+#else
     set_to_null_if_dummy(ops, inode_post_create);
-    set_to_null_if_dummy(ops, inode_link);
     set_to_null_if_dummy(ops, inode_post_link);
+    set_to_null_if_dummy(ops, inode_post_symlink);
+    set_to_null_if_dummy(ops, inode_post_mkdir);
+    set_to_null_if_dummy(ops, inode_post_mknod);
+    set_to_null_if_dummy(ops, inode_post_rename);
+#endif
+    set_to_null_if_dummy(ops, inode_link);
     set_to_null_if_dummy(ops, inode_unlink);
     set_to_null_if_dummy(ops, inode_symlink);
-    set_to_null_if_dummy(ops, inode_post_symlink);
     set_to_null_if_dummy(ops, inode_mkdir);
-    set_to_null_if_dummy(ops, inode_post_mkdir);
     set_to_null_if_dummy(ops, inode_rmdir);
     set_to_null_if_dummy(ops, inode_mknod);
-    set_to_null_if_dummy(ops, inode_post_mknod);
     set_to_null_if_dummy(ops, inode_rename);
-    set_to_null_if_dummy(ops, inode_post_rename);
     set_to_null_if_dummy(ops, inode_readlink);
     set_to_null_if_dummy(ops, inode_follow_link);
     set_to_null_if_dummy(ops, inode_permission);
@@ -755,19 +759,46 @@ static int stacker_inode_create(struct inode *dir, struct dentry *dentry, int mo
     return RESTRICTIVE_STACKED(inode_create, (dir, dentry, mode));
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+static int stacker_inode_init_security(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len)
+{
+    return AUTHORITATIVE_STACKED(inode_init_security, (inode, dir, name, value, len));
+}
+#else
 static void stacker_inode_post_create(struct inode *dir, struct dentry *dentry, int mode)
 {
     ALL_STACKED(inode_post_create, (dir, dentry, mode));
 }
 
-static int stacker_inode_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
-{
-    return RESTRICTIVE_STACKED(inode_link, (old_dentry, dir, new_dentry));
-}
-
 static void stacker_inode_post_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
 {
     ALL_STACKED(inode_post_link, (old_dentry, dir, new_dentry));
+}
+
+static void stacker_inode_post_symlink(struct inode *dir, struct dentry *dentry, const char *old_name)
+{
+    ALL_STACKED(inode_post_symlink, (dir, dentry, old_name));
+}
+
+static void stacker_inode_post_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+{
+    ALL_STACKED(inode_post_mkdir, (dir, dentry, mode));
+}
+
+static void stacker_inode_post_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+{
+    ALL_STACKED(inode_post_mknod, (dir, dentry, mode, dev));
+}
+
+static void stacker_inode_post_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
+{
+    ALL_STACKED(inode_post_rename, (old_dir, old_dentry, new_dir, new_dentry));
+}
+#endif
+
+static int stacker_inode_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
+{
+    return RESTRICTIVE_STACKED(inode_link, (old_dentry, dir, new_dentry));
 }
 
 static int stacker_inode_unlink(struct inode *dir, struct dentry *dentry)
@@ -780,19 +811,9 @@ static int stacker_inode_symlink(struct inode *dir, struct dentry *dentry, const
     return RESTRICTIVE_STACKED(inode_symlink, (dir, dentry, old_name));
 }
 
-static void stacker_inode_post_symlink(struct inode *dir, struct dentry *dentry, const char *old_name)
-{
-    ALL_STACKED(inode_post_symlink, (dir, dentry, old_name));
-}
-
 static int stacker_inode_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
     return RESTRICTIVE_STACKED(inode_mkdir, (dir, dentry, mode));
-}
-
-static void stacker_inode_post_mkdir(struct inode *dir, struct dentry *dentry, int mode)
-{
-    ALL_STACKED(inode_post_mkdir, (dir, dentry, mode));
 }
 
 static int stacker_inode_rmdir(struct inode *dir, struct dentry *dentry)
@@ -805,19 +826,9 @@ static int stacker_inode_mknod(struct inode *dir, struct dentry *dentry, int mod
     return RESTRICTIVE_STACKED(inode_mknod, (dir, dentry, mode, dev));
 }
 
-static void stacker_inode_post_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
-{
-    ALL_STACKED(inode_post_mknod, (dir, dentry, mode, dev));
-}
-
 static int stacker_inode_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
 {
     return RESTRICTIVE_STACKED(inode_rename, (old_dir, old_dentry, new_dir, new_dentry));
-}
-
-static void stacker_inode_post_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
-{
-    ALL_STACKED(inode_post_rename, (old_dir, old_dentry, new_dir, new_dentry));
 }
 
 static int stacker_inode_readlink(struct dentry *dentry)
@@ -1388,19 +1399,23 @@ struct security_operations stacker_ops = {
     .inode_alloc_security = stacker_inode_alloc_security,
     .inode_free_security =  stacker_inode_free_security,
     .inode_create =         stacker_inode_create,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    .inode_init_security =  stacker_inode_init_security,
+#else
     .inode_post_create =    stacker_inode_post_create,
-    .inode_link =           stacker_inode_link,
     .inode_post_link =      stacker_inode_post_link,
+    .inode_post_symlink =   stacker_inode_post_symlink,
+    .inode_post_mkdir =     stacker_inode_post_mkdir,
+    .inode_post_mknod =     stacker_inode_post_mknod,
+    .inode_post_rename =    stacker_inode_post_rename,
+#endif
+    .inode_link =           stacker_inode_link,
     .inode_unlink =         stacker_inode_unlink,
     .inode_symlink =        stacker_inode_symlink,
-    .inode_post_symlink =   stacker_inode_post_symlink,
     .inode_mkdir =          stacker_inode_mkdir,
-    .inode_post_mkdir =     stacker_inode_post_mkdir,
     .inode_rmdir =          stacker_inode_rmdir,
     .inode_mknod =          stacker_inode_mknod,
-    .inode_post_mknod =     stacker_inode_post_mknod,
     .inode_rename =         stacker_inode_rename,
-    .inode_post_rename =    stacker_inode_post_rename,
     .inode_readlink =       stacker_inode_readlink,
     .inode_follow_link =    stacker_inode_follow_link,
     .inode_permission =     stacker_inode_permission,

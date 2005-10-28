@@ -105,6 +105,30 @@ static int talpa_inode_permission(struct inode *inode, int mask, struct nameidat
     return ret;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+static int talpa_inode_init_security(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len)
+{
+    struct talpa_capability_interceptor* i;
+    int ret = 0;
+
+    atomic_inc(&usecnt);
+
+    i = interceptor;
+
+    if ( likely( i != NULL ) )
+    {
+        ret = i->inode_init_security(inode, dir, name, value, len);
+    }
+
+    if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
+    {
+        wake_up(&unregister_wait);
+    }
+
+    return ret;
+}
+
+#else
 static void talpa_inode_post_create(struct inode *dir, struct dentry *dentry, int mode)
 {
     struct talpa_capability_interceptor* i;
@@ -123,6 +147,7 @@ static void talpa_inode_post_create(struct inode *dir, struct dentry *dentry, in
         wake_up(&unregister_wait);
     }
 }
+#endif
 
 static int talpa_bprm_check_security(struct linux_binprm* bprm)
 {
@@ -247,7 +272,11 @@ struct security_operations talpa_capability_ops = {
 
 /* Talpa part */
     .inode_permission =         talpa_inode_permission,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+    .inode_init_security =      talpa_inode_init_security,
+#else
     .inode_post_create =        talpa_inode_post_create,
+#endif
 
     .file_free_security =       talpa_file_free_security,
 
