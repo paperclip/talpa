@@ -192,6 +192,8 @@ function vetting_test()
 
     vc=./vc
 
+    echo disable >/proc/sys/talpa/intercept-filters/Cache/status
+
     if [ $# -gt 0 ]; then
         case $1 in
             "cache")
@@ -203,7 +205,6 @@ function vetting_test()
             "scan")
                 extra=", scanning enabled"
                 vc=./vc-scan
-                echo disable >/proc/sys/talpa/intercept-filters/Cache/status
         esac
     fi
 
