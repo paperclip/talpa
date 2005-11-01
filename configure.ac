@@ -625,26 +625,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} s/@debug@/"${debug}"/ ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -i s/@assert@/"${assert}"/ ${srcdir}/Makefile
-    ${SED} -i s/@newparent@/"${newparent}"/ ${srcdir}/Makefile
-    ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/Makefile
-    ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/Makefile
-    ${SED} -i s/@rcubackport@/"${rcubackport}"/ ${srcdir}/Makefile
-    ${SED} -i s/@signalbackport@/"${signalbackport}"/ ${srcdir}/Makefile
-    ${SED} -i s/@jiffiesbackport@/"${jiffiesbackport}"/ ${srcdir}/Makefile
-    ${SED} -i s/@buildlsm@/"${lsm}"/ ${srcdir}/Makefile
-    ${SED} -i s/@lsm265@/"${lsm265}"/ ${srcdir}/Makefile
-    ${SED} -i s/@lsm266@/"${lsm266}"/ ${srcdir}/Makefile
-    ${SED} -i s/@lsm2610@/"${lsm2610}"/ ${srcdir}/Makefile
-    ${SED} -i s/@hidden@/"${hidden}"/ ${srcdir}/Makefile
-    ${SED} -i s/@execve@/"${execve}"/ ${srcdir}/Makefile
-    ${SED} -i s/@xhack@/"${xhack}"/ ${srcdir}/Makefile
-
-    ${SED} s/@debug@/"${debug}"/ ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
-    ${SED} -i s/@assert@/"${assert}"/ ${srcdir}/tests/modules/Makefile
-    ${SED} -i s/@inodeallocsem@/"${inodeallocsem}"/ ${srcdir}/tests/modules/Makefile
-    ${SED} -i s/@tasknewtty@/"${tasknewtty}"/ ${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@debug@/${debug}/; s/@assert@/${assert}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
