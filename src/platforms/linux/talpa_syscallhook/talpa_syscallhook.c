@@ -30,11 +30,11 @@
 #include <linux/unistd.h>
 #include <linux/fs.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)
-#include <linux/syscalls.h>
-#endif
-#include <linux/ptrace.h>
-#include <linux/moduleparam.h>
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)
+    #include <linux/syscalls.h>
+  #endif
+  #include <linux/ptrace.h>
+  #include <linux/moduleparam.h>
 #endif
 
 #include "platforms/linux/talpa_syscallhook.h"
@@ -50,38 +50,39 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #define notice(format, arg...) printk(KERN_NOTICE "talpa-syscallhook: " format "\n" , ## arg)
 #define info(format, arg...) printk(KERN_INFO "talpa-syscallhook: " format "\n" , ## arg)
 #ifdef DEBUG
-#define dbg(format, arg...) printk(KERN_DEBUG "TALPA [" __FILE__ " ### %s] " format "\n" , __FUNCTION__, ## arg)
+  #define dbg(format, arg...) printk(KERN_DEBUG "TALPA [" __FILE__ " ### %s] " format "\n" , __FUNCTION__, ## arg)
 #else
-#define dbg(format, arg...) do {} while (0)
+  #define dbg(format, arg...) do {} while (0)
 #endif
 
 #if __GNUC__ == 2 && __GNUC_MINOR__ < 96
-#define __builtin_expect(x, expected_value) (x)
+  #define __builtin_expect(x, expected_value) (x)
 #endif
 
 #ifndef likely
-#define likely(x)       __builtin_expect(!!(x), 1)
+  #define likely(x)       __builtin_expect(!!(x), 1)
 #endif
 
 #ifndef unlikely
-#define unlikely(x)     __builtin_expect(!!(x), 0)
+  #define unlikely(x)     __builtin_expect(!!(x), 0)
 #endif
 
 #ifndef MODULE_LICENSE
-#define MODULE_LICENSE(x) const char module_license[] = x
+  #define MODULE_LICENSE(x) const char module_license[] = x
 #endif
 
 #if defined TALPA_EXECVE_SUPPORT && defined CONFIG_IA32_EMULATION
-#undef TALPA_EXECVE_SUPPORT
+  #undef TALPA_EXECVE_SUPPORT
 #endif
 
-#define __NR_open_ia32     5
-#define __NR_close_ia32    6
-#define __NR_uselib_ia32  86
-#define __NR_mount_ia32   21
-#define __NR_umount_ia32  22
-#define __NR_umount2_ia32 52
-
+#ifdef CONFIG_IA32_EMULATION
+  #define __NR_open_ia32     5
+  #define __NR_close_ia32    6
+  #define __NR_uselib_ia32  86
+  #define __NR_mount_ia32   21
+  #define __NR_umount_ia32  22
+  #define __NR_umount2_ia32 52
+#endif
 
 static atomic_t usecnt = ATOMIC_INIT(0);
 static struct talpa_syscall_operations* interceptor;
@@ -102,9 +103,9 @@ static asmlinkage long (*orig_umount2)(char* name, int flags);
 #ifdef CONFIG_IA32_EMULATION
 static asmlinkage long (*orig_open_32)(const char* filename, int flags, int mode);
 static asmlinkage long (*orig_close_32)(unsigned int fd);
-#ifdef CONFIG_IA32_AOUT
+  #ifdef CONFIG_IA32_AOUT
 static asmlinkage long (*orig_uselib_32)(const char* library);
-#endif
+  #endif
 static asmlinkage long (*orig_mount_32)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 static asmlinkage long (*orig_umount_32)(char* name);
 static asmlinkage long (*orig_umount2_32)(char* name, int flags);
@@ -300,7 +301,7 @@ out:
     return error;
 }
 #else
-#warning "execve is not implemented on this kernel/platform!"
+  #warning "execve is not implemented on this kernel/platform!"
 #endif
 
 static asmlinkage long talpa_mount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
@@ -337,9 +338,7 @@ out:
     return err;
 }
 
-#ifdef CONFIG_X86
-
-#ifndef CONFIG_X86_64
+#if defined CONFIG_X86 && (!defined CONFIG_X86_64 || CONFIG_IA32_EMULATION)
 static asmlinkage long talpa_umount(char* name)
 {
     struct talpa_syscall_operations* ops;
@@ -355,38 +354,11 @@ static asmlinkage long talpa_umount(char* name)
         ops->umount_pre(name, 0);
     }
 
-    err = orig_umount(name);
-
-    if ( likely( ops != NULL ) )
-    {
-        ops->umount_post(err, name, 0);
-    }
-
-    if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
-    {
-        wake_up(&unregister_wait);
-    }
-
-    return err;
-}
-#else
-#ifdef CONFIG_IA32_EMULATION
-static asmlinkage long talpa_umount_32(char* name)
-{
-    struct talpa_syscall_operations* ops;
-    int err;
-
-
-    atomic_inc(&usecnt);
-
-    ops = interceptor;
-
-    if ( likely( ops != NULL ) )
-    {
-        ops->umount_pre(name, 0);
-    }
-
+  #ifdef CONFIG_IA32_EMULATION
     err = orig_umount_32(name);
+  #else
+    err = orig_umount(name);
+  #endif
 
     if ( likely( ops != NULL ) )
     {
@@ -400,9 +372,6 @@ static asmlinkage long talpa_umount_32(char* name)
 
     return err;
 }
-#endif
-#endif
-
 #endif
 
 static asmlinkage long talpa_umount2(char* name, int flags)
@@ -442,39 +411,39 @@ static asmlinkage long talpa_umount2(char* name, int flags)
 #ifdef TALPA_HIDDEN_SYSCALLS
 static void **sys_call_table;
 
-#ifdef CONFIG_IA32_EMULATION
+  #ifdef CONFIG_IA32_EMULATION
 static void **ia32_sys_call_table;
-#endif
+  #endif
 
 /* Code below, which finds the hidden system call table,
    is borrowed from the ARLA project. It is confirmed to work
    on 2.6 (x86, x86_64) and patched 2.4 (x86) kernels. */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-#include <linux/kallsyms.h>
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+    #include <linux/kallsyms.h>
 static void *lower_bound = &kernel_thread;
-#else
-#include <asm/pgtable.h>
+  #else
+    #include <asm/pgtable.h>
 static void *lower_bound = &empty_zero_page;
-#endif
+  #endif
 
 const char * __attribute__((weak)) kallsyms_lookup(unsigned long addr, unsigned long *symbolsize, unsigned long *offset, char **modname, char *namebuf);
 
 static void **get_start_addr(void)
 {
-#ifdef CONFIG_X86_64
+  #ifdef CONFIG_X86_64
     return (void **)&tasklist_lock - 0x1000;
-#else
+  #else
     return (void **)&init_mm;
-#endif
+  #endif
 }
 
-#ifdef CONFIG_IA32_EMULATION
+  #ifdef CONFIG_IA32_EMULATION
 static void **get_start_addr_ia32(void)
 {
     return (void **)&console_printk - 0x1000;
 }
-#endif
+  #endif
 
 static inline int kallsym_is_equal(unsigned long addr, const char *name)
 {
@@ -497,27 +466,27 @@ static inline int kallsym_is_equal(unsigned long addr, const char *name)
 static inline int verify(void **p)
 {
     const int zapped_syscalls[] = {
-#ifdef __NR_break
+  #ifdef __NR_break
         __NR_break,
-#endif
-#ifdef __NR_stty
+  #endif
+  #ifdef __NR_stty
         __NR_stty,
-#endif
-#ifdef __NR_gtty
+  #endif
+  #ifdef __NR_gtty
         __NR_gtty,
-#endif
-#ifdef __NR_ftime
+  #endif
+  #ifdef __NR_ftime
         __NR_ftime,
-#endif
-#ifdef __NR_prof
+  #endif
+  #ifdef __NR_prof
         __NR_prof,
-#endif
-#ifdef __NR_lock
+  #endif
+  #ifdef __NR_lock
         __NR_lock,
-#endif
-#ifdef __NR_mpx
+  #endif
+  #ifdef __NR_mpx
         __NR_mpx,
-#endif
+  #endif
         0 };
     const int num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
     const int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write,
@@ -545,12 +514,12 @@ static inline int verify(void **p)
         }
     }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+  #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     if ( p[__NR_close] != (void*)&sys_close )
     {
         return 0;
     }
-#endif
+  #endif
 
     if ( kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
                              || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
@@ -652,16 +621,15 @@ static int __init talpa_syscallhook_init(void)
     orig_mount = sys_call_table[__NR_mount];
   #if defined CONFIG_X86_64
     orig_umount2 = sys_call_table[__NR_umount2];
-
     #ifdef CONFIG_IA32_EMULATION
-     orig_open_32 = ia32_sys_call_table[__NR_open_ia32];
-     orig_close_32 = ia32_sys_call_table[__NR_close_ia32];
+    orig_open_32 = ia32_sys_call_table[__NR_open_ia32];
+    orig_close_32 = ia32_sys_call_table[__NR_close_ia32];
       #ifdef CONFIG_IA32_AOUT
-       orig_uselib_32 = ia32_sys_call_table[__NR_uselib_ia32];
+    orig_uselib_32 = ia32_sys_call_table[__NR_uselib_ia32];
       #endif
-     orig_mount_32 = ia32_sys_call_table[__NR_mount_ia32];
-     orig_umount_32 = ia32_sys_call_table[__NR_umount_ia32];
-     orig_umount2_32 = ia32_sys_call_table[__NR_umount2_ia32];
+    orig_mount_32 = ia32_sys_call_table[__NR_mount_ia32];
+    orig_umount_32 = ia32_sys_call_table[__NR_umount_ia32];
+    orig_umount2_32 = ia32_sys_call_table[__NR_umount2_ia32];
     #endif
   #else
     orig_umount = sys_call_table[__NR_umount];
@@ -714,7 +682,7 @@ static int __init talpa_syscallhook_init(void)
  #endif
 #endif
 #ifdef CONFIG_IA32_EMULATION
-        ia32_sys_call_table[__NR_umount_ia32] = talpa_umount_32;
+        ia32_sys_call_table[__NR_umount_ia32] = talpa_umount;
         ia32_sys_call_table[__NR_umount2_ia32] = talpa_umount2;
 #endif
     }
@@ -750,34 +718,32 @@ static void __exit talpa_syscallhook_exit(void)
     fsync_dev(0);
 #endif
 
+#if defined CONFIG_X86
     sys_call_table[__NR_open] = orig_open;
     sys_call_table[__NR_close] = orig_close;
+  #ifdef TALPA_EXECVE_SUPPORT
+    sys_call_table[__NR_execve] = orig_execve;
+  #endif
     sys_call_table[__NR_uselib] = orig_uselib;
     sys_call_table[__NR_mount] = orig_mount;
-
-#if defined CONFIG_X86
- #if defined CONFIG_X86_64
+  #if defined CONFIG_X86_64
     sys_call_table[__NR_umount2] = orig_umount2;
- #else
-    sys_call_table[__NR_umount] = orig_umount;
-    sys_call_table[__NR_umount2] = orig_umount2;
- #endif
-#endif
-
-#ifdef TALPA_EXECVE_SUPPORT
-    sys_call_table[__NR_execve] = orig_execve;
-#endif
-
-#ifdef CONFIG_IA32_EMULATION
+    #ifdef CONFIG_IA32_EMULATION
     ia32_sys_call_table[__NR_open_ia32] = orig_open_32;
     ia32_sys_call_table[__NR_close_ia32] = orig_close_32;
-  #ifdef CONFIG_IA32_AOUT
+      #ifdef CONFIG_IA32_AOUT
     ia32_sys_call_table[__NR_uselib_ia32] = orig_uselib_32;
-  #endif
+      #endif
     ia32_sys_call_table[__NR_mount_ia32] = orig_mount_32;
     ia32_sys_call_table[__NR_umount_ia32] = orig_umount_32;
     ia32_sys_call_table[__NR_umount2_ia32] = orig_umount2_32;
+    #endif
+  #else
+    sys_call_table[__NR_umount] = orig_umount;
+    sys_call_table[__NR_umount2] = orig_umount2;
+  #endif
 #endif
+
     unlock_kernel();
 
     /* Now wait for a last caller to exit */
