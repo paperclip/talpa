@@ -71,6 +71,18 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #define MODULE_LICENSE(x) const char module_license[] = x
 #endif
 
+#if defined TALPA_EXECVE_SUPPORT && defined CONFIG_IA32_EMULATION
+#undef TALPA_EXECVE_SUPPORT
+#endif
+
+#define __NR_open_ia32     5
+#define __NR_close_ia32    6
+#define __NR_uselib_ia32  86
+#define __NR_mount_ia32   21
+#define __NR_umount_ia32  22
+#define __NR_umount2_ia32 52
+
+
 static atomic_t usecnt = ATOMIC_INIT(0);
 static struct talpa_syscall_operations* interceptor;
 static DECLARE_WAIT_QUEUE_HEAD(unregister_wait);
@@ -86,6 +98,17 @@ static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type,
 static asmlinkage long (*orig_umount)(char* name);
 #endif
 static asmlinkage long (*orig_umount2)(char* name, int flags);
+
+#ifdef CONFIG_IA32_EMULATION
+static asmlinkage long (*orig_open_32)(const char* filename, int flags, int mode);
+static asmlinkage long (*orig_close_32)(unsigned int fd);
+#ifdef CONFIG_IA32_AOUT
+static asmlinkage long (*orig_uselib_32)(const char* library);
+#endif
+static asmlinkage long (*orig_mount_32)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
+static asmlinkage long (*orig_umount_32)(char* name);
+static asmlinkage long (*orig_umount2_32)(char* name, int flags);
+#endif
 
 /*
  * Hooking mask:
@@ -314,7 +337,9 @@ out:
     return err;
 }
 
-#if defined CONFIG_X86 && !defined CONFIG_X86_64
+#ifdef CONFIG_X86
+
+#ifndef CONFIG_X86_64
 static asmlinkage long talpa_umount(char* name)
 {
     struct talpa_syscall_operations* ops;
@@ -344,6 +369,40 @@ static asmlinkage long talpa_umount(char* name)
 
     return err;
 }
+#else
+#ifdef CONFIG_IA32_EMULATION
+static asmlinkage long talpa_umount_32(char* name)
+{
+    struct talpa_syscall_operations* ops;
+    int err;
+
+
+    atomic_inc(&usecnt);
+
+    ops = interceptor;
+
+    if ( likely( ops != NULL ) )
+    {
+        ops->umount_pre(name, 0);
+    }
+
+    err = orig_umount_32(name);
+
+    if ( likely( ops != NULL ) )
+    {
+        ops->umount_post(err, name, 0);
+    }
+
+    if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
+    {
+        wake_up(&unregister_wait);
+    }
+
+    return err;
+}
+#endif
+#endif
+
 #endif
 
 static asmlinkage long talpa_umount2(char* name, int flags)
@@ -383,6 +442,10 @@ static asmlinkage long talpa_umount2(char* name, int flags)
 #ifdef TALPA_HIDDEN_SYSCALLS
 static void **sys_call_table;
 
+#ifdef CONFIG_IA32_EMULATION
+static void **ia32_sys_call_table;
+#endif
+
 /* Code below, which finds the hidden system call table,
    is borrowed from the ARLA project. It is confirmed to work
    on 2.6 (x86, x86_64) and patched 2.4 (x86) kernels. */
@@ -405,6 +468,13 @@ static void **get_start_addr(void)
     return (void **)&init_mm;
 #endif
 }
+
+#ifdef CONFIG_IA32_EMULATION
+static void **get_start_addr_ia32(void)
+{
+    return (void **)&console_printk - 0x1000;
+}
+#endif
 
 static inline int kallsym_is_equal(unsigned long addr, const char *name)
 {
@@ -501,9 +571,8 @@ static inline int looks_good(void **p)
     return 1;
 }
 
-static void **talpa_find_syscall_table(void)
+static void **talpa_find_syscall_table(void **ptr)
 {
-    void **ptr = get_start_addr();
     void **limit;
     void **table = NULL;
 
@@ -552,12 +621,20 @@ extern void *sys_call_table[];
 static int __init talpa_syscallhook_init(void)
 {
 #ifdef TALPA_HIDDEN_SYSCALLS
-    sys_call_table = talpa_find_syscall_table();
+    sys_call_table = talpa_find_syscall_table(get_start_addr());
     if (sys_call_table == NULL)
     {
         err("Cannot find syscall table!");
         return -ESRCH;
     }
+  #ifdef CONFIG_IA32_EMULATION
+    ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32());
+    if (ia32_sys_call_table == NULL)
+    {
+        err("Cannot find IA32 emulation syscall table!");
+        return -ESRCH;
+    }
+  #endif
 #endif
 
     lock_kernel();
@@ -565,44 +642,65 @@ static int __init talpa_syscallhook_init(void)
     fsync_dev(0);
 #endif
 
+#ifdef CONFIG_X86
     orig_open = sys_call_table[__NR_open];
     orig_close = sys_call_table[__NR_close];
+  #ifdef TALPA_EXECVE_SUPPORT
+    orig_execve = sys_call_table[__NR_execve];
+  #endif
     orig_uselib = sys_call_table[__NR_uselib];
     orig_mount = sys_call_table[__NR_mount];
-
-#if defined CONFIG_X86
- #if defined CONFIG_X86_64
+  #if defined CONFIG_X86_64
     orig_umount2 = sys_call_table[__NR_umount2];
- #else
+
+    #ifdef CONFIG_IA32_EMULATION
+     orig_open_32 = ia32_sys_call_table[__NR_open_ia32];
+     orig_close_32 = ia32_sys_call_table[__NR_close_ia32];
+      #ifdef CONFIG_IA32_AOUT
+       orig_uselib_32 = ia32_sys_call_table[__NR_uselib_ia32];
+      #endif
+     orig_mount_32 = ia32_sys_call_table[__NR_mount_ia32];
+     orig_umount_32 = ia32_sys_call_table[__NR_umount_ia32];
+     orig_umount2_32 = ia32_sys_call_table[__NR_umount2_ia32];
+    #endif
+  #else
     orig_umount = sys_call_table[__NR_umount];
     orig_umount2 = sys_call_table[__NR_umount2];
- #endif
+  #endif
 #else
- #error "Architecture currently not supported!"
-#endif
-
-#ifdef TALPA_EXECVE_SUPPORT
-    orig_execve = sys_call_table[__NR_execve];
+  #error "Architecture currently not supported!"
 #endif
 
     if ( strchr(hook_mask, 'o') )
     {
         sys_call_table[__NR_open] = talpa_open;
+#ifdef CONFIG_IA32_EMULATION
+        ia32_sys_call_table[__NR_open_ia32] = talpa_open;
+#endif
     }
 
     if ( strchr(hook_mask, 'c') )
     {
         sys_call_table[__NR_close] = talpa_close;
+#ifdef CONFIG_IA32_EMULATION
+        ia32_sys_call_table[__NR_close_ia32] = talpa_close;
+#endif
     }
 
     if ( strchr(hook_mask, 'l') )
     {
         sys_call_table[__NR_uselib] = talpa_uselib;
+#if defined CONFIG_IA32_EMULATION && defined CONFIG_IA32_AOUT
+        ia32_sys_call_table[__NR_uselib_ia32] = talpa_uselib;
+#endif
     }
 
     if ( strchr(hook_mask, 'm') )
     {
         sys_call_table[__NR_mount] = talpa_mount;
+#ifdef CONFIG_IA32_EMULATION
+        ia32_sys_call_table[__NR_mount_ia32] = talpa_mount;
+#endif
     }
 
     if ( strchr(hook_mask, 'u') )
@@ -614,6 +712,10 @@ static int __init talpa_syscallhook_init(void)
         sys_call_table[__NR_umount] = talpa_umount;
         sys_call_table[__NR_umount2] = talpa_umount2;
  #endif
+#endif
+#ifdef CONFIG_IA32_EMULATION
+        ia32_sys_call_table[__NR_umount_ia32] = talpa_umount_32;
+        ia32_sys_call_table[__NR_umount2_ia32] = talpa_umount2;
 #endif
     }
 
@@ -666,6 +768,16 @@ static void __exit talpa_syscallhook_exit(void)
     sys_call_table[__NR_execve] = orig_execve;
 #endif
 
+#ifdef CONFIG_IA32_EMULATION
+    ia32_sys_call_table[__NR_open_ia32] = orig_open_32;
+    ia32_sys_call_table[__NR_close_ia32] = orig_close_32;
+  #ifdef CONFIG_IA32_AOUT
+    ia32_sys_call_table[__NR_uselib_ia32] = orig_uselib_32;
+  #endif
+    ia32_sys_call_table[__NR_mount_ia32] = orig_mount_32;
+    ia32_sys_call_table[__NR_umount_ia32] = orig_umount_32;
+    ia32_sys_call_table[__NR_umount2_ia32] = orig_umount2_32;
+#endif
     unlock_kernel();
 
     /* Now wait for a last caller to exit */
