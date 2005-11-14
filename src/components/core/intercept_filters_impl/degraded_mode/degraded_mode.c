@@ -87,7 +87,7 @@ static DegradedModeProcessor template_DegradedModeProcessor =
         deleteDegradedModeProcessor,
         true,
         TALPA_SIMPLE_UNLOCKED,
-        CFG_DEFAULT_THRESHOLD,
+        ATOMIC_INIT(CFG_DEFAULT_THRESHOLD),
         false,
         TALPA_MUTEX_INIT,
         {
@@ -142,10 +142,11 @@ static inline bool checkDegraded(const void* self, IEvaluationReport* report)
 {
     unsigned int consecutive = report->consecutiveTimeouts(report);
 
-    talpa_simple_lock(&this->mLock);
-    if ( unlikely( consecutive > this->mThreshold) )
+
+    if ( unlikely( consecutive > atomic_read(&this->mThreshold)) )
     {
-        if ( !this->mActive )
+        talpa_simple_lock(&this->mLock);
+        if ( this->mActive == false )
         {
             info("Activated");
             this->mActive = true;
@@ -156,14 +157,22 @@ static inline bool checkDegraded(const void* self, IEvaluationReport* report)
             talpa_simple_unlock(&this->mLock);
             return true;
         }
+        talpa_simple_unlock(&this->mLock);
     }
-    else if ( unlikely(this->mActive == true) )
+    else
     {
-        info("Deactivated");
-        this->mActive = false;
-        strcpy(this->mActiveConfigData.value, "false");
+        if ( unlikely( this->mActive == true ) )
+        {
+            talpa_simple_lock(&this->mLock);
+            if ( unlikely( this->mActive == true ) )
+            {
+                info("Deactivated");
+                this->mActive = false;
+                strcpy(this->mActiveConfigData.value, "false");
+            }
+            talpa_simple_unlock(&this->mLock);
+        }
     }
-    talpa_simple_unlock(&this->mLock);
 
     return false;
 }
@@ -230,9 +239,7 @@ static void setThreshold(const void* self, const char* string)
 
     val = simple_strtoul(string, &res, 10);
     snprintf(this->mThresholdConfigData.value, DMD_CFGDATASIZE, "%u", val);
-    talpa_simple_lock(&this->mLock);
-    this->mThreshold = val;
-    talpa_simple_unlock(&this->mLock);
+    atomic_set(&this->mThreshold, val);
     info("Threshold set to %u", val);
 
     return;

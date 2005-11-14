@@ -19,6 +19,8 @@
 #ifndef H_DEGRADEDMODEPROCESSOR
 #define H_DEGRADEDMODEPROCESSOR
 
+#include <asm/atomic.h>
+
 #include "common/locking.h"
 #include "intercept_filters/iintercept_filter.h"
 #include "configurator/iconfigurable.h"
@@ -44,7 +46,7 @@ typedef struct tag_DegradedModeProcessor
     bool                      mEnabled;
 
     talpa_simple_lock_t       mLock;
-    unsigned int              mThreshold;
+    atomic_t                  mThreshold;
     bool                      mActive;
 
     talpa_mutex_t             mConfigSerialize;
