@@ -90,6 +90,7 @@ static void deleteObject(void *self, VetCtrlConfigObject* obj);
 #define CFG_FSTIMEOUT       "fs-timeout-ms"
 #define CFG_ROUTING         "routing"
 #define CFG_XHACK           "xsmartsched-fix"
+#define CFG_GROUPS          "groups"
 
 #define CFG_VALUE_ENABLED   "enabled"
 #define CFG_VALUE_DISABLED  "disabled"
@@ -173,6 +174,7 @@ static VettingController template_VettingController =
             {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
             {NULL, NULL, PATH_MAX, true, false },
             {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            {NULL, NULL, VETCTRL_GROUPSDATASIZE, false, true },
             {NULL, NULL, 0, false, false }
         },
         { CFG_STATUS, CFG_VALUE_ENABLED },
@@ -180,6 +182,7 @@ static VettingController template_VettingController =
         { CFG_FSTIMEOUT, CFG_VALUE_FSTIMEOUT },
         { CFG_ROUTING, CFG_VALUE_DUMMY },
         { CFG_XHACK, CFG_VALUE_ENABLED },
+        { CFG_GROUPS, CFG_VALUE_DUMMY },
 
         NULL,
         NULL
@@ -238,6 +241,8 @@ VettingController* newVettingController(void)
         object->mConfig[3].value = object->mRoutingConfigData.value;
         object->mConfig[4].name  = object->mXHackConfigData.name;
         object->mConfig[4].value = object->mXHackConfigData.value;
+        object->mConfig[5].name  = object->mGroupsConfigData.name;
+        object->mConfig[5].value = object->mGroupsConfigData.value;
     }
     return object;
 }
@@ -2229,6 +2234,41 @@ static const char* config(const void* self, const char* name)
                 constructStringSet(this, &this->mRoutings, &this->mRoutingsSet);
             }
             retstring = this->mRoutingsSet;
+        }
+        else if ( !strcmp(cfgElement->name, CFG_GROUPS) )
+        {
+            unsigned int idx;
+            VettingGroup* group;
+            unsigned int queue;
+            char* buf;
+            talpa_list_head* posptr;
+
+
+            buf = this->mGroupsConfigData.value;
+
+            for ( idx = 0; idx < VETTING_GROUPS; idx++ )
+            {
+                group = &this->mGroups[idx];
+                buf += sprintf(buf, "%u\t", atomic_read(&group->numClients));
+            }
+
+            --buf;
+            *buf++ = '\n';
+
+            for ( queue = 0, idx = 0; idx < VETTING_GROUPS; idx++, queue = 0 )
+            {
+                group = &this->mGroups[idx];
+                talpa_group_lock(&group->lock);
+                talpa_list_for_each(posptr, &group->intercepted)
+                {
+                    queue++;
+                }
+                talpa_group_unlock(&group->lock);
+                buf += sprintf(buf, "%u\t", queue);
+            }
+
+            --buf;
+            *buf = '\0';
         }
 
         talpa_mutex_unlock(&this->mConfigSerialize);
