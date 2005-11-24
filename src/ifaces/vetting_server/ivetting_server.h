@@ -78,7 +78,7 @@ typedef struct
     IFile*                              file;
     atomic_t                            reopen;
     struct talpa_completion             reopenCompletion;
-    atomic_t                            externalOperation;
+    bool                                externalOperation;
 } VettingDetails;
 
 typedef struct

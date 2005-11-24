@@ -455,7 +455,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         else if ( unlikely(ret < 0) )
         {
             /* Go back to sleep if we are at mercy of an external filesystem operation */
-            if ( !atomic_read(&details->externalOperation) )
+            if ( !details->externalOperation )
             {
                 talpa_list_head* posptr;
 
@@ -622,7 +622,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     init_waitqueue_head(&details->interceptedWaitQueue);
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
-    atomic_set(&details->externalOperation, 0);
+    details->externalOperation = false;
     details->restartWait = false;
     details->report = report;
     details->userInfo = (IPersonality *)userInfo;
@@ -902,7 +902,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     init_waitqueue_head(&details->interceptedWaitQueue);
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
-    atomic_set(&details->externalOperation, 0);
+    details->externalOperation = false;
     details->restartWait = false;
     details->report = report;
     details->userInfo = (IPersonality *)userInfo;
@@ -1955,9 +1955,9 @@ static struct TalpaProtocolHeader* streamSeek(void* self, VettingClient* client,
         pktreturn_fail(ret);
     }
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
     dbg("seek offset:%ld mode:%d (%ld)", packet->offset, packet->mode, ret);
 
     if ( retval < 0 )
@@ -1983,9 +1983,9 @@ static struct TalpaProtocolHeader* streamRead(void* self, VettingClient* client,
         packet->size = client->streamSize;
     }
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     ret = job->file->read(job->file->object, (unsigned char *)client->stream + sizeof(struct TalpaPacket_StreamData), packet->size);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
     dbg("read %d bytes", ret);
 
     if ( ret < 0 )
@@ -2022,9 +2022,9 @@ static struct TalpaProtocolHeader* streamWrite(void* self, VettingClient* client
 
     streamMaybeReopenWritable(job);
     dbg("write %lld bytes", packet->size);
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     ret = job->file->write(job->file->object, (unsigned char *)packet + sizeof(struct TalpaPacket_StreamWrite), packet->size);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
 
     if ( ret < 0 )
     {
@@ -2046,9 +2046,9 @@ static struct TalpaProtocolHeader* streamReadAt(void* self, VettingClient* clien
         pktreturn_fail(ret);
     }
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
 
     if ( retval < 0 )
     {
@@ -2060,9 +2060,9 @@ static struct TalpaProtocolHeader* streamReadAt(void* self, VettingClient* clien
         packet->size = client->streamSize;
     }
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     ret = job->file->read(job->file->object, (unsigned char *)client->stream + sizeof(struct TalpaPacket_StreamData), packet->size);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
     dbg("read %d bytes", ret);
 
     if ( ret < 0 )
@@ -2087,9 +2087,9 @@ static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* clie
 
     streamMaybeReopenWritable(job);
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
 
     if ( retval < 0 )
     {
@@ -2098,9 +2098,9 @@ static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* clie
 
     dbg("write %lld bytes", packet->size);
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     ret = job->file->write(job->file->object, (unsigned char *)packet + sizeof(struct TalpaPacket_StreamWriteAt), packet->size);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
 
     if ( ret < 0 )
     {
@@ -2122,9 +2122,9 @@ static struct TalpaProtocolHeader* streamUnlinkFile(void* self, VettingClient* c
 
     dbg("unlink file");
 
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     ret = job->file->unlink(job->file->object);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
 
     if ( ret )
     {
@@ -2146,9 +2146,9 @@ static struct TalpaProtocolHeader* streamTruncate(void* self, VettingClient* cli
 
     streamMaybeReopenWritable(job);
     dbg("truncate file %u", packet->length);
-    atomic_set(&job->externalOperation, 1);
+    job->externalOperation = true;
     ret = job->file->truncate(job->file->object, packet->length);
-    atomic_set(&job->externalOperation, 0);
+    job->externalOperation = false;
 
     if ( ret )
     {
