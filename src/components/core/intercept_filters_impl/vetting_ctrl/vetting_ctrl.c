@@ -395,7 +395,6 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
             if ( likely( details->restartWait ) )
             {
                 details->restartWait = false;
-                continue;
             }
             else if ( atomic_read(&details->complete) > 0 )
             {
@@ -455,32 +454,36 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         /* Timeout expired? */
         else if ( unlikely(ret < 0) )
         {
-            /* Unlink the details if they are still on the list */
-            talpa_list_head* posptr;
+            /* Go back to sleep if we are at mercy of an external filesystem operation */
+            if ( !atomic_read(&details->externalOperation) )
+            {
+                talpa_list_head* posptr;
 
-            talpa_group_lock(&group->lock);
-            talpa_list_for_each(posptr, &group->intercepted)
-            {
-                if ( posptr == &details->head )
+                /* Unlink the details if they are still on the list */
+                talpa_group_lock(&group->lock);
+                talpa_list_for_each(posptr, &group->intercepted)
                 {
-                    dbg("[intercepted %u-%u-%u] unlinking details from the intercepted list", processParentPID(current), current->tgid, current->pid);
-                    talpa_list_del(&details->head);
-                    break;
+                    if ( posptr == &details->head )
+                    {
+                        dbg("[intercepted %u-%u-%u] unlinking details from the intercepted list", processParentPID(current), current->tgid, current->pid);
+                        talpa_list_del(&details->head);
+                        break;
+                    }
                 }
+                talpa_group_unlock(&group->lock);
+                if ( ret == -ETIME )
+                {
+                    dbg("[intercepted %u-%u-%u] timeout", processParentPID(current), current->tgid, current->pid);
+                    details->report->setRecommendedAction(details->report->object, EIA_Timeout);
+                }
+                else
+                {
+                    dbg("[intercepted %u-%u-%u] interrupted", processParentPID(current), current->tgid, current->pid);
+                    details->report->setRecommendedAction(details->report->object, EIA_Error);
+                    details->report->setErrorCode(details->report->object, EINTR);
+                }
+                break;
             }
-            talpa_group_unlock(&group->lock);
-            if ( ret == -ETIME )
-            {
-                dbg("[intercepted %u-%u-%u] timeout", processParentPID(current), current->tgid, current->pid);
-                details->report->setRecommendedAction(details->report->object, EIA_Timeout);
-            }
-            else
-            {
-                dbg("[intercepted %u-%u-%u] interrupted", processParentPID(current), current->tgid, current->pid);
-                details->report->setRecommendedAction(details->report->object, EIA_Error);
-                details->report->setErrorCode(details->report->object, EINTR);
-            }
-            break;
         }
     } while (true); /* We are sleeping until success or error breaks the loop */
 
@@ -619,6 +622,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     init_waitqueue_head(&details->interceptedWaitQueue);
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
+    atomic_set(&details->externalOperation, 0);
     details->restartWait = false;
     details->report = report;
     details->userInfo = (IPersonality *)userInfo;
@@ -898,6 +902,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     init_waitqueue_head(&details->interceptedWaitQueue);
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
+    atomic_set(&details->externalOperation, 0);
     details->restartWait = false;
     details->report = report;
     details->userInfo = (IPersonality *)userInfo;
@@ -1950,7 +1955,9 @@ static struct TalpaProtocolHeader* streamSeek(void* self, VettingClient* client,
         pktreturn_fail(ret);
     }
 
+    atomic_set(&job->externalOperation, 1);
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
+    atomic_set(&job->externalOperation, 0);
     dbg("seek offset:%ld mode:%d (%ld)", packet->offset, packet->mode, ret);
 
     if ( retval < 0 )
@@ -1976,7 +1983,9 @@ static struct TalpaProtocolHeader* streamRead(void* self, VettingClient* client,
         packet->size = client->streamSize;
     }
 
+    atomic_set(&job->externalOperation, 1);
     ret = job->file->read(job->file->object, (unsigned char *)client->stream + sizeof(struct TalpaPacket_StreamData), packet->size);
+    atomic_set(&job->externalOperation, 0);
     dbg("read %d bytes", ret);
 
     if ( ret < 0 )
@@ -2013,7 +2022,9 @@ static struct TalpaProtocolHeader* streamWrite(void* self, VettingClient* client
 
     streamMaybeReopenWritable(job);
     dbg("write %lld bytes", packet->size);
+    atomic_set(&job->externalOperation, 1);
     ret = job->file->write(job->file->object, (unsigned char *)packet + sizeof(struct TalpaPacket_StreamWrite), packet->size);
+    atomic_set(&job->externalOperation, 0);
 
     if ( ret < 0 )
     {
@@ -2035,7 +2046,9 @@ static struct TalpaProtocolHeader* streamReadAt(void* self, VettingClient* clien
         pktreturn_fail(ret);
     }
 
+    atomic_set(&job->externalOperation, 1);
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
+    atomic_set(&job->externalOperation, 0);
 
     if ( retval < 0 )
     {
@@ -2047,7 +2060,9 @@ static struct TalpaProtocolHeader* streamReadAt(void* self, VettingClient* clien
         packet->size = client->streamSize;
     }
 
+    atomic_set(&job->externalOperation, 1);
     ret = job->file->read(job->file->object, (unsigned char *)client->stream + sizeof(struct TalpaPacket_StreamData), packet->size);
+    atomic_set(&job->externalOperation, 0);
     dbg("read %d bytes", ret);
 
     if ( ret < 0 )
@@ -2072,7 +2087,9 @@ static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* clie
 
     streamMaybeReopenWritable(job);
 
+    atomic_set(&job->externalOperation, 1);
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
+    atomic_set(&job->externalOperation, 0);
 
     if ( retval < 0 )
     {
@@ -2081,7 +2098,9 @@ static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* clie
 
     dbg("write %lld bytes", packet->size);
 
+    atomic_set(&job->externalOperation, 1);
     ret = job->file->write(job->file->object, (unsigned char *)packet + sizeof(struct TalpaPacket_StreamWriteAt), packet->size);
+    atomic_set(&job->externalOperation, 0);
 
     if ( ret < 0 )
     {
@@ -2103,7 +2122,9 @@ static struct TalpaProtocolHeader* streamUnlinkFile(void* self, VettingClient* c
 
     dbg("unlink file");
 
+    atomic_set(&job->externalOperation, 1);
     ret = job->file->unlink(job->file->object);
+    atomic_set(&job->externalOperation, 0);
 
     if ( ret )
     {
@@ -2125,7 +2146,9 @@ static struct TalpaProtocolHeader* streamTruncate(void* self, VettingClient* cli
 
     streamMaybeReopenWritable(job);
     dbg("truncate file %u", packet->length);
+    atomic_set(&job->externalOperation, 1);
     ret = job->file->truncate(job->file->object, packet->length);
+    atomic_set(&job->externalOperation, 0);
 
     if ( ret )
     {
