@@ -31,7 +31,7 @@ typedef struct tag_LinuxPersonalityFactoryImpl
 /*
  * Object Creators.
  */
-inline LinuxPersonalityFactoryImpl* newLinuxPersonalityFactoryImpl(void);
+LinuxPersonalityFactoryImpl* newLinuxPersonalityFactoryImpl(void);
 
 
 #endif
