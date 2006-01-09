@@ -31,6 +31,12 @@
 #include <linux/rwsem.h>
 #endif
 
+/* Starting with 2.6.15, this macro is no longer present */
+#ifndef __MUTEX_INITIALIZER
+#define __MUTEX_INITIALIZER(name) \
+        __SEMAPHORE_INITIALIZER(name,1)
+#endif
+
 typedef spinlock_t talpa_simple_lock_t;
 
 #define TALPA_SIMPLE_UNLOCKED   SPIN_LOCK_UNLOCKED

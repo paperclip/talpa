@@ -59,7 +59,7 @@
 /* FIXME: This is not really a fixme, but a reminder that
           the avaibility of the constant below must be checked
           in new kernels.
-          Last-known-good: 2.6.14 */
+          Last-known-good: 2.6.15 */
 #define PF_TALPA_INTERNAL    0x80000000
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
