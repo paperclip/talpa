@@ -130,6 +130,12 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
                 err("copy_from_user!");
             }
             break;
+        case TALPA_TEST_FILE_TRUNCATE:
+            ret = testfile->i_IFile.truncate(testfile, (loff_t)parm);
+            break;
+        case TALPA_TEST_FILE_UNLINK:
+            ret = testfile->i_IFile.unlink(testfile);
+            break;
     }
 
     return ret;

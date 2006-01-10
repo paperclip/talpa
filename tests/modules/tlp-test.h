@@ -121,11 +121,13 @@ struct talpa_cacheobj
 #define TALPA_TEST_FILE_SEEK            _IOW ( 0xff,    21,     struct talpa_seek* )
 #define TALPA_TEST_FILE_READ            _IOWR( 0xff,    22,     struct talpa_read* )
 #define TALPA_TEST_FILE_WRITE           _IOW ( 0xff,    23,     struct talpa_write* )
-#define TALPA_TEST_CACHE_FIND           _IOW ( 0xff,    24,     struct talpa_cacheobj* )
-#define TALPA_TEST_CACHE_ADD            _IOW ( 0xff,    25,     struct talpa_cacheobj* )
-#define TALPA_TEST_CACHE_CLEAR          _IOW ( 0xff,    26,     struct talpa_cacheobj* )
-#define TALPA_TEST_CACHE_CONFIG         _IOW ( 0xff,    27,     char* )
-#define TALPA_TEST_CACHE_PURGE          _IO  ( 0xff,    28 )
+#define TALPA_TEST_FILE_TRUNCATE        _IOW ( 0xff,    24,     off_t )
+#define TALPA_TEST_FILE_UNLINK          _IO  ( 0xff,    25 )
+#define TALPA_TEST_CACHE_FIND           _IOW ( 0xff,    26,     struct talpa_cacheobj* )
+#define TALPA_TEST_CACHE_ADD            _IOW ( 0xff,    27,     struct talpa_cacheobj* )
+#define TALPA_TEST_CACHE_CLEAR          _IOW ( 0xff,    28,     struct talpa_cacheobj* )
+#define TALPA_TEST_CACHE_CONFIG         _IOW ( 0xff,    29,     char* )
+#define TALPA_TEST_CACHE_PURGE          _IO  ( 0xff,    30 )
 
 
 #endif
