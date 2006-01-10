@@ -519,6 +519,10 @@ static int truncate(void* self, loff_t length)
         else {
             newattrs.ia_size = length;
             newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+            newattrs.ia_file = file;
+            newattrs.ia_valid |= ATTR_FILE;
+#endif
             down(&inode->i_sem);
 /* inode->i_alloc_sem appears starting with 2.4.22 */
 #if     (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22)) \
