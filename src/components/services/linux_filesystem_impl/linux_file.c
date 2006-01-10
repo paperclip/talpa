@@ -522,13 +522,13 @@ static int truncate(void* self, loff_t length)
             down(&inode->i_sem);
 /* inode->i_alloc_sem appears starting with 2.4.22 */
 #if     (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22)) \
-    ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6)) \
+    ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11) ) \
     ||  defined TALPA_HAS_INODE_ALLOC_SEM
             down_write(&inode->i_alloc_sem);
 #endif
             error = notify_change(dentry, &newattrs);
 #if     (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22)) \
-    ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6)) \
+    ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)) \
     ||  defined TALPA_HAS_INODE_ALLOC_SEM
             up_write(&inode->i_alloc_sem);
 #endif
