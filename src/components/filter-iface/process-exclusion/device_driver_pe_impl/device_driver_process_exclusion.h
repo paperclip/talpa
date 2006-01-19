@@ -54,6 +54,8 @@ typedef struct {
 struct DDPEOpenContext
 {
     talpa_list_head     head;
+    pid_t               pid;
+    pid_t               tid;
     bool                modified;
     bool                state;
     bool                closed;

@@ -32,7 +32,6 @@
 typedef struct
 {
     talpa_list_head head;
-    void*           unique;
     pid_t           processID;
     pid_t           threadID;
     bool            active;
@@ -46,7 +45,7 @@ typedef struct
 
 typedef struct
 {
-    ProcessExcluded* (*registerProcess)   (void* self);
+    ProcessExcluded* (*registerProcess)   (void* self, pid_t pid, pid_t tid);
     void             (*deregisterProcess) (void* self, ProcessExcluded* obj);
     ProcessExcluded* (*active)            (void* self, ProcessExcluded* obj);
     ProcessExcluded* (*idle)              (void* self, ProcessExcluded* obj);

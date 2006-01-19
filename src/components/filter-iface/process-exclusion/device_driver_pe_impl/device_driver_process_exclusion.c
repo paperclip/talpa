@@ -197,10 +197,12 @@ static int ddpeOpen(struct inode* inode, struct file* file)
         return -ENODEV;
     }
 
+    ctx->pid = current->tgid;
+    ctx->tid = current->pid;
     ctx->modified = false;
     ctx->state = false;
     ctx->closed = false;
-    ctx->excluded = procexcl->registerProcess(procexcl->object);
+    ctx->excluded = procexcl->registerProcess(procexcl->object, ctx->pid, ctx->tid);
 
     if ( !ctx->excluded )
     {
@@ -332,24 +334,31 @@ static bool attach(void* self)
 
             talpa_list_for_each_entry_safe(ctx, tmp, &GL_object.mContextList, head)
             {
+                /* Clean-up if the client went away while the core was disconnected */
+                if ( ctx->modified && ctx->closed )
+                {
+                    ctx->modified = false;
+                    dbg("replaying previous disconnected close for 0x%p (0x%p)", ctx, ctx->excluded);
+                    this->mProcExcl->deregisterProcess(this->mProcExcl->object, ctx->excluded);
+                    talpa_list_del(&ctx->head);
+                    kfree(ctx);
+                    continue;
+                }
+
+                /* Re-register in case ProcessExcluder forgot about us */
+                ctx->excluded = this->mProcExcl->registerProcess(this->mProcExcl->object, ctx->pid, ctx->tid);
+
                 if ( ctx->modified )
                 {
                     ctx->modified = false;
-                    if ( ctx->closed )
+                    if ( ctx->state )
                     {
-                        dbg("replaying previous disconnected close for 0x%p (0x%p)", ctx, ctx->excluded);
-                        this->mProcExcl->deregisterProcess(this->mProcExcl->object, ctx->excluded);
-                        talpa_list_del(&ctx->head);
-                        kfree(ctx);
-                    }
-                    else if ( ctx->state )
-                    {
-                        dbg("replaying previous disconnected activate ioctl for 0x%p (0x%p)", ctx, ctx->excluded);
+                        dbg("replaying disconnected activate ioctl for 0x%p (0x%p)", ctx, ctx->excluded);
                         ctx->excluded = this->mProcExcl->active(this->mProcExcl->object, ctx->excluded);
                     }
                     else
                     {
-                        dbg("replaying previous disconnected idle ioctl for 0x%p (0x%p)", ctx, ctx->excluded);
+                        dbg("replaying disconnected idle ioctl for 0x%p (0x%p)", ctx, ctx->excluded);
                         ctx->excluded = this->mProcExcl->idle(this->mProcExcl->object, ctx->excluded);
                     }
                 }

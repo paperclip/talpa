@@ -33,7 +33,7 @@
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
 static void examineFilesystem(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info);
 
-static ProcessExcluded* registerProcess(void* self);
+static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid);
 static void deregisterProcess(void* self, ProcessExcluded* obj);
 static ProcessExcluded* active(void* self, ProcessExcluded* obj);
 static ProcessExcluded* idle(void* self, ProcessExcluded* obj);
@@ -171,15 +171,33 @@ static inline bool findProcessExcluded(const void* self, const ProcessExcluded* 
     return false;
 }
 
-static inline bool checkProcessExcluded(const void* self)
+static ProcessExcluded* findProcessExcludedByPid(const void* self, const pid_t pid)
 {
     ProcessExcluded* excluded;
-    void* unique = current->files;
 
     talpa_rcu_read_lock(&this->mExcludedLock);
     talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
     {
-        if ( excluded->unique == unique )
+        if ( excluded->processID == pid )
+        {
+            talpa_rcu_read_unlock(&this->mExcludedLock);
+            return excluded;
+        }
+    }
+    talpa_rcu_read_unlock(&this->mExcludedLock);
+
+    return NULL;
+}
+
+static inline bool checkProcessExcluded(const void* self)
+{
+    ProcessExcluded* excluded;
+    pid_t pid = current->tgid;
+
+    talpa_rcu_read_lock(&this->mExcludedLock);
+    talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
+    {
+        if ( excluded->processID == pid )
         {
             talpa_rcu_read_unlock(&this->mExcludedLock);
             return excluded->active;
@@ -220,9 +238,19 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
 /*
  * IProcessExcluder.
  */
-static ProcessExcluded* registerProcess(void* self)
+static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid)
 {
     ProcessExcluded* process;
+
+
+    /* Check if we already have this process */
+    process = findProcessExcludedByPid(this, pid);
+
+    if ( process )
+    {
+        dbg("Process re-registering.");
+        return process;
+    }
 
     process = talpa_alloc(sizeof(ProcessExcluded));
 
@@ -233,9 +261,8 @@ static ProcessExcluded* registerProcess(void* self)
     }
 
     TALPA_INIT_LIST_HEAD(&process->head);
-    process->unique = current->files;
-    process->processID = current->tgid;
-    process->threadID = current->pid;
+    process->processID = pid;
+    process->threadID = tid;
     process->active = false;
 
     talpa_rcu_write_lock(&this->mExcludedLock);
@@ -268,12 +295,6 @@ static void deregisterProcess(void* self, ProcessExcluded* obj)
 
 static ProcessExcluded* active(void* self, ProcessExcluded* obj)
 {
-    if ( !findProcessExcluded(this, obj) )
-    {
-        dbg("Process implicitly registering...");
-        obj = registerProcess(this);
-    }
-
     obj->active = true;
     dbg("Process [%u-%u] Active", obj->processID, obj->threadID);
 
@@ -282,12 +303,6 @@ static ProcessExcluded* active(void* self, ProcessExcluded* obj)
 
 static ProcessExcluded* idle(void* self, ProcessExcluded* obj)
 {
-    if ( !findProcessExcluded(this, obj) )
-    {
-        dbg("Process implicitly registering...");
-        obj = registerProcess(this);
-    }
-
     obj->active = false;
     dbg("Process [%u-%u] Idle", obj->processID, obj->threadID);
 
