@@ -289,9 +289,11 @@ static int ddpeIoctl(struct inode* inode, struct file* file, unsigned int cmd, u
         {
             case TLPPEIOC_ACTIVE:
                 ctx->excluded = procexcl->active(procexcl->object, ctx->excluded);
+                ctx->state = true;
                 break;
             case TLPPEIOC_IDLE:
                 ctx->excluded = procexcl->idle(procexcl->object, ctx->excluded);
+                ctx->state = false;
                 break;
             default:
                 ret = -ENOTTY;
@@ -348,6 +350,19 @@ static bool attach(void* self)
                     else
                     {
                         dbg("replaying previous disconnected idle ioctl for 0x%p (0x%p)", ctx, ctx->excluded);
+                        ctx->excluded = this->mProcExcl->idle(this->mProcExcl->object, ctx->excluded);
+                    }
+                }
+                else
+                {
+                    if ( ctx->state )
+                    {
+                        dbg("restoring previous active state for 0x%p (0x%p)", ctx, ctx->excluded);
+                        ctx->excluded = this->mProcExcl->active(this->mProcExcl->object, ctx->excluded);
+                    }
+                    else
+                    {
+                        dbg("restoring previous idle state for 0x%p (0x%p)", ctx, ctx->excluded);
                         ctx->excluded = this->mProcExcl->idle(this->mProcExcl->object, ctx->excluded);
                     }
                 }
