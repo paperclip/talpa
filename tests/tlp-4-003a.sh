@@ -15,33 +15,32 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+if test -f /proc/sys/talpa/interceptors/${interceptor_name}/status; then
+    echo disable >/proc/sys/talpa/interceptors/${interceptor_name}/status 2>/dev/null
+    sync
+fi
 
-insmod ../talpa_linux.${ko}
+rmmod talpa_${interceptor_module} 2>/dev/null
+rmmod talpa_pedconnector 2>/dev/null
+rmmod talpa_vcdevice 2>/dev/null
+rmmod talpa_core 2>/dev/null
+
 insmod ../talpa_core.${ko}
 insmod ../talpa_vcdevice.${ko}
-insmod ../talpa_pedevice.${ko}
 insmod ../talpa_pedconnector.${ko}
-if test "$interceptor_module" = "syscall"; then
-    insmod ../talpa_syscallhook.${ko}
-fi
-if test "$interceptor_module" = "vfshook"; then
-    insmod ../talpa_syscallhook.${ko} hook_mask=mu
-fi
 insmod ../talpa_${interceptor_module}.${ko}
 
 echo disable >/proc/sys/talpa/intercept-filters/DebugSyslog/status
 echo +proc >/proc/sys/talpa/intercept-filters/FilesystemExclusionProcessor/fstypes
-mkdir -p /tmp/tlp-test
-ls -l >/tmp/tlp-test/file
-cp -a /bin/true /tmp/tlp-test/
-cp -a /bin/bash /tmp/tlp-test/
-cp -a ${srcdir}/test-script*.sh /tmp/tlp-test/
 echo /tmp/tlp-test/ >/proc/sys/talpa/intercept-filters/FilesystemInclusionProcessor/include-path
 echo enable >/proc/sys/talpa/intercept-filters/FilesystemInclusionProcessor/status
 echo enable >/proc/sys/talpa/intercept-filters/ProcessExclusionProcessor/status
 echo enable >/proc/sys/talpa/intercept-filters/Cache/status
 echo enable >/proc/sys/talpa/intercept-filters/DegradedModeProcessor/status
 echo enable >/proc/sys/talpa/interceptors/${interceptor_name}/status
+
+./tlp-4-003a &
+
+sleep 1
 
 exit 0

@@ -74,6 +74,8 @@ check_PROGRAMS =    tlp-1-001 \
                     tlp-3-020 \
                     tlp-4-001 \
                     tlp-4-002 \
+                    tlp-4-003 \
+                    tlp-4-003a \
                     tlp-5-001 \
                     tlp-5-002 \
                     tlp-5-003 \
@@ -159,6 +161,8 @@ tlp_3_012_SOURCES = tlp-3-012.c
 tlp_3_020_SOURCES = tlp-3-020.c
 tlp_4_001_SOURCES = tlp-4-001.c ../clients/vc-lib.c ../clients/pe-lib.c
 tlp_4_002_SOURCES = tlp-4-002.c ../clients/vc-lib.c ../clients/pe-lib.c
+tlp_4_003_SOURCES = tlp-4-003.c ../clients/pe-lib.c
+tlp_4_003a_SOURCES = tlp-4-003a.c ../clients/vc-lib.c
 tlp_5_001_SOURCES = tlp-5-001.c
 tlp_5_002_SOURCES = tlp-5-002.c
 tlp_5_003_SOURCES = tlp-5-003.c
@@ -268,6 +272,7 @@ TESTS                   = tlp-init.sh \
                           tlp-3-024.sh \
                           tlp-4-001.sh \
                           tlp-4-002.sh \
+                          tlp-4-003.sh \
                           tlp-5-001.sh \
                           tlp-5-002.sh \
                           tlp-5-003.sh \
@@ -306,6 +311,8 @@ TESTS                   = tlp-init.sh \
                           tlp-cleanup.sh
 
 check_SCRIPTS =           $(TESTS) \
+			  tlp-4-003a.sh \
+			  tlp-4-003b.sh \
                           tlp-1-112.pl \
                           talpa-init.sh \
                           tlp-init.sh \

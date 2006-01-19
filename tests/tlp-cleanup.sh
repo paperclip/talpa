@@ -26,6 +26,7 @@ rmmod talpa_${interceptor_module} 2>/dev/null
 if test "$interceptor_module" = "syscall" -o "$interceptor_module" = "vfshook"; then
     rmmod talpa_syscallhook 2>/dev/null
 fi
+rmmod talpa_pedconnector 2>/dev/null
 rmmod talpa_pedevice 2>/dev/null
 rmmod talpa_vcdevice 2>/dev/null
 rmmod talpa_core 2>/dev/null
