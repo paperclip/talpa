@@ -24,6 +24,7 @@
 #include <sys/mount.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdlib.h>
 
 #include "../include/talpa-vettingclient.h"
 #include "../src/ifaces/intercept_filters/eintercept_action.h"
@@ -57,13 +58,22 @@ int main(int argc, char *argv[])
     details = vc_get(talpa);
     end = time(NULL);
 
-    if ( details || ((end - start) != tout) )
+    if ( details )
     {
-        ret = -1;
+        fprintf(stderr, "Unexpected interception!\n");
+        vc_exit(talpa);
+        return -1;
+    }
+
+    if ( ! ((tout-1) <= abs(end-start) <= (tout+1)) )
+    {
+        fprintf(stderr, "Timeout error (%d (%d))!\n", abs(end-start), tout);
+        vc_exit(talpa);
+        return -1;
     }
 
     vc_exit(talpa);
 
-    return ret;
+    return 0;
 }
 
