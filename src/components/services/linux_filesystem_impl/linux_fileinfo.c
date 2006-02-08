@@ -424,11 +424,11 @@ static bool isWritable(const void* self)
 
 static bool isWritableAnywhere(const void* self)
 {
-    if ( this->mInode && ( atomic_read(&this->mInode->i_writecount) > 1 ) )
+    if ( this->mInode && ( atomic_read(&this->mInode->i_writecount) > 0 ) )
     {
         return true;
     }
-    else if ( !this->mInode && ( this->mWriteCount > 1 ) )
+    else if ( !this->mInode && ( this->mWriteCount > 0 ) )
     {
         return true;
     }

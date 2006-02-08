@@ -85,6 +85,12 @@ static void deleteCacheEval(struct tag_CacheEval* object)
 
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file)
 {
+    /* Do not check if cached on close */
+    if ( unlikely( info->operation(info) == EFS_Close ) )
+    {
+        return;
+    }
+
     if ( this->mCache->find(this->mCache->object, info->device(info), info->inode(info)) > 0 )
     {
         report->setRecommendedAction(report, EIA_Allow);
