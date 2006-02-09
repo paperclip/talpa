@@ -153,42 +153,6 @@ static void deleteProcessExclusionProcessor(struct tag_ProcessExclusionProcessor
     return;
 }
 
-static inline bool findProcessExcluded(const void* self, const ProcessExcluded* process)
-{
-    ProcessExcluded* excluded;
-
-    talpa_rcu_read_lock(&this->mExcludedLock);
-    talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
-    {
-        if ( excluded == process )
-        {
-            talpa_rcu_read_unlock(&this->mExcludedLock);
-            return true;
-        }
-    }
-    talpa_rcu_read_unlock(&this->mExcludedLock);
-
-    return false;
-}
-
-static ProcessExcluded* findProcessExcludedByPid(const void* self, const pid_t pid)
-{
-    ProcessExcluded* excluded;
-
-    talpa_rcu_read_lock(&this->mExcludedLock);
-    talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
-    {
-        if ( excluded->processID == pid )
-        {
-            talpa_rcu_read_unlock(&this->mExcludedLock);
-            return excluded;
-        }
-    }
-    talpa_rcu_read_unlock(&this->mExcludedLock);
-
-    return NULL;
-}
-
 static inline bool checkProcessExcluded(const void* self)
 {
     ProcessExcluded* excluded;
@@ -241,54 +205,71 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
 static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid)
 {
     ProcessExcluded* process;
+    ProcessExcluded* excluded;
 
-
-    /* Check if we already have this process */
-    process = findProcessExcludedByPid(this, pid);
-
-    if ( process )
-    {
-        dbg("Process re-registering.");
-        return process;
-    }
 
     process = talpa_alloc(sizeof(ProcessExcluded));
 
-    if ( !process )
+    talpa_rcu_write_lock(&this->mExcludedLock);
+
+    /* Check if we already have this process */
+    talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
     {
-        err("Failed to allocate process!");
-        return NULL;
+        if ( excluded->processID == pid )
+        {
+            talpa_rcu_write_unlock(&this->mExcludedLock);
+            /* Free this since we don't need it */
+            talpa_free(process);
+            dbg("Process re-registering.");
+            return excluded;
+        }
     }
 
-    TALPA_INIT_LIST_HEAD(&process->head);
-    process->processID = pid;
-    process->threadID = tid;
-    process->active = false;
+    /* This is a new process, so lets register it */
+    if ( process )
+    {
+        TALPA_INIT_LIST_HEAD(&process->head);
+        process->processID = pid;
+        process->threadID = tid;
+        process->active = false;
+        talpa_list_add_tail_rcu(&process->head, &this->mExcluded);
+        dbg("Process [%u/%u] registered", process->processID, process->threadID);
+    }
+    else
+    {
+        err("Failed to allocate memory for process exclusion!");
+    }
 
-    talpa_rcu_write_lock(&this->mExcludedLock);
-    talpa_list_add_tail_rcu(&process->head, &this->mExcluded);
     talpa_rcu_write_unlock(&this->mExcludedLock);
 
-    dbg("Process [%u/%u] registered", process->processID, process->threadID);
     return process;
 }
 
 static void deregisterProcess(void* self, ProcessExcluded* obj)
 {
-    /* Check if the client was present before the core
-       was loaded. It can happen on core hot swap */
-    if ( !findProcessExcluded(this, obj) )
-    {
-        dbg("Isolated process [%u/%u] deregistred", current->tgid, current->pid);
-        return;
-    }
+    ProcessExcluded* excluded;
+
 
     talpa_rcu_write_lock(&this->mExcludedLock);
-    talpa_list_del_rcu(&obj->head);
+
+    /* Check if we know about the process which wants to deregister and do it */
+    talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
+    {
+        if ( excluded == obj )
+        {
+            talpa_list_del_rcu(&obj->head);
+            talpa_rcu_write_unlock(&this->mExcludedLock);
+            dbg("Process [%u/%u] deregistered", obj->processID, obj->threadID);
+            talpa_rcu_synchronize();
+            talpa_free(obj);
+            return;
+        }
+    }
+
     talpa_rcu_write_unlock(&this->mExcludedLock);
-    dbg("Process [%u/%u] deregistered", obj->processID, obj->threadID);
-    talpa_rcu_synchronize();
-    talpa_free(obj);
+
+    /* This can happen on core hot-swap */
+    dbg("Isolated process [%u/%u] deregistred", current->tgid, current->pid);
 
     return;
 }
