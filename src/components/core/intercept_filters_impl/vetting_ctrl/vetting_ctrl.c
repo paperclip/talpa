@@ -451,39 +451,43 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                 talpa_complete(&details->reopenCompletion);
             }
         }
-        /* Timeout expired? */
+        /* Timeout expired or signal received? */
         else if ( unlikely(ret < 0) )
         {
-            /* Go back to sleep if we are at mercy of an external filesystem operation */
-            if ( !details->externalOperation )
-            {
-                talpa_list_head* posptr;
+            talpa_list_head* posptr;
 
-                /* Unlink the details if they are still on the list */
-                talpa_group_lock(&group->lock);
-                talpa_list_for_each(posptr, &group->intercepted)
-                {
-                    if ( posptr == &details->head )
-                    {
-                        dbg("[intercepted %u-%u-%u] unlinking details from the intercepted list", processParentPID(current), current->tgid, current->pid);
-                        talpa_list_del(&details->head);
-                        break;
-                    }
-                }
-                talpa_group_unlock(&group->lock);
-                if ( ret == -ETIME )
-                {
-                    dbg("[intercepted %u-%u-%u] timeout", processParentPID(current), current->tgid, current->pid);
-                    details->report->setRecommendedAction(details->report->object, EIA_Timeout);
-                }
-                else
-                {
-                    dbg("[intercepted %u-%u-%u] interrupted", processParentPID(current), current->tgid, current->pid);
-                    details->report->setRecommendedAction(details->report->object, EIA_Error);
-                    details->report->setErrorCode(details->report->object, EINTR);
-                }
-                break;
+
+            /* Go back to sleep if we have timeouted while external
+               filesystem operation is in progress. */
+            if ( details->externalOperation && (ret == -ETIME) )
+            {
+                continue;
             }
+
+            /* Unlink the details if they are still on the list */
+            talpa_group_lock(&group->lock);
+            talpa_list_for_each(posptr, &group->intercepted)
+            {
+                if ( posptr == &details->head )
+                {
+                    dbg("[intercepted %u-%u-%u] unlinking details from the intercepted list", processParentPID(current), current->tgid, current->pid);
+                    talpa_list_del(&details->head);
+                    break;
+                }
+            }
+            talpa_group_unlock(&group->lock);
+            if ( ret == -ETIME )
+            {
+                dbg("[intercepted %u-%u-%u] timeout", processParentPID(current), current->tgid, current->pid);
+                details->report->setRecommendedAction(details->report->object, EIA_Timeout);
+            }
+            else
+            {
+                dbg("[intercepted %u-%u-%u] interrupted", processParentPID(current), current->tgid, current->pid);
+                details->report->setRecommendedAction(details->report->object, EIA_Error);
+                details->report->setErrorCode(details->report->object, EINTR);
+            }
+            break;
         }
     } while (true); /* We are sleeping until success or error breaks the loop */
 
