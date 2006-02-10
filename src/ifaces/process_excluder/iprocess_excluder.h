@@ -19,6 +19,7 @@
 #ifndef H_IPROCESSEXCLUDER
 #define H_IPROCESSEXCLUDER
 
+#include <asm/atomic.h>
 #include <linux/sched.h>
 
 #include "common/list.h"
@@ -32,6 +33,7 @@
 typedef struct
 {
     talpa_list_head head;
+    atomic_t        refcnt;
     pid_t           processID;
     pid_t           threadID;
     bool            active;

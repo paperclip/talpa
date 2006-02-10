@@ -217,10 +217,16 @@ static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid)
     {
         if ( excluded->processID == pid )
         {
+            /* Increment reference count if different thread from the
+               same process wants to register. */
+            if ( excluded->threadID != tid )
+            {
+                atomic_inc(&excluded->refcnt);
+            }
             talpa_rcu_write_unlock(&this->mExcludedLock);
             /* Free this since we don't need it */
             talpa_free(process);
-            dbg("Process re-registering.");
+            dbg("Process [%u/%u] re-registered", pid, tid);
             return excluded;
         }
     }
@@ -229,6 +235,7 @@ static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid)
     if ( process )
     {
         TALPA_INIT_LIST_HEAD(&process->head);
+        atomic_set(&process->refcnt, 1);
         process->processID = pid;
         process->threadID = tid;
         process->active = false;
@@ -257,11 +264,19 @@ static void deregisterProcess(void* self, ProcessExcluded* obj)
     {
         if ( excluded == obj )
         {
-            talpa_list_del_rcu(&obj->head);
-            talpa_rcu_write_unlock(&this->mExcludedLock);
-            dbg("Process [%u/%u] deregistered", obj->processID, obj->threadID);
-            talpa_rcu_synchronize();
-            talpa_free(obj);
+            /* Only de-register when the last thread is going away. */
+            if ( atomic_dec_and_test(&obj->refcnt) )
+            {
+                talpa_list_del_rcu(&obj->head);
+                talpa_rcu_write_unlock(&this->mExcludedLock);
+                dbg("Process [%u/%u] deregistered", obj->processID, obj->threadID);
+                talpa_rcu_synchronize();
+                talpa_free(obj);
+            }
+            else
+            {
+                talpa_rcu_write_unlock(&this->mExcludedLock);
+            }
             return;
         }
     }
