@@ -38,6 +38,9 @@ void* pe_thread(void* param)
         pthread_exit((void *)~0UL);
     }
 
+    pe_active(pe);
+    pe_idle(pe);
+
     pe_exit(pe);
 
     return NULL;
@@ -64,19 +67,17 @@ int main(int argc, char *argv[])
         return -2;
     }
 
-    sleep(1);
-
-    pe_active(pe);
-    pe_idle(pe);
-
-    pe_exit(pe);
-
     pthread_join(thread, &tret);
 
     if ( tret )
     {
         return -3;
     }
+
+    pe_active(pe);
+    pe_idle(pe);
+
+    pe_exit(pe);
 
     return 0;
 }
