@@ -1,5 +1,5 @@
 
-- automatic benchmarking suite
+- Different cache implementations for different workloads?
 
 - Consolidate config strings list from cache, exclusion processor and vetting controller
   into shared object based system? - Tvrtko
@@ -13,7 +13,3 @@
        is totally un-flexible. A pointer to right string could be passed from setConfig
      - each module implements basically the same setConfig skeleton
 
-- create Talpa specific memory caches for often used objects (idea on how to abstract and
-  fit into the isolated object model is required)
-
-- use kzalloc instead of kmalloc + memset when available in mainline (wrapper in glue.h?)
