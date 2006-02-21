@@ -97,7 +97,7 @@ char * talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
             char *buffer, int buflen);
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,21)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,25) && !defined TALPA_HAS_PATH_LOOKUP
 static inline int talpa_path_lookup(const char *path, unsigned flags, struct nameidata *nd)
 {
         int error = 0;

@@ -91,6 +91,15 @@ AC_ARG_ENABLE(new-parent,
                 ],
                 [   auto_parent=yes])
 
+AC_ARG_ENABLE(path-lookup,
+                [  --enable-path-lookup           some kernels older than 2.4.25 have backported a change which exports path_lookup [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(pathlookup,"-DTALPA_HAS_PATH_LOOKUP")
+                    fi
+                    auto_pathlookup=no
+                ],
+                [   auto_pathlookup=yes])
+
 AC_ARG_ENABLE(inode-alloc-sem,
                 [  --enable-inode-alloc-sem       kernels >= 2.4.22 and >= 2.6.6 have this field as some patched ones [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -645,6 +654,24 @@ else
         else
             syscalls_unknown=yes
             AC_MSG_RESULT([skipped])
+        fi
+    fi
+
+    # Check for exported path_lookup
+    if test "$auto_pathlookup" = "yes"; then
+        if test $((kern_version_code)) -lt 132121; then
+            AC_MSG_CHECKING([for path_lookup])
+            if test -f $kerneldir/kernel/ksyms.c; then
+                ${EGREP} EXPORT_SYMBOL\\\(path_lookup\\\)\; $kerneldir/kernel/ksyms.c >/dev/null 2>&1
+                if test $? -ne 0; then
+                    AC_MSG_RESULT([hidden])
+                else
+                    AC_SUBST(pathlookup,"-DTALPA_HAS_PATH_LOOKUP")
+                    AC_MSG_RESULT([exported])
+                fi
+            else
+                AC_MSG_RESULT([undetectable])
+            fi
         fi
     fi
 
