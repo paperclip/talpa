@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
         }
 
         /* One in how many opens failed? */
-        return (count/err);
+        return (err>0)?(count/err):0;
     }
     else if ( opener < 0 )
     {
