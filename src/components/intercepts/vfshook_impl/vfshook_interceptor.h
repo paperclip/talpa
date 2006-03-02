@@ -78,6 +78,7 @@ struct patchedFilesystem
 #else
     struct dentry*          (*lookup)(struct inode *,struct dentry *);
 #endif
+    int                     (*permission)(struct inode *, int, struct nameidata *);
 };
 
 typedef struct tag_VFSHookInterceptor

@@ -39,6 +39,7 @@
 #endif
 #include <linux/smb_fs.h>
 
+#define DEBUG
 
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -353,7 +354,11 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
             err = patch->lookup(inode, dentry);
 #endif
         }
-
+        else
+        {
+            dbg("No lookup on %s", patch->fstype->name);
+        }
+#if 0
         /* If the lookup was successfull try to repatch
            if the target is a regular file. */
         if ( !err && !IS_ERR(dentry) )
@@ -368,6 +373,91 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
                 patch->lookup = NULL;
+
+                patch->f_ops->open = talpaOpen;
+                patch->f_ops->release = talpaRelease;
+                smp_wmb();
+
+                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
+            }
+        }
+#endif
+        putPatch(patch);
+    }
+
+    hookExitRv(err);
+}
+
+static int talpaInodePermission(struct inode *inode, int mode, struct nameidata *nd)
+{
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int err = -ESRCH;
+
+
+    hookEntry();
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( inode->i_op == p->i_ops )
+        {
+            patch = getPatch(p);
+            dbg("Permission on %s", patch->fstype->name);
+            break;
+        }
+    }
+
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+    if ( patch )
+    {
+        /* First call the original inode permission */
+        if ( patch->permission )
+        {
+            err = patch->permission(inode, mode, nd);
+        }
+        else
+        {
+            err = generic_permission(inode, mode, NULL);
+        }
+
+        /* If the original call was successfull try to repatch
+           if the target is a regular file. */
+        if ( !err )
+        {
+            dbg("nd 0x%p", nd);
+            if ( nd )
+            {
+                dbg("  dentry 0x%p, mnt 0x%p", nd->dentry, nd->mnt);
+                if ( nd->dentry && nd->mnt )
+                {
+                    dbg("    inode 0x%p / 0x%p", nd->dentry->d_inode, inode);
+                    if ( nd->dentry->d_inode )
+                    {
+                        dbg("      mode 0%o / 0%o", nd->dentry->d_inode->i_mode, inode->i_mode);
+                    }
+                    char *page = (char *)__get_free_page(GFP_KERNEL);
+                    if ( page )
+                    {
+                        char *path;
+                        path = d_path(nd->dentry, nd->mnt, page, PAGE_SIZE);
+                        dbg("+++++> %s", path);
+                        free_page((unsigned long) page);
+                    }
+                }
+            }
+            /* Check if this is a regular file */
+            if ( nd && nd->dentry && nd->dentry->d_inode && S_ISREG(nd->dentry->d_inode->i_mode) )
+            {
+                /* Re-patch, this time using file operations */
+                patch->i_ops->permission = patch->permission;
+                patch->i_ops = nd->dentry->d_inode->i_op;
+                patch->f_ops = nd->dentry->d_inode->i_fop;
+                patch->open = patch->f_ops->open;
+                patch->release = patch->f_ops->release;
+                patch->permission = NULL;
 
                 patch->f_ops->open = talpaOpen;
                 patch->f_ops->release = talpaRelease;
@@ -414,10 +504,10 @@ static int prepareFilesystem(struct vfsmount* mnt, struct patchedFilesystem* pat
 
 static int patchFilesystem(struct vfsmount* mnt, struct patchedFilesystem* patch)
 {
-    dbg("  patching inode lookup 0x%p", patch->lookup);
     patch->i_ops = mnt->mnt_root->d_inode->i_op;
-    patch->lookup = patch->i_ops->lookup;
-    patch->i_ops->lookup = talpaInodeLookup;
+    patch->permission = patch->i_ops->permission;
+    dbg("  patching inode permission 0x%p", patch->permission);
+    patch->i_ops->permission = talpaInodePermission;
     smp_wmb();
 
     return 0;
@@ -427,15 +517,15 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
 {
     if ( patch->f_ops )
     {
-        dbg("Restoring file operations 0x%p 0x%p 0x%p", patch->open, patch->release, patch->ioctl);
+        dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
         patch->f_ops->open = patch->open;
         patch->f_ops->release = patch->release;
         smp_wmb();
     }
     else if ( patch->i_ops )
     {
-        dbg("Restoring lookup inode operation 0x%p", patch->lookup);
-        patch->i_ops->lookup = patch->lookup;
+        dbg("Restoring inode permission operation 0x%p", patch->permission);
+        patch->i_ops->permission = patch->permission;
         smp_wmb();
     }
 
