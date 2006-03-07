@@ -39,7 +39,6 @@
 #endif
 #include <linux/smb_fs.h>
 
-#define DEBUG
 
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -78,7 +77,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 static void talpaPreUmount(char* name, int flags);
 static void talpaPostUmount(int err, char* name, int flags);
 
-static int processMount(struct vfsmount* mnt);
+static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDirect);
 
 /*
  * Constants
@@ -317,6 +316,107 @@ static int talpaRelease(struct inode *inode, struct file *file)
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd)
+#else
+static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode)
+#endif
+{
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int err = -ESRCH;
+
+
+    hookEntry();
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( inode->i_op == p->i_ops )
+        {
+            patch = getPatch(p);
+            dbg("Create on %s", patch->fstype->name);
+            break;
+        }
+    }
+
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+    if ( patch )
+    {
+        /* First call the original hook so that the inode gets created */
+        if ( patch->create )
+        {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+            err = patch->create(inode, dentry, mode, nd);
+#else
+            err = patch->create(inode, dentry, mode);
+#endif
+        }
+
+        /* If creation was successfull try to resolve the created inode
+           and also pass it through for interception. */
+        if ( !err )
+        {
+            /* Check if this is a regular file */
+            if ( S_ISREG(dentry->d_inode->i_mode) )
+            {
+                IFileInfo *pFInfo;
+
+
+                /* Re-patch, this time using file operations */
+                patch->i_ops->create = patch->create;
+                patch->i_ops = dentry->d_inode->i_op;
+                patch->f_ops = dentry->d_inode->i_fop;
+                patch->open = patch->f_ops->open;
+                patch->release = patch->f_ops->release;
+                patch->create = NULL;
+
+                patch->f_ops->open = talpaOpen;
+                patch->f_ops->release = talpaRelease;
+                smp_wmb();
+
+                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
+
+                /* Do not examine if we should not intercept opens and we are already examining one */
+                if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
+                {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+                    pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, nd->mnt, O_CREAT | O_EXCL, mode);
+
+                    if ( pFInfo )
+                    {
+                        /* Make sure our open and close attempts while examining will be excluded */
+                        current->flags |= PF_TALPA_INTERNAL;
+                        err = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+                        /* Restore normal process examination */
+                        current->flags &= ~PF_TALPA_INTERNAL;
+                        pFInfo->delete(pFInfo);
+                    }
+#else
+                    pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromInode(GL_object.mLinuxFilesystemFactory, EFS_Open, inode, O_CREAT | O_EXCL);
+
+                    if ( pFInfo )
+                    {
+                        /* Make sure our open and close attempts while examining will be excluded */
+                        current->flags |= PF_TALPA_INTERNAL;
+                        err = GL_object.mTargetProcessor->runAllowChain(GL_object.mTargetProcessor, pFInfo);
+                        /* Restore normal process examination */
+                        current->flags &= ~PF_TALPA_INTERNAL;
+                        pFInfo->delete(pFInfo);
+                    }
+#endif
+                }
+            }
+        }
+
+        putPatch(patch);
+    }
+
+    hookExitRv(err);
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, struct nameidata *nd)
 #else
 static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry)
@@ -354,11 +454,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
             err = patch->lookup(inode, dentry);
 #endif
         }
-        else
-        {
-            dbg("No lookup on %s", patch->fstype->name);
-        }
-#if 0
+
         /* If the lookup was successfull try to repatch
            if the target is a regular file. */
         if ( !err && !IS_ERR(dentry) )
@@ -381,14 +477,14 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
             }
         }
-#endif
+
         putPatch(patch);
     }
 
     hookExitRv(err);
 }
 
-static int talpaInodePermission(struct inode *inode, int mode, struct nameidata *nd)
+static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
 {
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
@@ -404,7 +500,7 @@ static int talpaInodePermission(struct inode *inode, int mode, struct nameidata 
         if ( inode->i_op == p->i_ops )
         {
             patch = getPatch(p);
-            dbg("Permission on %s", patch->fstype->name);
+            dbg("ioctl on %s", patch->fstype->name);
             break;
         }
     }
@@ -413,58 +509,30 @@ static int talpaInodePermission(struct inode *inode, int mode, struct nameidata 
 
     if ( patch )
     {
-        /* First call the original inode permission */
-        if ( patch->permission )
+        if ( patch->ioctl )
         {
-            err = patch->permission(inode, mode, nd);
+            err = patch->ioctl(inode, filp, cmd, arg);
+
+            if ( cmd == SMB_IOC_NEWCONN )
+            {
+                if ( !err )
+                {
+                    processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, true);
+                }
+                else
+                {
+                    dbg("smbfs newconn ioctl failed (%d)!", err);
+                }
+            }
+            else
+            {
+                dbg("Unexpected smbmount behaviour!");
+            }
         }
         else
         {
-            err = generic_permission(inode, mode, NULL);
-        }
-
-        /* If the original call was successfull try to repatch
-           if the target is a regular file. */
-        if ( !err )
-        {
-            dbg("nd 0x%p", nd);
-            if ( nd )
-            {
-                dbg("  dentry 0x%p, mnt 0x%p", nd->dentry, nd->mnt);
-                if ( nd->dentry && nd->mnt )
-                {
-                    dbg("    inode 0x%p / 0x%p", nd->dentry->d_inode, inode);
-                    if ( nd->dentry->d_inode )
-                    {
-                        dbg("      mode 0%o / 0%o", nd->dentry->d_inode->i_mode, inode->i_mode);
-                    }
-                    char *page = (char *)__get_free_page(GFP_KERNEL);
-                    if ( page )
-                    {
-                        char *path;
-                        path = d_path(nd->dentry, nd->mnt, page, PAGE_SIZE);
-                        dbg("+++++> %s", path);
-                        free_page((unsigned long) page);
-                    }
-                }
-            }
-            /* Check if this is a regular file */
-            if ( nd && nd->dentry && nd->dentry->d_inode && S_ISREG(nd->dentry->d_inode->i_mode) )
-            {
-                /* Re-patch, this time using file operations */
-                patch->i_ops->permission = patch->permission;
-                patch->i_ops = nd->dentry->d_inode->i_op;
-                patch->f_ops = nd->dentry->d_inode->i_fop;
-                patch->open = patch->f_ops->open;
-                patch->release = patch->f_ops->release;
-                patch->permission = NULL;
-
-                patch->f_ops->open = talpaOpen;
-                patch->f_ops->release = talpaRelease;
-                smp_wmb();
-
-                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
-            }
+            err = -ENOTTY;
+            err("smbfs_ioctl unexpectedly missing!");
         }
 
         putPatch(patch);
@@ -473,7 +541,269 @@ static int talpaInodePermission(struct inode *inode, int mode, struct nameidata 
     hookExitRv(err);
 }
 
-static int prepareFilesystem(struct vfsmount* mnt, struct patchedFilesystem* patch)
+/* Structure which holds info on one entry as we scan the directory tree */
+struct dentryContext
+{
+    struct file*    dir;
+    char*           dirent;
+    bool            fill;
+    bool            skip;
+    char*           root;
+    unsigned int    rootlen;
+};
+
+/* Callback we supply to vfs_readdir in order to get dentry info */
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,8)
+static int fillDentry(void * __buf, const char * name, int namlen, loff_t offset, ino_t ino, unsigned int d_type)
+#else
+static int fillDentry(void * __buf, const char * name, int namlen, off_t offset, ino_t ino, unsigned int d_type)
+#endif
+{
+    struct dentryContext *dc = (struct dentryContext *)__buf;
+
+
+    /* Skip current and parent directory inodes */
+    if ( ((namlen == 1) && !strncmp(name, ".", 1)) || ((namlen == 2) && !strncmp(name, "..", 2)) )
+    {
+        return 0;
+    }
+    /* Skip this dentry if requested so */
+    else if ( dc->skip )
+    {
+        dc->skip = false;
+        return 0;
+    }
+
+    /* We have a potentially interesting dentry */
+    dc->fill = true;
+
+    strcpy(dc->dirent, dc->root);
+    if ( dc->root[dc->rootlen - 1] != '/' )
+    {
+        strcat(dc->dirent, "/");
+    }
+    strncat(dc->dirent, name, namlen);
+
+    return -1;
+}
+
+static void stripLastPathElement(char* path, char* previous)
+{
+    char* p;
+
+
+    /* Copy previous state */
+    strcpy(previous, path);
+
+    /* Position ourselves at the last character */
+    p = path + strlen(path) - 1;
+
+    /* Skip trailing slash */
+    if ( (*p != '/') && (p > path) )
+        *p-- = 0;
+
+    /* Find previous slash */
+    while ( (*p != '/') && (p > path) )
+        p--;
+
+    /* Null terminate at the slash, or at one after if this is a root directory */
+    if ( p > path )
+    {
+        *p = 0;
+    }
+    else
+    {
+        *++p = 0;
+    }
+}
+
+static struct dentry *scanDirectory(const char* dirname, bool* firstOpenFailed)
+{
+    struct dentry *reg = NULL;
+    struct dentryContext* dc;
+    struct nameidata* nd;
+    char* previous = NULL;
+    bool backedout = false;
+    int err;
+    bool newdir = false;
+    unsigned int opencount = 0;
+
+
+    /* Allocate structures and memory */
+    dc = kmalloc(sizeof(struct dentryContext), GFP_KERNEL);
+    nd = kmalloc(sizeof(struct nameidata), GFP_KERNEL);
+    previous = (char *)__get_free_page(GFP_KERNEL);
+
+    if ( !dc || !nd || !previous )
+    {
+        goto nomem;
+    }
+
+    /* Allocate a page of memory for dentry name and pass the
+       parent directory name to fillDentry */
+    dc->dirent = (char *)__get_free_page(GFP_KERNEL);
+    dc->root = (char *)__get_free_page(GFP_KERNEL);
+
+    if ( !dc->dirent || !dc->root )
+    {
+        goto out;
+    }
+
+    strcpy(dc->root, dirname);
+    dc->rootlen = strlen(dc->root);
+
+    dbg("root at %s", dc->root);
+rescan:
+    dc->dir = filp_open(dc->root, O_RDONLY | O_DIRECTORY, 0);
+
+    /* Back-out if we failed to open, abort if we are at given root */
+    if ( IS_ERR(dc->dir) )
+    {
+        if ( !strcmp(dirname, dc->root) )
+        {
+            dbg("backed out to root (err %ld)", PTR_ERR(dc->dir));
+            if ( opencount == 0 )
+            {
+                *firstOpenFailed = true;
+            }
+            goto out;
+        }
+
+        stripLastPathElement(dc->root, previous);
+        dbg("backing out to %s, previous %s (err)", dc->root, previous);
+        backedout = true;
+        dc->rootlen = strlen(dc->root);
+        goto rescan;
+    }
+
+    opencount++;
+    newdir = true;
+    dc->skip = false;
+
+    do
+    {
+        /* Fill flag will be set in fillDentry if an
+           interesting dentry is found. */
+        dc->fill = false;
+        /* Skip first entry if we are continuing to
+           read an open directory.  */
+        if ( !newdir )
+        {
+            dc->skip = true;
+        }
+        err = vfs_readdir(dc->dir, fillDentry, dc);
+        newdir = false;
+
+        /* Back-out if at end-of-directory or if error occured */
+        if ( (err < 0) || !dc->fill )
+        {
+            filp_close(dc->dir, current->files);
+
+            if ( !strcmp(dirname, dc->root) )
+            {
+                dbg("eod");
+                goto out;
+            }
+
+            stripLastPathElement(dc->root, previous);
+            dbg("backing out to %s, previous %s", dc->root, previous);
+            backedout = true;
+            dc->rootlen = strlen(dc->root);
+            goto rescan;
+        }
+
+        /* If we backed-out previously, we must skip all entries up to the
+           one which made us go up. */
+        if ( backedout )
+        {
+            if ( !strcmp(dc->dirent, previous) )
+            {
+                dbg("  got back where we left off, reseting flag");
+                backedout = false;
+            }
+            else
+            {
+                dbg("     replaying %s", dc->dirent);
+            }
+            continue;
+        }
+
+        /* Try to lookup it... */
+        err = talpa_path_lookup(dc->dirent, 0, nd);
+
+        if ( err == 0 )
+        {
+            /* If dentry resolves to regular file we're done! */
+            if ( S_ISREG(nd->dentry->d_inode->i_mode) )
+            {
+                dbg("regular %s", dc->dirent);
+                reg = dget(nd->dentry);
+            }
+            /* If it is a directory and not a root of a mounted filesystem, enter into it */
+            else if ( S_ISDIR(nd->dentry->d_inode->i_mode) && (nd->dentry != nd->mnt->mnt_root) )
+            {
+                dbg("entering %s", dc->dirent);
+                path_release(nd);
+                filp_close(dc->dir, current->files);
+                strcpy(dc->root, dc->dirent);
+                dc->rootlen = strlen(dc->root);
+                goto rescan;
+            }
+            else
+            {
+                dbg("  skipping %s", dc->dirent);
+            }
+            path_release(nd);
+        }
+    } while ( !reg ); /* !reg = search finished, we have a regular file */
+
+    err = filp_close(dc->dir, current->files);
+
+out:
+    if ( dc->dirent )
+    {
+        free_page((unsigned long)dc->dirent);
+    }
+    if ( dc->root )
+    {
+        free_page((unsigned long)dc->root);
+    }
+nomem:
+    if ( previous )
+    {
+        free_page((unsigned long)previous);
+    }
+    kfree(nd);
+    kfree(dc);
+
+    return reg;
+}
+
+/* Find a regular file on a given vfsmount. dgets it's dentry. */
+static struct dentry *findRegular(struct vfsmount* root, bool* firstOpenFailed)
+{
+    struct dentry *reg = NULL;
+    struct dentry *droot;
+    struct vfsmount *mntroot;
+    char *page, *name;
+
+
+    page = (char *)__get_free_page(GFP_KERNEL);
+    if ( page )
+    {
+        droot = dget(root->mnt_root);
+        mntroot = mntget(root);
+        name = d_path(root->mnt_root, root, page, PAGE_SIZE);
+        reg = scanDirectory(name, firstOpenFailed);
+        mntput(mntroot);
+        dput(droot);
+        free_page((unsigned long)page);
+    }
+
+    return reg;
+}
+
+static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, struct patchedFilesystem* patch)
 {
     if ( !mnt )
     {
@@ -493,22 +823,162 @@ static int prepareFilesystem(struct vfsmount* mnt, struct patchedFilesystem* pat
         return 0;
     }
 
-    if ( patch->i_ops )
+    /* If we have a regular file from this filesystem we patch the file_operations */
+    if ( reg )
     {
-        dbg("Filesystem %s already pre-patched", mnt->mnt_sb->s_type->name);
-        return 0;
+        patch->i_ops = reg->d_inode->i_op;
+        patch->f_ops = reg->d_inode->i_fop;
+        patch->open = patch->f_ops->open;
+        patch->release = patch->f_ops->release;
+        patch->ioctl = patch->f_ops->ioctl;
+    }
+    /* supermount fs with no media is a special case. We patch inode_lookup to catch
+       when media becomes available. */
+    else if ( supermountWithNoMedia )
+    {
+        dbg("supermount special case");
+        patch->i_ops = mnt->mnt_root->d_inode->i_op;
+
+        if ( !patch->lookup )
+        {
+            patch->lookup = patch->i_ops->lookup;
+        }
+        else
+        {
+            dbg("  inode operations already patched");
+        }
+    }
+    /* Otherwise, we patch inode_create to catch the first file being created.
+       But not if the filesystem is read-only. */
+    else if ( !(flags & MS_RDONLY) )
+    {
+        patch->i_ops = mnt->mnt_root->d_inode->i_op;
+
+        if ( !patch->create )
+        {
+            patch->create = patch->i_ops->create;
+        }
+        else
+        {
+            dbg("  inode operations already patched");
+        }
+    }
+    else
+    {
+        dbg("Remembering read only fs with no regular files");
     }
 
     return 0;
 }
 
-static int patchFilesystem(struct vfsmount* mnt, struct patchedFilesystem* patch)
+static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, bool smbfs, struct patchedFilesystem* patch)
 {
-    patch->i_ops = mnt->mnt_root->d_inode->i_op;
-    patch->permission = patch->i_ops->permission;
-    dbg("  patching inode permission 0x%p", patch->permission);
-    patch->i_ops->permission = talpaInodePermission;
-    smp_wmb();
+    /* If we have a regular file from this filesystem we patch the file_operations */
+    if ( reg )
+    {
+        if ( !smbfs )
+        {
+            dbg("  patching file operations 0x%p 0x%p (open, release)", patch->open, patch->release);
+            patch->f_ops->open = talpaOpen;
+            patch->f_ops->release = talpaRelease;
+        }
+        else
+        {
+            dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
+            patch->f_ops->ioctl = talpaIoctl;
+        }
+        smp_wmb();
+    }
+    /* supermount fs with no media is a special case. We patch inode_lookup to catch
+       when media becomes available. */
+    else if ( supermountWithNoMedia )
+    {
+        dbg("  patching inode lookup 0x%p", patch->lookup);
+        patch->i_ops->lookup = talpaInodeLookup;
+        smp_wmb();
+    }
+    /* Otherwise, we patch inode_create to catch the first file being created.
+       But not if the filesystem is read-only. */
+    else if ( !(flags & MS_RDONLY) )
+    {
+        dbg("  patching inode creation 0x%p", patch->create);
+        patch->i_ops->create = talpaInodeCreate;
+        smp_wmb();
+    }
+    else
+    {
+        return 0;
+    }
+
+    dbg("Patched filesystem %s", mnt->mnt_sb->s_type->name);
+
+    return 0;
+}
+
+static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, bool smbfsDirect, struct patchedFilesystem* patch)
+{
+    /* No-op if already patched */
+    if ( patch->f_ops && (patch->f_ops->open == talpaOpen) )
+    {
+        dbg("Filesystem %s already patched, no repatching necessary", mnt->mnt_sb->s_type->name);
+        return 0;
+    }
+
+    /* If we have a regular file from this filesystem we patch the file_operations */
+    if ( reg )
+    {
+        if ( patch->i_ops->create == talpaInodeCreate )
+        {
+            dbg("  restoring inode create operation 0x%p", patch->create);
+            patch->i_ops->create = patch->create;
+        }
+
+        if ( patch->i_ops->lookup == talpaInodeLookup )
+        {
+            dbg("  restoring inode lookup operation 0x%p", patch->lookup);
+            patch->i_ops->lookup = patch->lookup;
+        }
+
+        if ( smbfsDirect )
+        {
+            dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
+            patch->f_ops->ioctl = patch->ioctl;
+
+            patch->i_ops = reg->d_inode->i_op;
+            patch->f_ops = reg->d_inode->i_fop;
+            patch->open = patch->f_ops->open;
+            patch->release = patch->f_ops->release;
+            patch->ioctl = patch->f_ops->ioctl;
+            smp_wmb();
+        }
+
+        dbg("  patching file operations 0x%p 0x%p", patch->open, patch->release);
+        patch->f_ops->open = talpaOpen;
+        patch->f_ops->release = talpaRelease;
+        smp_wmb();
+    }
+    /* supermount fs with no media is a special case. We patch inode_lookup to catch
+       when media becomes available. */
+    else if ( supermountWithNoMedia )
+    {
+        dbg("  patching inode lookup 0x%p", patch->lookup);
+        patch->i_ops->lookup = talpaInodeLookup;
+        smp_wmb();
+    }
+    /* Otherwise, we patch inode_create to catch the first file being created.
+       But not if the filesystem is read-only. */
+    else if ( !(flags & MS_RDONLY) )
+    {
+        dbg("  patching inode creation 0x%p", patch->create);
+        patch->i_ops->create = talpaInodeCreate;
+        smp_wmb();
+    }
+    else
+    {
+        return 0;
+    }
+
+    dbg("Re-patched filesystem %s", mnt->mnt_sb->s_type->name);
 
     return 0;
 }
@@ -517,28 +987,45 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
 {
     if ( patch->f_ops )
     {
-        dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
+        dbg("Restoring file operations 0x%p 0x%p 0x%p", patch->open, patch->release, patch->ioctl);
         patch->f_ops->open = patch->open;
         patch->f_ops->release = patch->release;
+        patch->f_ops->ioctl = patch->ioctl;
         smp_wmb();
     }
     else if ( patch->i_ops )
     {
-        dbg("Restoring inode permission operation 0x%p", patch->permission);
-        patch->i_ops->permission = patch->permission;
+        if ( patch->i_ops->lookup == talpaInodeLookup )
+        {
+            dbg("Restoring lookup inode operation 0x%p", patch->lookup);
+            patch->i_ops->lookup = patch->lookup;
+        }
+        if ( patch->i_ops->create == talpaInodeCreate )
+        {
+            dbg("Restoring create inode operation 0x%p", patch->create);
+            patch->i_ops->create = patch->create;
+        }
         smp_wmb();
+    }
+    else
+    {
+        dbg("Nothing to restore - read-only fs with no regular files!");
     }
 
     return 0;
 }
 
-static int processMount(struct vfsmount* mnt)
+static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDirect)
 {
     struct patchedFilesystem*   p;
     struct patchedFilesystem*   patch = NULL;
     struct patchedFilesystem*   newpatch;
+    struct dentry*              reg;
     VFSHookObject*              obj;
     int                         ret = -ESRCH;
+    bool                        firstOpenFailed = false;
+    bool                        supermountWithNoMedia = false;
+    bool                        smbfs = false;
 
 
     /* We don't want to patch some filesystems */
@@ -557,6 +1044,29 @@ static int processMount(struct vfsmount* mnt)
     /* Allocate patchedFilesystem structure because we
        can't do it while holding a lock. */
     newpatch = kmalloc(sizeof(struct patchedFilesystem), GFP_KERNEL);
+
+    /* We do not want to search for files on smbfs mounts since
+       they are not ready yet. */
+    if ( !smbfsDirect && !strcmp(mnt->mnt_sb->s_type->name, "smbfs") )
+    {
+        reg = dget(mnt->mnt_root);
+        smbfs = true;
+    }
+    else
+    {
+        /* Try to find one regular file, also before taking the lock. */
+        reg = findRegular(mnt, &firstOpenFailed);
+
+        /* Check if this is a supermount mount point with no media */
+        if ( !reg &&
+              firstOpenFailed &&
+             ( !strcmp(mnt->mnt_sb->s_type->name, "supermount") ||
+               !strcmp(mnt->mnt_sb->s_type->name, "fuse") ) )
+        {
+            supermountWithNoMedia = true;
+            dbg("special case:\n\tno media in a supermounted device\n\tfuse mount");
+        }
+    }
 
     /* Check if we have already patched this filesystem */
     talpa_rcu_write_lock(&GL_object.mPatchLock);
@@ -585,7 +1095,8 @@ static int processMount(struct vfsmount* mnt)
         patch->fstype = mnt->mnt_sb->s_type;
     }
 
-    ret = prepareFilesystem(mnt, patch);
+    /* prepareFilesystem knows how to handle different situations */
+    ret = prepareFilesystem(mnt, flags, reg, supermountWithNoMedia, patch);
     if ( !ret )
     {
         atomic_inc(&patch->usecnt);
@@ -597,7 +1108,12 @@ static int processMount(struct vfsmount* mnt)
             dbg("processMount: refcnt for %s = %d", patch->fstype->name, atomic_read(&patch->refcnt));
             talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
             /* Actually patch the filesystem */
-            patchFilesystem(mnt, patch);
+            patchFilesystem(mnt, flags, reg, supermountWithNoMedia, smbfs, patch);
+        }
+        else
+        {
+            /* Re-patch filesystem */
+            repatchFilesystem(mnt, flags, reg, supermountWithNoMedia, smbfsDirect, patch);
         }
     }
     else
@@ -610,6 +1126,13 @@ static int processMount(struct vfsmount* mnt)
     }
 
     talpa_rcu_write_unlock(&GL_object.mPatchLock);
+
+    /* We don't need a reference to regular dentry any more so
+       drop it if we had one. */
+    if ( reg )
+    {
+        dput(reg);
+    }
 
     return ret;
 }
@@ -738,7 +1261,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                             path_release(&nd);
                             putname(dir);
 
-                            processMount(nd2.mnt);
+                            processMount(nd2.mnt, flags, false);
                             path_release(&nd2);
 
                             return;
@@ -856,7 +1379,7 @@ static void talpaPostUmount(int err, char* name, int flags)
 
             if ( !err )
             {
-                err = processMount(nd.mnt);
+                err = processMount(nd.mnt, nd.mnt->mnt_flags, true);
                 path_release(&nd);
             }
             else
@@ -905,7 +1428,7 @@ static void walkMountTree(void)
     {
         dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_type->name);
 
-        processMount(mnt);
+        processMount(mnt, mnt->mnt_flags, true);
 
         spin_lock(&dcache_lock);
 
@@ -1062,7 +1585,6 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "devpts", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "devfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "subfs", true);
-    appendObject(&GL_object, &GL_object.mSkipFilesystems, "nfsd", false);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "sysfs", false);
 #else

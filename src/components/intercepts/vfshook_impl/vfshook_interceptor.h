@@ -73,12 +73,14 @@ struct patchedFilesystem
     struct file_operations  *f_ops;
     int                     (*open)(struct inode *, struct file *);
     int                     (*release)(struct inode *, struct file *);
+    int                     (*ioctl)(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+    int                     (*create)(struct inode *,struct dentry *,int, struct nameidata *);
     struct dentry*          (*lookup)(struct inode *,struct dentry *, struct nameidata *);
 #else
+    int                     (*create)(struct inode *,struct dentry *,int);
     struct dentry*          (*lookup)(struct inode *,struct dentry *);
 #endif
-    int                     (*permission)(struct inode *, int, struct nameidata *);
 };
 
 typedef struct tag_VFSHookInterceptor
