@@ -587,13 +587,10 @@ static int fillDentry(void * __buf, const char * name, int namlen, off_t offset,
     return -1;
 }
 
-static void stripLastPathElement(char* path, char* previous)
+static void stripLastPathElement(char* path)
 {
     char* p;
 
-
-    /* Copy previous state */
-    strcpy(previous, path);
 
     /* Position ourselves at the last character */
     p = path + strlen(path) - 1;
@@ -628,16 +625,16 @@ struct openDirectory
 struct directories
 {
     talpa_list_head list;
-    unsigned int    dmin;
     unsigned int    dmax;
+    unsigned int    cmax;
     unsigned int    count;
 };
 
 static void initDirectories(struct directories* dirs)
 {
     TALPA_INIT_LIST_HEAD(&dirs->list);
-    dirs->dmin = ~0UL;
     dirs->dmax = 0;
+    dirs->cmax = 0;
     dirs->count = 0;
 }
 
@@ -656,7 +653,7 @@ static char* namedup(char *name)
     return tmp;
 }
 
-static struct file* openDirectory(struct directories* dirs, unsigned int depth, char* name)
+static struct file* openDirectory(struct directories* dirs, unsigned int depth, char* name, bool* newdir)
 {
     struct openDirectory* tmp;
     struct openDirectory* dir = NULL;
@@ -675,6 +672,7 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
     if ( dir )
     {
         dbg("found open handle for %s at %u", dir->name, dir->level);
+        *newdir = false;
         return dir->dir;
     }
     else
@@ -690,6 +688,16 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
                 dir->dir = filp_open(dir->name, O_RDONLY | O_DIRECTORY, 0);
                 if ( !IS_ERR(dir->dir) )
                 {
+                    if ( dir->level > dirs->dmax )
+                    {
+                        dirs->dmax = dir->level;
+                    }
+                    dirs->count++;
+                    if ( dirs->count > dirs->cmax )
+                    {
+                        dirs->cmax = dirs->count;
+                    }
+                    *newdir = true;
                     talpa_list_add(&dir->head, &dirs->list);
                     dbg("added handle for %s at %u", dir->name, dir->level);
 
@@ -714,6 +722,7 @@ static void purgeDirectories(struct directories* dirs, unsigned int depth)
     {
         if ( dir->level == depth )
         {
+            --dirs->count;
             talpa_list_del(&dir->head);
             dbg("deleting handle for %s at %u", dir->name, dir->level);
             filp_close(dir->dir, current->files);
@@ -728,6 +737,8 @@ static void cleanupDirectories(struct directories* dirs)
     struct openDirectory* tmp;
     struct openDirectory* dir = NULL;
 
+
+    dbg("max depth was %u and max count %u", dirs->dmax, dirs->cmax);
 
     talpa_list_for_each_entry_safe(dir, tmp, &dirs->list, head)
     {
@@ -744,8 +755,6 @@ static struct dentry *scanDirectory(const char* dirname, bool* firstOpenFailed)
     struct dentry *reg = NULL;
     struct dentryContext* dc;
     struct nameidata* nd;
-    char* previous = NULL;
-    bool backedout = false;
     int err;
     bool newdir = false;
     unsigned int opencount = 0;
@@ -757,9 +766,8 @@ static struct dentry *scanDirectory(const char* dirname, bool* firstOpenFailed)
     /* Allocate structures and memory */
     dc = kmalloc(sizeof(struct dentryContext), GFP_KERNEL);
     nd = kmalloc(sizeof(struct nameidata), GFP_KERNEL);
-    previous = (char *)__get_free_page(GFP_KERNEL);
 
-    if ( !dc || !nd || !previous )
+    if ( !dc || !nd )
     {
         goto nomem;
     }
@@ -779,7 +787,7 @@ static struct dentry *scanDirectory(const char* dirname, bool* firstOpenFailed)
 
     dbg("root at %s", dc->root);
 rescan:
-    dc->dir = openDirectory(&dirs, depth, dc->root);
+    dc->dir = openDirectory(&dirs, depth, dc->root, &newdir);
 
     /* Back-out if we failed to open, abort if we are at given root */
     if ( IS_ERR(dc->dir) )
@@ -794,17 +802,15 @@ rescan:
             goto out;
         }
 
-        stripLastPathElement(dc->root, previous);
+        stripLastPathElement(dc->root);
         purgeDirectories(&dirs, depth);
         --depth;
-        dbg("backing out to %s, previous %s (%d) [%u]", dc->root, previous, PTR_ERR(dc->dir), depth);
-        backedout = true;
+        dbg("backing out to %s (%d) [%u]", dc->root, PTR_ERR(dc->dir), depth);
         dc->rootlen = strlen(dc->root);
         goto rescan;
     }
 
     opencount++;
-    newdir = true;
     dc->skip = false;
 
     do
@@ -824,37 +830,18 @@ rescan:
         /* Back-out if at end-of-directory or if error occured */
         if ( (err < 0) || !dc->fill )
         {
-            filp_close(dc->dir, current->files);
-
             if ( !strcmp(dirname, dc->root) )
             {
                 dbg("eod");
                 goto out;
             }
 
-            stripLastPathElement(dc->root, previous);
+            stripLastPathElement(dc->root);
             purgeDirectories(&dirs, depth);
             --depth;
-            dbg("backing out to %s, previous %s (%d)", dc->root, previous, err);
-            backedout = true;
+            dbg("backing out to %s (%d)", dc->root, err);
             dc->rootlen = strlen(dc->root);
             goto rescan;
-        }
-
-        /* If we backed-out previously, we must skip all entries up to the
-           one which made us go up. */
-        if ( backedout )
-        {
-            if ( !strcmp(dc->dirent, previous) )
-            {
-                dbg("  got back where we left off, reseting flag");
-                backedout = false;
-            }
-            else
-            {
-                dbg("     replaying %s", dc->dirent);
-            }
-            continue;
         }
 
         /* Try to lookup it... */
@@ -896,10 +883,6 @@ out:
         free_page((unsigned long)dc->root);
     }
 nomem:
-    if ( previous )
-    {
-        free_page((unsigned long)previous);
-    }
     kfree(nd);
     kfree(dc);
     cleanupDirectories(&dirs);
