@@ -1493,9 +1493,12 @@ static void talpaPostUmount(int err, char* name, int flags)
 {
     char* kname;
     struct nameidata nd;
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
 
 
-    /* If the umount failed, we have to patch this fs again.
+    /* If the umount failed, we have to patch this fs again, but only if we think
+       we managed to un-patch it in pre-mount, so we'll try to construct our objects.
        Yeah, this sucks, but currently I do not know of a better way... */
     if ( err )
     {
@@ -1503,23 +1506,55 @@ static void talpaPostUmount(int err, char* name, int flags)
 
         if ( !IS_ERR(kname) )
         {
-            err = talpa_path_lookup(kname, LOOKUP_FOLLOW, &nd);
+            IFilesystemInfo *pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Umount, NULL, kname, NULL);
 
-            if ( !err )
+            if ( likely(pFSInfo != NULL) )
             {
-                err = processMount(nd.mnt, nd.mnt->mnt_flags, true);
-                path_release(&nd);
-            }
-            else
-            {
-                err("Mount point gone after umount failed!");
+                talpa_rcu_write_lock(&GL_object.mPatchLock);
+
+                talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+                {
+                    if ( !strcmp(pFSInfo->type(pFSInfo->object), p->fstype->name) )
+                    {
+                        patch = p;
+                        break;
+                    }
+                }
+
+                if ( patch )
+                {
+                    /* We have decremented usecnt in pre-mount */
+                    atomic_inc(&patch->usecnt);
+                    dbg("PostUmount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
+                    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+                }
+                else
+                {
+                    /* We have completely restored this fs in pre-mount therefore we
+                       must re-patch it. */
+                    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+
+                    err = talpa_path_lookup(kname, LOOKUP_FOLLOW, &nd);
+
+                    if ( !err )
+                    {
+                        err = processMount(nd.mnt, nd.mnt->mnt_flags, true);
+                        path_release(&nd);
+                    }
+                    else
+                    {
+                        err("Mount point gone after umount failed!");
+                    }
+                }
+
+                pFSInfo->delete(pFSInfo);
             }
 
             putname(kname);
         }
         else
         {
-            err("Not enough memory to re-patch after umount failed!");
+            err("Not enough memory to attempt re-patch after umount failed!");
         }
     }
 
