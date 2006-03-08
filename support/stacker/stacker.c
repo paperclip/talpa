@@ -1366,17 +1366,17 @@ static void stacker_sk_free_security(struct sock *sk)
 
 static int stacker_key_alloc(struct key *key)
 {
-    return ALLOC_STACKED(alloc_key, (key), free_key, (key));
+    return ALLOC_STACKED(key_alloc, (key), key_free, (key));
 }
 
 static void stacker_key_free(struct key *key)
 {
-    ALL_STACKED(free_key, (key));
+    ALL_STACKED(key_free, (key));
 }
 
 static int stacker_key_permission(key_ref_t key_ref, struct task_struct *context, key_perm_t perm)
 {
-    return RESTRICTIVE_STACKED(key_permission, (inode, mask, nd));
+    return RESTRICTIVE_STACKED(key_permission, (key_ref, context, perm));
 }
 
 #endif  /* CONFIG_KEYS */
