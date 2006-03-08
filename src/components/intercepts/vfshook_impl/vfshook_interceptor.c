@@ -365,11 +365,13 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
 
 
                 /* Re-patch, this time using file operations */
+                patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
                 patch->i_ops = dentry->d_inode->i_op;
                 patch->f_ops = dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
+                patch->lookup = NULL;
                 patch->create = NULL;
 
                 patch->f_ops->open = talpaOpen;
@@ -464,11 +466,13 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
             {
                 /* Re-patch, this time using file operations */
                 patch->i_ops->lookup = patch->lookup;
+                patch->i_ops->create = patch->create;
                 patch->i_ops = dentry->d_inode->i_op;
                 patch->f_ops = dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
                 patch->lookup = NULL;
+                patch->create = NULL;
 
                 patch->f_ops->open = talpaOpen;
                 patch->f_ops->release = talpaRelease;
@@ -750,14 +754,13 @@ static void cleanupDirectories(struct directories* dirs)
     }
 }
 
-static struct dentry *scanDirectory(const char* dirname, bool* firstOpenFailed)
+static struct dentry *scanDirectory(const char* dirname)
 {
     struct dentry *reg = NULL;
     struct dentryContext* dc;
     struct nameidata* nd;
     int err;
     bool newdir = false;
-    unsigned int opencount = 0;
     struct directories dirs;
     unsigned int depth = 0;
 
@@ -795,10 +798,6 @@ rescan:
         if ( !strcmp(dirname, dc->root) )
         {
             dbg("backed out to root (err %ld)", PTR_ERR(dc->dir));
-            if ( opencount == 0 )
-            {
-                *firstOpenFailed = true;
-            }
             goto out;
         }
 
@@ -810,7 +809,6 @@ rescan:
         goto rescan;
     }
 
-    opencount++;
     dc->skip = false;
 
     do
@@ -891,7 +889,7 @@ nomem:
 }
 
 /* Find a regular file on a given vfsmount. dgets it's dentry. */
-static struct dentry *findRegular(struct vfsmount* root, bool* firstOpenFailed)
+static struct dentry *findRegular(struct vfsmount* root)
 {
     struct dentry *reg = NULL;
     struct dentry *droot;
@@ -905,7 +903,7 @@ static struct dentry *findRegular(struct vfsmount* root, bool* firstOpenFailed)
         droot = dget(root->mnt_root);
         mntroot = mntget(root);
         name = d_path(root->mnt_root, root, page, PAGE_SIZE);
-        reg = scanDirectory(name, firstOpenFailed);
+        reg = scanDirectory(name);
         mntput(mntroot);
         dput(droot);
         free_page((unsigned long)page);
@@ -914,7 +912,7 @@ static struct dentry *findRegular(struct vfsmount* root, bool* firstOpenFailed)
     return reg;
 }
 
-static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, struct patchedFilesystem* patch)
+static int prepareFilesystem(struct vfsmount* mnt, struct dentry* reg, struct patchedFilesystem* patch)
 {
     if ( !mnt )
     {
@@ -943,11 +941,8 @@ static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
         patch->release = patch->f_ops->release;
         patch->ioctl = patch->f_ops->ioctl;
     }
-    /* supermount fs with no media is a special case. We patch inode_lookup to catch
-       when media becomes available. */
-    else if ( supermountWithNoMedia )
+    else
     {
-        dbg("supermount special case");
         patch->i_ops = mnt->mnt_root->d_inode->i_op;
 
         if ( !patch->lookup )
@@ -956,14 +951,8 @@ static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
         }
         else
         {
-            dbg("  inode operations already patched");
+            dbg("  inode lookup already patched");
         }
-    }
-    /* Otherwise, we patch inode_create to catch the first file being created.
-       But not if the filesystem is read-only. */
-    else if ( !(flags & MS_RDONLY) )
-    {
-        patch->i_ops = mnt->mnt_root->d_inode->i_op;
 
         if ( !patch->create )
         {
@@ -971,18 +960,14 @@ static int prepareFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
         }
         else
         {
-            dbg("  inode operations already patched");
+            dbg("  inode create already patched");
         }
-    }
-    else
-    {
-        dbg("Remembering read only fs with no regular files");
     }
 
     return 0;
 }
 
-static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, bool smbfs, struct patchedFilesystem* patch)
+static int patchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfs, struct patchedFilesystem* patch)
 {
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( reg )
@@ -1000,25 +985,13 @@ static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct den
         }
         smp_wmb();
     }
-    /* supermount fs with no media is a special case. We patch inode_lookup to catch
-       when media becomes available. */
-    else if ( supermountWithNoMedia )
+    else
     {
         dbg("  patching inode lookup 0x%p", patch->lookup);
         patch->i_ops->lookup = talpaInodeLookup;
-        smp_wmb();
-    }
-    /* Otherwise, we patch inode_create to catch the first file being created.
-       But not if the filesystem is read-only. */
-    else if ( !(flags & MS_RDONLY) )
-    {
         dbg("  patching inode creation 0x%p", patch->create);
         patch->i_ops->create = talpaInodeCreate;
         smp_wmb();
-    }
-    else
-    {
-        return 0;
     }
 
     dbg("Patched filesystem %s", mnt->mnt_sb->s_type->name);
@@ -1026,7 +999,7 @@ static int patchFilesystem(struct vfsmount* mnt, unsigned long flags, struct den
     return 0;
 }
 
-static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct dentry* reg, bool supermountWithNoMedia, bool smbfsDirect, struct patchedFilesystem* patch)
+static int repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfsDirect, struct patchedFilesystem* patch)
 {
     /* No-op if already patched */
     if ( patch->f_ops && (patch->f_ops->open == talpaOpen) )
@@ -1038,16 +1011,18 @@ static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( reg )
     {
-        if ( patch->i_ops->create == talpaInodeCreate )
-        {
-            dbg("  restoring inode create operation 0x%p", patch->create);
-            patch->i_ops->create = patch->create;
-        }
-
         if ( patch->i_ops->lookup == talpaInodeLookup )
         {
             dbg("  restoring inode lookup operation 0x%p", patch->lookup);
             patch->i_ops->lookup = patch->lookup;
+            patch->lookup = NULL;
+        }
+
+        if ( patch->i_ops->create == talpaInodeCreate )
+        {
+            dbg("  restoring inode create operation 0x%p", patch->create);
+            patch->i_ops->create = patch->create;
+            patch->create = NULL;
         }
 
         if ( smbfsDirect )
@@ -1067,26 +1042,6 @@ static int repatchFilesystem(struct vfsmount* mnt, unsigned long flags, struct d
         patch->f_ops->open = talpaOpen;
         patch->f_ops->release = talpaRelease;
         smp_wmb();
-    }
-    /* supermount fs with no media is a special case. We patch inode_lookup to catch
-       when media becomes available. */
-    else if ( supermountWithNoMedia )
-    {
-        dbg("  patching inode lookup 0x%p", patch->lookup);
-        patch->i_ops->lookup = talpaInodeLookup;
-        smp_wmb();
-    }
-    /* Otherwise, we patch inode_create to catch the first file being created.
-       But not if the filesystem is read-only. */
-    else if ( !(flags & MS_RDONLY) )
-    {
-        dbg("  patching inode creation 0x%p", patch->create);
-        patch->i_ops->create = talpaInodeCreate;
-        smp_wmb();
-    }
-    else
-    {
-        return 0;
     }
 
     dbg("Re-patched filesystem %s", mnt->mnt_sb->s_type->name);
@@ -1110,17 +1065,19 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         {
             dbg("Restoring lookup inode operation 0x%p", patch->lookup);
             patch->i_ops->lookup = patch->lookup;
+            patch->lookup = NULL;
         }
         if ( patch->i_ops->create == talpaInodeCreate )
         {
             dbg("Restoring create inode operation 0x%p", patch->create);
             patch->i_ops->create = patch->create;
+            patch->create = NULL;
         }
         smp_wmb();
     }
     else
     {
-        dbg("Nothing to restore - read-only fs with no regular files!");
+        err("Restore on an unpatched filesystem!");
     }
 
     return 0;
@@ -1134,8 +1091,6 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
     struct dentry*              reg;
     VFSHookObject*              obj;
     int                         ret = -ESRCH;
-    bool                        firstOpenFailed = false;
-    bool                        supermountWithNoMedia = false;
     bool                        smbfs = false;
 
 
@@ -1166,17 +1121,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
     else
     {
         /* Try to find one regular file, also before taking the lock. */
-        reg = findRegular(mnt, &firstOpenFailed);
-
-        /* Check if this is a supermount mount point with no media */
-        if ( !reg &&
-              firstOpenFailed &&
-             ( !strcmp(mnt->mnt_sb->s_type->name, "supermount") ||
-               !strcmp(mnt->mnt_sb->s_type->name, "fuse") ) )
-        {
-            supermountWithNoMedia = true;
-            dbg("special case:\n\tno media in a supermounted device\n\tfuse mount");
-        }
+        reg = findRegular(mnt);
     }
 
     /* Check if we have already patched this filesystem */
@@ -1207,7 +1152,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
     }
 
     /* prepareFilesystem knows how to handle different situations */
-    ret = prepareFilesystem(mnt, flags, reg, supermountWithNoMedia, patch);
+    ret = prepareFilesystem(mnt, reg, patch);
     if ( !ret )
     {
         atomic_inc(&patch->usecnt);
@@ -1219,12 +1164,12 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
             dbg("processMount: refcnt for %s = %d", patch->fstype->name, atomic_read(&patch->refcnt));
             talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
             /* Actually patch the filesystem */
-            patchFilesystem(mnt, flags, reg, supermountWithNoMedia, smbfs, patch);
+            patchFilesystem(mnt, reg, smbfs, patch);
         }
         else
         {
             /* Re-patch filesystem */
-            repatchFilesystem(mnt, flags, reg, supermountWithNoMedia, smbfsDirect, patch);
+            repatchFilesystem(mnt, reg, smbfsDirect, patch);
         }
     }
     else
