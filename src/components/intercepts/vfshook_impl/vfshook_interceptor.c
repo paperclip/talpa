@@ -1301,8 +1301,9 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 
 
     /* Interception housekeeping work: Patch filesystem?
-       Do it only if the actual mount succeeded. */
-    if ( !err )
+       Do it only if the actual mount succeeded.
+       We also ignore bind mounts and subtree moves. */
+    if ( !err && !(flags & (MS_BIND | MS_MOVE)) )
     {
         dir = getname(dir_name);
 
@@ -1338,10 +1339,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 
             putname(dir);
         }
-    }
 
-    if ( !err )
-    {
         err("Failed to synchronise post-mount!");
     }
 
