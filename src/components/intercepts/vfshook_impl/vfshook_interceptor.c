@@ -1155,19 +1155,25 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
     ret = prepareFilesystem(mnt, reg, patch);
     if ( !ret )
     {
-        atomic_inc(&patch->usecnt);
-        dbg("processMount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
         /* Only add it to the list if this is a new patch (not a new
            instance of the existing one) */
         if ( patch == newpatch )
         {
             dbg("processMount: refcnt for %s = %d", patch->fstype->name, atomic_read(&patch->refcnt));
             talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
+            atomic_inc(&patch->usecnt);
+            dbg("processMount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
             /* Actually patch the filesystem */
             patchFilesystem(mnt, reg, smbfs, patch);
         }
         else
         {
+            /* Do not increase usecnt for remounts */
+            if ( !(flags & MS_REMOUNT) )
+            {
+                atomic_inc(&patch->usecnt);
+                dbg("processMount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
+            }
             /* Re-patch filesystem */
             repatchFilesystem(mnt, reg, smbfsDirect, patch);
         }
