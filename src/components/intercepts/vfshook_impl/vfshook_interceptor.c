@@ -359,7 +359,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
         if ( !err )
         {
             /* Check if this is a regular file */
-            if ( S_ISREG(dentry->d_inode->i_mode) )
+            if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
             {
                 IFileInfo *pFInfo;
 
@@ -462,7 +462,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
         if ( !err && !IS_ERR(dentry) )
         {
             /* Check if this is a regular file */
-            if ( S_ISREG(dentry->d_inode->i_mode) )
+            if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
             {
                 /* Re-patch, this time using file operations */
                 patch->i_ops->lookup = patch->lookup;
