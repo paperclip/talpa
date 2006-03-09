@@ -999,13 +999,15 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfs,
     return 0;
 }
 
-static int repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfsDirect, struct patchedFilesystem* patch)
+static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfsDirect, struct patchedFilesystem* patch)
 {
+    bool shouldinc = true;
+
     /* No-op if already patched */
     if ( patch->f_ops && (patch->f_ops->open == talpaOpen) )
     {
         dbg("Filesystem %s already patched, no repatching necessary", mnt->mnt_sb->s_type->name);
-        return 0;
+        return true;
     }
 
     /* If we have a regular file from this filesystem we patch the file_operations */
@@ -1025,7 +1027,7 @@ static int repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbf
             patch->create = NULL;
         }
 
-        if ( smbfsDirect )
+        if ( patch->f_ops->ioctl == talpaIoctl )
         {
             dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
             patch->f_ops->ioctl = patch->ioctl;
@@ -1036,6 +1038,7 @@ static int repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbf
             patch->release = patch->f_ops->release;
             patch->ioctl = patch->f_ops->ioctl;
             smp_wmb();
+            shouldinc = false;
         }
 
         dbg("  patching file operations 0x%p 0x%p", patch->open, patch->release);
@@ -1043,10 +1046,41 @@ static int repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbf
         patch->f_ops->release = talpaRelease;
         smp_wmb();
     }
+    else
+    {
+        /* We will only get here if re-patching a fs which doesn't already
+           have fops->open patched and we didn't find a regular file. Normally
+           we ignore it since it means inode operations are already patched.
+           But for the smbfs case we must patch them here. */
+
+        if ( patch->f_ops->ioctl == talpaIoctl )
+        {
+            dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
+            patch->f_ops->ioctl = patch->ioctl;
+            patch->ioctl = NULL;
+            patch->f_ops = NULL;
+            patch->i_ops = mnt->mnt_root->d_inode->i_op;
+            patch->lookup = patch->i_ops->lookup;
+            patch->create = patch->i_ops->create;
+            shouldinc = false;
+        }
+
+        if ( patch->i_ops->lookup != talpaInodeLookup )
+        {
+            dbg("  patching inode lookup 0x%p", patch->lookup);
+            patch->i_ops->lookup = talpaInodeLookup;
+        }
+        if ( patch->i_ops->create != talpaInodeCreate )
+        {
+            dbg("  patching inode creation 0x%p", patch->create);
+            patch->i_ops->create = talpaInodeCreate;
+        }
+        smp_wmb();
+    }
 
     dbg("Re-patched filesystem %s", mnt->mnt_sb->s_type->name);
 
-    return 0;
+    return shouldinc;
 }
 
 static int restoreFilesystem(struct patchedFilesystem* patch)
@@ -1091,6 +1125,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
     struct dentry*              reg;
     VFSHookObject*              obj;
     int                         ret = -ESRCH;
+    bool                        shouldinc;
     bool                        smbfs = false;
 
 
@@ -1168,14 +1203,14 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
         }
         else
         {
-            /* Do not increase usecnt for remounts */
-            if ( !(flags & MS_REMOUNT) )
+            /* Re-patch filesystem, increase usecnt if repatch think we should
+               but never for re-mounts. */
+            shouldinc = repatchFilesystem(mnt, reg, smbfsDirect, patch);
+            if ( shouldinc && !(flags & MS_REMOUNT) )
             {
                 atomic_inc(&patch->usecnt);
                 dbg("processMount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
             }
-            /* Re-patch filesystem */
-            repatchFilesystem(mnt, reg, smbfsDirect, patch);
         }
     }
     else
