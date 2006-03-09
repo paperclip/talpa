@@ -657,6 +657,44 @@ static char* namedup(char *name)
     return tmp;
 }
 
+static void purgeDirectories(struct directories* dirs, unsigned int depth)
+{
+    struct openDirectory* tmp;
+    struct openDirectory* dir = NULL;
+
+
+    talpa_list_for_each_entry_safe(dir, tmp, &dirs->list, head)
+    {
+        if ( dir->level == depth )
+        {
+            --dirs->count;
+            talpa_list_del(&dir->head);
+            dbg("deleting handle for %s at %u", dir->name, dir->level);
+            filp_close(dir->dir, current->files);
+            talpa_free(dir->name);
+            talpa_free(dir);
+        }
+    }
+}
+
+static void cleanupDirectories(struct directories* dirs)
+{
+    struct openDirectory* tmp;
+    struct openDirectory* dir = NULL;
+
+
+    dbg("max depth was %u and max count %u", dirs->dmax, dirs->cmax);
+
+    talpa_list_for_each_entry_safe(dir, tmp, &dirs->list, head)
+    {
+        talpa_list_del(&dir->head);
+        dbg("deleting handle for %s at %u", dir->name, dir->level);
+        filp_close(dir->dir, current->files);
+        talpa_free(dir->name);
+        talpa_free(dir);
+    }
+}
+
 static struct file* openDirectory(struct directories* dirs, unsigned int depth, char* name, bool* newdir)
 {
     struct openDirectory* tmp;
@@ -702,6 +740,7 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
                         dirs->cmax = dirs->count;
                     }
                     *newdir = true;
+                    purgeDirectories(dirs, depth);
                     talpa_list_add(&dir->head, &dirs->list);
                     dbg("added handle for %s at %u", dir->name, dir->level);
 
@@ -714,44 +753,6 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
     }
 
     return NULL;
-}
-
-static void purgeDirectories(struct directories* dirs, unsigned int depth)
-{
-    struct openDirectory* tmp;
-    struct openDirectory* dir = NULL;
-
-
-    talpa_list_for_each_entry_safe(dir, tmp, &dirs->list, head)
-    {
-        if ( dir->level == depth )
-        {
-            --dirs->count;
-            talpa_list_del(&dir->head);
-            dbg("deleting handle for %s at %u", dir->name, dir->level);
-            filp_close(dir->dir, current->files);
-            talpa_free(dir->name);
-            talpa_free(dir);
-        }
-    }
-}
-
-static void cleanupDirectories(struct directories* dirs)
-{
-    struct openDirectory* tmp;
-    struct openDirectory* dir = NULL;
-
-
-    dbg("max depth was %u and max count %u", dirs->dmax, dirs->cmax);
-
-    talpa_list_for_each_entry_safe(dir, tmp, &dirs->list, head)
-    {
-        talpa_list_del(&dir->head);
-        dbg("deleting handle for %s at %u", dir->name, dir->level);
-        filp_close(dir->dir, current->files);
-        talpa_free(dir->name);
-        talpa_free(dir);
-    }
 }
 
 static struct dentry *scanDirectory(const char* dirname)
