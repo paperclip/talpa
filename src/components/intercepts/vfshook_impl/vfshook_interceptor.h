@@ -97,17 +97,20 @@ typedef struct tag_VFSHookInterceptor
     unsigned int                    mHookingMask;
     talpa_rcu_lock_t                mPatchLock;
     talpa_list_head                 mPatches;
-    talpa_rcu_lock_t                mSkipLock;
+    talpa_rcu_lock_t                mListLock;
     talpa_list_head                 mSkipFilesystems;
+    talpa_list_head                 mNoScanFilesystems;
     IInterceptProcessor*            mTargetProcessor;
-    PODConfigurationElement         mConfig[4];
+    PODConfigurationElement         mConfig[5];
     VFSHookStatusConfigData         mConfigData;
     VFSHookOpsConfigData            mOpsConfigData;
-    VFSHookFSConfigData             mFSConfigData;
+    VFSHookFSConfigData             mSkipListConfigData;
+    VFSHookFSConfigData             mNoScanConfigData;
     LinuxFilesystemFactoryImpl*     mLinuxFilesystemFactory;
     LinuxSystemRoot*                mLinuxSystemRoot;
     struct talpa_syscall_operations mSyscallOps;
     char*                           mSkipFilesystemsSet;
+    char*                           mNoScanFilesystemsSet;
 } VFSHookInterceptor;
 
 /*

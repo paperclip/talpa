@@ -77,7 +77,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 static void talpaPreUmount(char* name, int flags);
 static void talpaPostUmount(int err, char* name, int flags);
 
-static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDirect);
+static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMount);
 
 /*
  * Constants
@@ -85,6 +85,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
 #define CFG_STATUS          "status"
 #define CFG_OPS             "ops"
 #define CFG_FS              "fs-ignore"
+#define CFG_NOSCAN          "no-scan"
 #define CFG_VALUE_ENABLED   "enabled"
 #define CFG_VALUE_DISABLED  "disabled"
 #define CFG_ACTION_ENABLE   "enable"
@@ -132,16 +133,19 @@ static VFSHookInterceptor GL_object =
         TALPA_LIST_HEAD_INIT(GL_object.mPatches),
         TALPA_RCU_UNLOCKED,
         TALPA_LIST_HEAD_INIT(GL_object.mSkipFilesystems),
+        TALPA_LIST_HEAD_INIT(GL_object.mNoScanFilesystems),
         NULL,
         {
             {GL_object.mConfigData.name, GL_object.mConfigData.value, VFSHOOK_CFGDATASIZE, true, true },
             {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, VFSHOOK_OPSCFGDATASIZE, true, false },
-            {GL_object.mFSConfigData.name, GL_object.mFSConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
+            {GL_object.mSkipListConfigData.name, GL_object.mSkipListConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
+            {GL_object.mNoScanConfigData.name, GL_object.mNoScanConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
             {NULL, NULL, 0, false, false }
         },
         { CFG_STATUS, CFG_VALUE_DISABLED },
         { CFG_OPS, CFG_VALUE_DUMMY },
         { CFG_FS, CFG_VALUE_DUMMY },
+        { CFG_NOSCAN, CFG_VALUE_DUMMY },
         NULL,
         NULL,
         {
@@ -154,6 +158,7 @@ static VFSHookInterceptor GL_object =
             .umount_pre = talpaPreUmount,
             .umount_post = talpaPostUmount,
         },
+        NULL,
         NULL,
     };
 
@@ -521,7 +526,7 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
             {
                 if ( !err )
                 {
-                    processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, true);
+                    processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, false);
                 }
                 else
                 {
@@ -973,16 +978,16 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfs,
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( reg )
     {
-        if ( !smbfs )
+        if ( smbfs )
+        {
+            dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
+            patch->f_ops->ioctl = talpaIoctl;
+        }
+        else
         {
             dbg("  patching file operations 0x%p 0x%p (open, release)", patch->open, patch->release);
             patch->f_ops->open = talpaOpen;
             patch->f_ops->release = talpaRelease;
-        }
-        else
-        {
-            dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
-            patch->f_ops->ioctl = talpaIoctl;
         }
         smp_wmb();
     }
@@ -1000,7 +1005,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfs,
     return 0;
 }
 
-static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfsDirect, struct patchedFilesystem* patch)
+static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, struct patchedFilesystem* patch)
 {
     bool shouldinc = true;
 
@@ -1118,7 +1123,28 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     return 0;
 }
 
-static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDirect)
+static bool onNoScanList(const char *name)
+{
+    VFSHookObject* obj;
+    bool found = false;
+
+
+    talpa_rcu_read_lock(&GL_object.mListLock);
+    talpa_list_for_each_entry(obj, &GL_object.mNoScanFilesystems, head)
+    {
+        if ( !strcmp(name, obj->value) )
+        {
+            dbg("%s is on no scan list", name);
+            found = true;
+            break;
+        }
+    }
+    talpa_rcu_read_unlock(&GL_object.mListLock);
+
+    return found;
+}
+
+static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMount)
 {
     struct patchedFilesystem*   p;
     struct patchedFilesystem*   patch = NULL;
@@ -1128,31 +1154,35 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
     int                         ret = -ESRCH;
     bool                        shouldinc;
     bool                        smbfs = false;
+    const char*                 fsname = (const char *)mnt->mnt_sb->s_type->name;
 
 
     /* We don't want to patch some filesystems */
-    talpa_rcu_read_lock(&GL_object.mSkipLock);
+    talpa_rcu_read_lock(&GL_object.mListLock);
     talpa_list_for_each_entry_rcu(obj, &GL_object.mSkipFilesystems, head)
     {
-        if ( !strcmp(mnt->mnt_sb->s_type->name, obj->value) )
+        if ( !strcmp(fsname, obj->value) )
         {
             dbg("%s is on the skip list", obj->value);
-            talpa_rcu_read_unlock(&GL_object.mSkipLock);
+            talpa_rcu_read_unlock(&GL_object.mListLock);
             return 0;
         }
     }
-    talpa_rcu_read_unlock(&GL_object.mSkipLock);
+    talpa_rcu_read_unlock(&GL_object.mListLock);
 
     /* Allocate patchedFilesystem structure because we
        can't do it while holding a lock. */
     newpatch = kmalloc(sizeof(struct patchedFilesystem), GFP_KERNEL);
 
-    /* We do not want to search for files on smbfs mounts since
-       they are not ready yet. */
-    if ( !smbfsDirect && !strcmp(mnt->mnt_sb->s_type->name, "smbfs") )
+    /* We do not want to search for files on some filesystems on mount. */
+    if ( fromMount && onNoScanList(fsname) )
     {
         reg = dget(mnt->mnt_root);
-        smbfs = true;
+        /* Special patching workaround for smbfs is required */
+        if ( !strcmp(fsname, "smbfs") )
+        {
+            smbfs = true;
+        }
     }
     else
     {
@@ -1195,10 +1225,10 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
            instance of the existing one) */
         if ( patch == newpatch )
         {
-            dbg("processMount: refcnt for %s = %d", patch->fstype->name, atomic_read(&patch->refcnt));
+            dbg("refcnt for %s = %d", fsname, atomic_read(&patch->refcnt));
             talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
             atomic_inc(&patch->usecnt);
-            dbg("processMount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
+            dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
             /* Actually patch the filesystem */
             patchFilesystem(mnt, reg, smbfs, patch);
         }
@@ -1206,11 +1236,11 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool smbfsDir
         {
             /* Re-patch filesystem, increase usecnt if repatch think we should
                but never for re-mounts. */
-            shouldinc = repatchFilesystem(mnt, reg, smbfsDirect, patch);
+            shouldinc = repatchFilesystem(mnt, reg, patch);
             if ( shouldinc && !(flags & MS_REMOUNT) )
             {
                 atomic_inc(&patch->usecnt);
-                dbg("processMount: usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
+                dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
             }
         }
     }
@@ -1360,7 +1390,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                             path_release(&nd);
                             putname(dir);
 
-                            processMount(nd2.mnt, flags, false);
+                            processMount(nd2.mnt, flags, true);
                             path_release(&nd2);
 
                             return;
@@ -1506,7 +1536,7 @@ static void talpaPostUmount(int err, char* name, int flags)
 
                     if ( !err )
                     {
-                        err = processMount(nd.mnt, nd.mnt->mnt_flags, true);
+                        err = processMount(nd.mnt, nd.mnt->mnt_flags, false);
                         path_release(&nd);
                     }
                     else
@@ -1559,7 +1589,7 @@ static void walkMountTree(void)
     {
         dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_type->name);
 
-        processMount(mnt, mnt->mnt_flags, true);
+        processMount(mnt, mnt->mnt_flags, false);
 
         spin_lock(&dcache_lock);
 
@@ -1609,29 +1639,33 @@ static void walkMountTree(void)
  * Object creation/destruction.
  */
 static char *skip_list = "";
+static char *no_scan = "";
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 module_param(skip_list, charp, 0400);
+module_param(no_scan, charp, 0400);
 #else
 MODULE_PARM(skip_list, "s");
+MODULE_PARM(no_scan, "s");
 #endif
-MODULE_PARM_DESC(skip_list, "Comma-delimited list of additions to/removals from the list of ignored filesystems");
+MODULE_PARM_DESC(skip_list, "Comma-delimited list of additions/removals from the list of ignored filesystems");
+MODULE_PARM_DESC(no_scan, "Comma-delimited list of additions/removals from the list of filesystems which need a workaround on mount");
 
-static void parseParams(void* self)
+static void parseParams(void* self, char *param, talpa_list_head* list, char **set)
 {
     VFSHookObject *obj, *tmp;
     char* token;
     char* delimiter;
 
 
-    if ( strlen(skip_list) < 2 )
+    if ( strlen(param) < 2 )
     {
         return;
     }
 
-    if ( !strcmp(skip_list, "none") )
+    if ( !strcmp(param, "none") )
     {
-        talpa_list_for_each_entry_safe(obj, tmp, &this->mSkipFilesystems, head)
+        talpa_list_for_each_entry_safe(obj, tmp, list, head)
         {
             if ( !obj->protected )
             {
@@ -1644,17 +1678,17 @@ static void parseParams(void* self)
     }
 
     /* Tokenize string with ',' as a delimiter */
-    token = skip_list;
+    token = param;
 next_token:
     delimiter = strchr(token, ',');
     if ( !delimiter )
     {
-        doActionString(this, &this->mSkipFilesystems, &(this->mSkipFilesystemsSet), token);
+        doActionString(this, list, set, token);
     }
     else
     {
         *delimiter = 0;
-        doActionString(this, &this->mSkipFilesystems, &(this->mSkipFilesystemsSet), token);
+        doActionString(this, list, set, token);
         token = ++delimiter;
         goto next_token;
     }
@@ -1706,8 +1740,9 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
 
     talpa_rcu_lock_init(&GL_object.mPatchLock);
     TALPA_INIT_LIST_HEAD(&GL_object.mPatches);
-    talpa_rcu_lock_init(&GL_object.mSkipLock);
+    talpa_rcu_lock_init(&GL_object.mListLock);
     TALPA_INIT_LIST_HEAD(&GL_object.mSkipFilesystems);
+    TALPA_INIT_LIST_HEAD(&GL_object.mNoScanFilesystems);
 
     /* Configure the interceptor with platform dependent data */
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "rootfs", true);
@@ -1722,8 +1757,12 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "usbdevfs", false);
 #endif
 
+    appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
+    appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
+
     /* Parse module parameters */
-    parseParams(&GL_object);
+    parseParams(&GL_object, skip_list, &GL_object.mSkipFilesystems, &GL_object.mSkipFilesystemsSet);
+    parseParams(&GL_object, no_scan, &GL_object.mNoScanFilesystems, &GL_object.mNoScanFilesystemsSet);
 
     /* Lock kernel so that no (u)mounting can happen between us walking the mount
        tree and hooking into the syscall table */
@@ -1739,6 +1778,11 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
         purgePatches(&GL_object);
         /* Free the configuration list objects */
         talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mSkipFilesystems, head)
+        {
+            talpa_list_del(&obj->head);
+            freeObject(obj);
+        }
+        talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mNoScanFilesystems, head)
         {
             talpa_list_del(&obj->head);
             freeObject(obj);
@@ -1793,13 +1837,14 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     wait_event(object->mUnload, atomic_read(&object->mUseCnt) == 0);
 
     /* Free the configuration list objects */
-    talpa_list_for_each_entry_safe(obj, tmp, &object->mSkipFilesystems, head)
+    talpa_list_for_each_entry_safe(obj, tmp, &object->mNoScanFilesystems, head)
     {
         talpa_list_del(&obj->head);
         freeObject(obj);
     }
 
     kfree(object->mSkipFilesystemsSet);
+    kfree(object->mNoScanFilesystemsSet);
 
     return;
 }
@@ -1872,7 +1917,7 @@ try_alloc:
     }
 
     len = 0;
-    talpa_rcu_read_lock(&this->mSkipLock);
+    talpa_rcu_read_lock(&this->mListLock);
     talpa_list_for_each_entry_rcu(obj, list, head)
     {
         len += 1 + obj->len + 1;
@@ -1881,7 +1926,7 @@ try_alloc:
     /* We will reallocate if the size has increased or this is a second pass (first allocation)/ */
     if ( (len + 1) > alloc_len )
     {
-        talpa_rcu_read_unlock(&this->mSkipLock);
+        talpa_rcu_read_unlock(&this->mListLock);
         alloc_len = len + 1;
         kfree(newset);
         goto try_alloc;
@@ -1906,7 +1951,7 @@ try_alloc:
     *out = 0;
     *set = newset;
 
-    talpa_rcu_read_unlock(&this->mSkipLock);
+    talpa_rcu_read_unlock(&this->mListLock);
 
     return;
 }
@@ -1938,9 +1983,9 @@ static VFSHookObject* appendObject(void* self, talpa_list_head* list, const char
     VFSHookObject *obj;
 
 
-    talpa_rcu_read_lock(&this->mSkipLock);
+    talpa_rcu_read_lock(&this->mListLock);
     obj = findObject(this, list, value);
-    talpa_rcu_read_unlock(&this->mSkipLock);
+    talpa_rcu_read_unlock(&this->mListLock);
     if ( obj )
     {
         dbg("String already in list!");
@@ -1951,9 +1996,9 @@ static VFSHookObject* appendObject(void* self, talpa_list_head* list, const char
     obj = newObject(this, value, protected);
     if ( obj )
     {
-        talpa_rcu_write_lock(&this->mSkipLock);
+        talpa_rcu_write_lock(&this->mListLock);
         talpa_list_add_tail_rcu(&obj->head, list);
-        talpa_rcu_write_unlock(&this->mSkipLock);
+        talpa_rcu_write_unlock(&this->mListLock);
     }
 
     return obj;
@@ -1964,16 +2009,16 @@ static bool removeObject(void *self, talpa_list_head* list, const char* value)
     VFSHookObject *obj;
 
 
-    talpa_rcu_write_lock(&this->mSkipLock);
+    talpa_rcu_write_lock(&this->mListLock);
     obj = findObject(this, list, value);
     if ( obj && !obj->protected )
     {
         talpa_list_del_rcu(&obj->head);
-        talpa_rcu_write_unlock(&this->mSkipLock);
+        talpa_rcu_write_unlock(&this->mListLock);
         deleteObject(this, obj);
         return true;
     }
-    talpa_rcu_write_unlock(&this->mSkipLock);
+    talpa_rcu_write_unlock(&this->mListLock);
 
     return false;
 }
@@ -2180,6 +2225,14 @@ static const char* config(const void* self, const char* name)
             }
             retstring = this->mSkipFilesystemsSet;
         }
+        else if ( !strcmp(cfgElement->name, CFG_NOSCAN) )
+        {
+            if ( !this->mNoScanFilesystemsSet )
+            {
+                constructStringSet(this, &this->mNoScanFilesystems, &this->mNoScanFilesystemsSet);
+            }
+            retstring = this->mNoScanFilesystemsSet;
+        }
 
         talpa_mutex_unlock(&this->mSemaphore);
 
@@ -2237,6 +2290,10 @@ static void  setConfig(void* self, const char* name, const char* value)
     else if ( !strcmp(name, CFG_FS) )
     {
         doActionString(this, &this->mSkipFilesystems, &(this->mSkipFilesystemsSet), value);
+    }
+    else if ( !strcmp(name, CFG_NOSCAN) )
+    {
+        doActionString(this, &this->mNoScanFilesystems, &(this->mNoScanFilesystemsSet), value);
     }
 
     talpa_mutex_unlock(&this->mSemaphore);
