@@ -918,7 +918,7 @@ static struct dentry *findRegular(struct vfsmount* root)
     return reg;
 }
 
-static int prepareFilesystem(struct vfsmount* mnt, struct dentry* reg, struct patchedFilesystem* patch)
+static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     if ( !mnt )
     {
@@ -939,17 +939,22 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* reg, struct pa
     }
 
     /* If we have a regular file from this filesystem we patch the file_operations */
-    if ( reg )
+    if ( dentry && (S_ISREG(dentry->d_inode->i_mode) || smbfs) )
     {
-        patch->i_ops = reg->d_inode->i_op;
-        patch->f_ops = reg->d_inode->i_fop;
+        patch->i_ops = dentry->d_inode->i_op;
+        patch->f_ops = dentry->d_inode->i_fop;
         patch->open = patch->f_ops->open;
         patch->release = patch->f_ops->release;
         patch->ioctl = patch->f_ops->ioctl;
     }
     else
     {
-        patch->i_ops = mnt->mnt_root->d_inode->i_op;
+        if ( !dentry )
+        {
+            dentry = mnt->mnt_root;
+        }
+
+        patch->i_ops = dentry->d_inode->i_op;
 
         if ( !patch->lookup )
         {
@@ -973,23 +978,19 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* reg, struct pa
     return 0;
 }
 
-static int patchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfs, struct patchedFilesystem* patch)
+static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     /* If we have a regular file from this filesystem we patch the file_operations */
-    if ( reg )
+    if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
-        if ( smbfs )
-        {
-            dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
-            patch->f_ops->ioctl = talpaIoctl;
-        }
-        else
-        {
-            dbg("  patching file operations 0x%p 0x%p (open, release)", patch->open, patch->release);
-            patch->f_ops->open = talpaOpen;
-            patch->f_ops->release = talpaRelease;
-        }
-        smp_wmb();
+        dbg("  patching file operations 0x%p 0x%p (open, release)", patch->open, patch->release);
+        patch->f_ops->open = talpaOpen;
+        patch->f_ops->release = talpaRelease;
+    }
+    else if ( dentry && smbfs )
+    {
+        dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
+        patch->f_ops->ioctl = talpaIoctl;
     }
     else
     {
@@ -999,13 +1000,14 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* reg, bool smbfs,
         patch->i_ops->create = talpaInodeCreate;
         smp_wmb();
     }
+    smp_wmb();
 
     dbg("Patched filesystem %s", mnt->mnt_sb->s_type->name);
 
     return 0;
 }
 
-static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, struct patchedFilesystem* patch)
+static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, struct patchedFilesystem* patch)
 {
     bool shouldinc = true;
 
@@ -1017,7 +1019,7 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, struct p
     }
 
     /* If we have a regular file from this filesystem we patch the file_operations */
-    if ( reg )
+    if ( dentry )
     {
         if ( patch->i_ops->lookup == talpaInodeLookup )
         {
@@ -1038,8 +1040,8 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* reg, struct p
             dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
             patch->f_ops->ioctl = patch->ioctl;
 
-            patch->i_ops = reg->d_inode->i_op;
-            patch->f_ops = reg->d_inode->i_fop;
+            patch->i_ops = dentry->d_inode->i_op;
+            patch->f_ops = dentry->d_inode->i_fop;
             patch->open = patch->f_ops->open;
             patch->release = patch->f_ops->release;
             patch->ioctl = patch->f_ops->ioctl;
@@ -1218,7 +1220,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     }
 
     /* prepareFilesystem knows how to handle different situations */
-    ret = prepareFilesystem(mnt, reg, patch);
+    ret = prepareFilesystem(mnt, reg, smbfs, patch);
     if ( !ret )
     {
         /* Only add it to the list if this is a new patch (not a new
