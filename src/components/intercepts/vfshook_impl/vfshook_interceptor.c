@@ -1753,6 +1753,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "devpts", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "devfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "subfs", true);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "nfsd", false);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "sysfs", false);
 #else
