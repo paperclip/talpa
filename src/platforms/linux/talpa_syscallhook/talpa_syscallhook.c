@@ -75,14 +75,6 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
   #undef TALPA_EXECVE_SUPPORT
 #endif
 
-#ifdef CONFIG_IA32_EMULATION
-  #define __NR_open_ia32     5
-  #define __NR_close_ia32    6
-  #define __NR_uselib_ia32  86
-  #define __NR_mount_ia32   21
-  #define __NR_umount_ia32  22
-  #define __NR_umount2_ia32 52
-#endif
 
 static atomic_t usecnt = ATOMIC_INIT(0);
 static struct talpa_syscall_operations* interceptor;
@@ -125,6 +117,9 @@ static char *hook_mask = "oclemu";
 #else
 static char *hook_mask = "oclmu";
 #endif
+
+static unsigned long override_syscall_table;
+static unsigned long override_syscall32_table;
 
 /*
  * Exported interface
@@ -445,7 +440,7 @@ static void **get_start_addr_ia32(void)
 }
   #endif
 
-static inline int kallsym_is_equal(unsigned long addr, const char *name)
+static int kallsym_is_equal(unsigned long addr, const char *name)
 {
     char namebuf[128];
     const char *retname;
@@ -463,38 +458,14 @@ static inline int kallsym_is_equal(unsigned long addr, const char *name)
     return 0;
 }
 
-static inline int verify(void **p)
+static int verify(void **p, const int zapped_syscalls[], const int unique_syscalls[], int symlookup)
 {
-    const int zapped_syscalls[] = {
-  #ifdef __NR_break
-        __NR_break,
-  #endif
-  #ifdef __NR_stty
-        __NR_stty,
-  #endif
-  #ifdef __NR_gtty
-        __NR_gtty,
-  #endif
-  #ifdef __NR_ftime
-        __NR_ftime,
-  #endif
-  #ifdef __NR_prof
-        __NR_prof,
-  #endif
-  #ifdef __NR_lock
-        __NR_lock,
-  #endif
-  #ifdef __NR_mpx
-        __NR_mpx,
-  #endif
-        0 };
     const int num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
-    const int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write,
-                                    __NR_open, __NR_close, __NR_unlink };
     const int num_unique_syscalls = sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
     int i, s;
 
 
+    /* Make sure that pointers are found at the right places */
     for ( i = 0; i < num_unique_syscalls; i++ )
     {
         for ( s = 0; s < 223; s++ )
@@ -506,6 +477,7 @@ static inline int verify(void **p)
         }
     }
 
+    /* More checks... (not implemented system calls) */
     for ( i = 1; i < num_zapped_syscalls; i++ )
     {
         if ( p[zapped_syscalls[i]] != p[zapped_syscalls[0]] )
@@ -514,15 +486,8 @@ static inline int verify(void **p)
         }
     }
 
-  #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    if ( p[__NR_close] != (void*)&sys_close )
-    {
-        return 0;
-    }
-  #endif
-
-    if ( kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
-                             || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
+    if ( symlookup && kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
+                                          || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
     {
         return 0;
     }
@@ -530,7 +495,7 @@ static inline int verify(void **p)
     return 1;
 }
 
-static inline int looks_good(void **p)
+static int looks_good(void **p)
 {
     if ( (*p <= (void*)lower_bound) || (*p >= (void*)p) )
     {
@@ -540,7 +505,7 @@ static inline int looks_good(void **p)
     return 1;
 }
 
-static void **talpa_find_syscall_table(void **ptr)
+static void **talpa_find_syscall_table(void **ptr, const int zapped_syscalls[], const int unique_syscalls[], int symlookup)
 {
     void **limit;
     void **table = NULL;
@@ -564,7 +529,7 @@ static void **talpa_find_syscall_table(void **ptr)
             }
         }
 
-        if ( ok && verify(ptr) )
+        if ( ok && verify(ptr, zapped_syscalls, unique_syscalls, symlookup) )
         {
             table = ptr;
             break;
@@ -590,20 +555,69 @@ extern void *sys_call_table[];
 static int __init talpa_syscallhook_init(void)
 {
 #ifdef TALPA_HIDDEN_SYSCALLS
-    sys_call_table = talpa_find_syscall_table(get_start_addr());
-    if (sys_call_table == NULL)
+  #ifdef CONFIG_X86_64
+    #ifdef CONFIG_IA32_EMULATION
+
+      #define __NR_open_ia32      5
+      #define __NR_close_ia32     6
+      #define __NR_uselib_ia32    86
+      #define __NR_mount_ia32     21
+      #define __NR_umount_ia32    22
+      #define __NR_umount2_ia32   52
+      #define __NR_break_ia32     17
+      #define __NR_stty_ia32      31
+      #define __NR_gtty_ia32      32
+      #define __NR_ftime_ia32     35
+      #define __NR_prof_ia32      44
+      #define __NR_lock_ia32      53
+      #define __NR_mpx_ia32       56
+      #define __NR_exit_ia32      1
+      #define __NR_read_ia32      3
+      #define __NR_write_ia32     4
+      #define __NR_unlink_ia32    10
+
+    const int unique_syscalls_ia32[] = { __NR_exit_ia32, __NR_mount_ia32, __NR_read_ia32, __NR_write_ia32, __NR_open_ia32, __NR_close_ia32, __NR_unlink_ia32 };
+    const int zapped_syscalls_ia32[] = { __NR_break_ia32, __NR_stty_ia32, __NR_gtty_ia32, __NR_ftime_ia32, __NR_prof_ia32, __NR_lock_ia32, __NR_mpx_ia32, 0 };
+
+    if ( override_syscall32_table )
     {
-        err("Cannot find syscall table!");
-        return -ESRCH;
+        ia32_sys_call_table = (void **)override_syscall32_table;
+        info("Userspace specified ia32_sys_call_table at 0x%p", ia32_sys_call_table);
     }
-  #ifdef CONFIG_IA32_EMULATION
-    ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32());
-    if (ia32_sys_call_table == NULL)
+    else
+    {
+        ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), zapped_syscalls_ia32, unique_syscalls_ia32, 0);
+    }
+
+    if ( ia32_sys_call_table == NULL )
     {
         err("Cannot find IA32 emulation syscall table!");
         return -ESRCH;
     }
+    #endif
+
+    const int unique_syscalls[] = { __NR_read, __NR_dup, __NR_open, __NR_close, __NR_mmap, __NR_exit, __NR_kill };
+    const int zapped_syscalls[] = { __NR_uselib, __NR_create_module, __NR_get_kernel_syms, __NR_security, __NR_get_thread_area, __NR_epoll_wait_old, __NR_vserver, 0 };
+  #elif CONFIG_X86
+    const int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write, __NR_open, __NR_close, __NR_unlink };
+    const int zapped_syscalls[] = { __NR_break, __NR_stty, __NR_gtty, __NR_ftime, __NR_prof, __NR_lock, __NR_mpx, 0 };
   #endif
+
+    if ( override_syscall_table )
+    {
+        sys_call_table = (void **)override_syscall_table;
+        info("Userspace specified sys_call_table at 0x%p", sys_call_table);
+    }
+    else
+    {
+        sys_call_table = talpa_find_syscall_table(get_start_addr(), zapped_syscalls, unique_syscalls, 1);
+    }
+
+    if ( sys_call_table == NULL )
+    {
+        err("Cannot find syscall table!");
+        return -ESRCH;
+    }
 #endif
 
     lock_kernel();
@@ -758,6 +772,8 @@ EXPORT_SYMBOL(talpa_syscallhook_register);
 EXPORT_SYMBOL(talpa_syscallhook_unregister);
 
 module_param(hook_mask, charp, 0400);
+module_param(override_syscall_table, ulong, 0400);
+module_param(override_syscall32_table, ulong, 0400);
 
 #else
 
@@ -765,6 +781,8 @@ EXPORT_SYMBOL_NOVERS(talpa_syscallhook_register);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_unregister);
 
 MODULE_PARM(hook_mask, "s");
+MODULE_PARM(override_syscall_table, "l");
+MODULE_PARM(override_syscall32_table, "l");
 
 #endif /* >= 2.6.0 */
 
@@ -773,6 +791,8 @@ MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close,
 #else
 MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close, l=uselib, m=mount and u=umount (default: oclmu)");
 #endif
+MODULE_PARM_DESC(override_syscall_table, "override value for the system call table address (normally autodetected)");
+MODULE_PARM_DESC(override_syscall32_table, "override value for the ia32 emulation system call table address (normally autodetected)");
 
 module_init(talpa_syscallhook_init);
 module_exit(talpa_syscallhook_exit);
