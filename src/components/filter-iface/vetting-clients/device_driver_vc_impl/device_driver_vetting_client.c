@@ -18,6 +18,7 @@
  */
 
 #define __NO_VERSION__
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
@@ -26,6 +27,17 @@
 #include <linux/poll.h>
 #include <linux/major.h>
 #include <linux/miscdevice.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+  #ifdef CONFIG_X86_64
+    #include <asm/ioctl32.h>
+    #define REGISTER_COMPAT_IOCTL
+  #endif
+#else
+  #if defined CONFIG_X86_64 && !defined HAVE_COMPAT_IOCTL && defined CONFIG_COMPAT
+    #include <linux/ioctl32.h>
+    #define REGISTER_COMPAT_IOCTL
+  #endif
+#endif
 
 #define TALPA_SUBSYS "vcdevice"
 #include "common/talpa.h"
@@ -137,9 +149,54 @@ DeviceDriverVettingClient* newDeviceDriverVettingClient(IVettingServer* server)
 
     sprintf(GL_object.mConfigData.value, "%d,%d", MISC_MAJOR, ddvc_dev.minor);
 
+#ifdef REGISTER_COMPAT_IOCTL
+    ret = register_ioctl32_conversion(TLPVCIOC_REGISTER, NULL);
+    if ( ret )
+    {
+        ret = 0;
+        goto fail1;
+    }
+    ret = register_ioctl32_conversion(TLPVCIOC_DEREGISTER, NULL);
+    if ( ret )
+    {
+        ret = 0;
+        goto fail2;
+    }
+    ret = register_ioctl32_conversion(TLPVCIOC_SETWAITTIMEOUT, NULL);
+    if ( ret )
+    {
+        ret = 0;
+        goto fail3;
+    }
+    ret = register_ioctl32_conversion(TLPVCIOC_GETBUFFERSIZE, NULL);
+    if ( ret )
+    {
+        ret = 0;
+        goto fail4;
+    }
+#endif
+
     GL_object.mServer = server;
 
     return &GL_object;
+
+#ifdef REGISTER_COMPAT_IOCTL
+fail4:
+    ret |= unregister_ioctl32_conversion(TLPVCIOC_SETWAITTIMEOUT);
+fail3:
+    ret |= unregister_ioctl32_conversion(TLPVCIOC_DEREGISTER);
+fail2:
+    ret |= unregister_ioctl32_conversion(TLPVCIOC_REGISTER);
+fail1:
+    ret |= misc_deregister(&ddvc_dev);
+    err("Failed to register compatibility ioctl handler!");
+    if ( ret )
+    {
+        alert("Failed to clean up after failure!");
+    }
+
+    return NULL;
+#endif
 }
 
 static void deleteDeviceDriverVettingClient(struct tag_DeviceDriverVettingClient* object)
@@ -148,6 +205,17 @@ static void deleteDeviceDriverVettingClient(struct tag_DeviceDriverVettingClient
     {
         int ret;
 
+#ifdef REGISTER_COMPAT_IOCTL
+        ret = unregister_ioctl32_conversion(TLPVCIOC_REGISTER);
+        ret |= unregister_ioctl32_conversion(TLPVCIOC_DEREGISTER);
+        ret |= unregister_ioctl32_conversion(TLPVCIOC_SETWAITTIMEOUT);
+        ret |= unregister_ioctl32_conversion(TLPVCIOC_GETBUFFERSIZE);
+
+        if ( ret )
+        {
+            err("Failed to un-register compatibility ioctl handler!");
+        }
+#endif
         ret = misc_deregister(&ddvc_dev);
 
         if ( ret )

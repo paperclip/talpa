@@ -18,6 +18,7 @@
  */
 
 #define __NO_VERSION__
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
@@ -26,6 +27,17 @@
 #include <linux/poll.h>
 #include <linux/major.h>
 #include <linux/miscdevice.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+  #ifdef CONFIG_X86_64
+    #include <asm/ioctl32.h>
+    #define REGISTER_COMPAT_IOCTL
+  #endif
+#else
+  #if defined CONFIG_X86_64 && !defined HAVE_COMPAT_IOCTL && defined CONFIG_COMPAT
+    #include <linux/ioctl32.h>
+    #define REGISTER_COMPAT_IOCTL
+  #endif
+#endif
 
 #define TALPA_SUBSYS "pedevice"
 #include "common/talpa.h"
@@ -142,7 +154,36 @@ DeviceDriverProcessExclusion* newDeviceDriverProcessExclusion(void)
     init_rwsem(&GL_object.mSem);
     TALPA_INIT_LIST_HEAD(&GL_object.mContextList);
 
+#ifdef REGISTER_COMPAT_IOCTL
+    ret = register_ioctl32_conversion(TLPPEIOC_ACTIVE, NULL);
+    if ( ret )
+    {
+        ret = 0;
+        goto fail1;
+    }
+    ret = register_ioctl32_conversion(TLPPEIOC_IDLE, NULL);
+    if ( ret )
+    {
+        ret = 0;
+        goto fail2;
+    }
+#endif
+
     return &GL_object;
+
+#ifdef REGISTER_COMPAT_IOCTL
+fail2:
+    ret |= unregister_ioctl32_conversion(TLPPEIOC_ACTIVE);
+fail1:
+    ret |= misc_deregister(&ddpe_dev);
+    err("Failed to register compatibility ioctl handler!");
+    if ( ret )
+    {
+        err("Failed to clean up after failure!");
+    }
+
+    return NULL;
+#endif
 }
 
 static void deleteDeviceDriverProcessExclusion(struct tag_DeviceDriverProcessExclusion* object)
@@ -150,6 +191,16 @@ static void deleteDeviceDriverProcessExclusion(struct tag_DeviceDriverProcessExc
     struct DDPEOpenContext* ctx;
     struct DDPEOpenContext* tmp;
     int ret;
+
+#ifdef REGISTER_COMPAT_IOCTL
+    ret = unregister_ioctl32_conversion(TLPPEIOC_ACTIVE);
+    ret |= unregister_ioctl32_conversion(TLPPEIOC_IDLE);
+
+    if ( ret )
+    {
+        err("Failed to un-register compatibility ioctl handler!");
+    }
+#endif
 
     ret = misc_deregister(&ddpe_dev);
 
