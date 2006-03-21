@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/autoconf.h>
 #include <linux/spinlock.h>
-#include <asm/semaphore.h>
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 #include <linux/rcupdate.h>
@@ -30,11 +29,40 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4)
 #include <linux/rwsem.h>
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+#include <linux/mutex.h>
+#else
+#include <asm/semaphore.h>
+#endif
+
+
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+
+typedef struct mutex talpa_mutex_t;
+
+#define TALPA_MUTEX_INIT        { }
+#define TALPA_STATIC_MUTEX(x)   __MUTEX_INITIALIZER(x)
+#define talpa_mutex_init        mutex_init
+#define talpa_mutex_lock        mutex_lock
+#define talpa_mutex_unlock      mutex_unlock
+
+#else
 
 /* Starting with 2.6.15, this macro is no longer present */
 #ifndef __MUTEX_INITIALIZER
 #define __MUTEX_INITIALIZER(name) \
         __SEMAPHORE_INITIALIZER(name,1)
+#endif
+
+typedef struct semaphore talpa_mutex_t;
+
+#define TALPA_MUTEX_INIT        { }
+#define TALPA_STATIC_MUTEX(x)   __MUTEX_INITIALIZER(x)
+#define talpa_mutex_init        init_MUTEX
+#define talpa_mutex_lock        down
+#define talpa_mutex_unlock      up
+
 #endif
 
 typedef spinlock_t talpa_simple_lock_t;
@@ -52,14 +80,6 @@ typedef rwlock_t talpa_rw_lock_t;
 #define talpa_read_unlock   read_unlock
 #define talpa_write_lock    write_lock
 #define talpa_write_unlock  write_unlock
-
-typedef struct semaphore talpa_mutex_t;
-
-#define TALPA_MUTEX_INIT        { }
-#define TALPA_STATIC_MUTEX(x)   __MUTEX_INITIALIZER(x)
-#define talpa_mutex_init        init_MUTEX
-#define talpa_mutex_lock        down
-#define talpa_mutex_unlock      up
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 

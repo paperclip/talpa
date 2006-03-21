@@ -23,6 +23,11 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/smp_lock.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+#include <linux/mutex.h>
+#else
+#include <asm/semaphore.h>
+#endif
 
 #include "common/talpa.h"
 #include "linux_file.h"
@@ -449,10 +454,18 @@ static int unlink(void* self)
         return -ENOENT;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    mutex_lock(&parenti->i_mutex);
+#else
     down(&parenti->i_sem);
+#endif
     atomic_inc(&parenti->i_count);
     error = vfs_unlink(parenti, filed);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    mutex_unlock(&parenti->i_mutex);
+#else
     up(&parenti->i_sem);
+#endif
     iput(parenti);
     dput(parentd);
     dput(filed);
@@ -523,7 +536,11 @@ static int truncate(void* self, loff_t length)
             newattrs.ia_file = file;
             newattrs.ia_valid |= ATTR_FILE;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+            mutex_lock(&inode->i_mutex);
+#else
             down(&inode->i_sem);
+#endif
 /* inode->i_alloc_sem appears starting with 2.4.22 */
 #if     (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22)) \
     ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11) ) \
@@ -536,7 +553,11 @@ static int truncate(void* self, loff_t length)
     ||  defined TALPA_HAS_INODE_ALLOC_SEM
             up_write(&inode->i_alloc_sem);
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+            mutex_unlock(&inode->i_mutex);
+#else
             up(&inode->i_sem);
+#endif
         }
     }
 
