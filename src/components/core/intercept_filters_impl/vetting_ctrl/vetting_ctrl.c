@@ -33,7 +33,7 @@
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "filesystem/efilesystem_operation.h"
 #include "platform/glue.h"
-
+#include "platform/quirks.h"
 #include "platform/alloc.h"
 
 /*
@@ -169,13 +169,17 @@ static VettingController template_VettingController =
         NULL,
 
         {
-            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
-            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
-            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
-            {NULL, NULL, PATH_MAX, true, false },
-            {NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
-            {NULL, NULL, VETCTRL_GROUPSDATASIZE, false, true },
-            {NULL, NULL, 0, false, false }
+            { NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            { NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            { NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+            { NULL, NULL, PATH_MAX, true, false },
+#ifdef TALPA_HAS_XHACK
+            { NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
+#else
+            { NULL, NULL, VETCTRL_CFGDATASIZE, false, true },
+#endif
+            { NULL, NULL, VETCTRL_GROUPSDATASIZE, false, true },
+            { NULL, NULL, 0, false, false }
         },
         { CFG_STATUS, CFG_VALUE_ENABLED },
         { CFG_TIMEOUT, CFG_VALUE_TIMEOUT },
@@ -228,8 +232,8 @@ VettingController* newVettingController(void)
         talpa_mutex_init(&object->mConfigSerialize);
         TALPA_INIT_LIST_HEAD(&object->mRoutings);
 
-        atomic_set(&object->mTimeout, msecs_to_jiffies(CFG_DEFAULT_TIMEOUT));
-        atomic_set(&object->mFSTimeout, msecs_to_jiffies(CFG_DEFAULT_FSTIMEOUT));
+        atomic_set(&object->mTimeout, CFG_DEFAULT_TIMEOUT);
+        atomic_set(&object->mFSTimeout, CFG_DEFAULT_FSTIMEOUT);
 
         object->mConfig[0].name  = object->mStateConfigData.name;
         object->mConfig[0].value = object->mStateConfigData.value;
@@ -321,6 +325,7 @@ static inline VettingGroup* routeRequest(const void* self, const char* path, uns
 static inline void waitVettingResponse(const void* self, VettingGroup* group, VettingDetails* details, const char* filename, atomic_t* timeout)
 {
     int ret;
+    bool status = this->mXHack;
 #ifdef DEBUG
     const char* actmsg;
     static char* actmsg_default = "EIA_Unknown";
@@ -331,63 +336,19 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
     static char* actmsg_error = "EIA_Error";
     static char* actmsg_timeout = "EIA_Timeout";
 #endif
-    #ifdef TALPA_HAS_XHACK
-    /* Nasty hack to workaround X not obeying open(2) failing
-       with -EINTR caused by smart scheduler in recent versions.
-       This is also Linux specific code. */
-    bool xhack = this->mXHack;
-    if ( xhack )
-    {
-        char c1 = current->comm[0];
-        char c2 = current->comm[1];
-        if ( likely( (c1 != 'X') || (c2 != 0 ) ) )
-        {
-            xhack = false;
-        }
-    }
-    #endif
+
+    talpa_quirk_vc_sleep_init(&status);
 
     /* Going to sleep now... */
     do
     {
         dbg("[intercepted %u-%u-%u] going to sleep", processParentPID(current), current->tgid, current->pid);
 
-        #ifdef TALPA_HAS_XHACK
-        if ( unlikely( xhack == true ) )
-        {
-            #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
-            xhack = mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(1) + atomic_read(timeout)*2);
-            #else
-            xhack = mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(1) + atomic_read(timeout)*2);
-            #endif
-            if ( !xhack )
-            {
-                /* Remove the timer since we have just activated the inactive one */
-                #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
-                del_timer(&current->signal->real_timer);
-                #else
-                del_timer(&current->real_timer);
-                #endif
-            }
-            else
-            {
-                dbg("X workaround activated!");
-            }
-        }
-        #endif
+        talpa_quirk_vc_pre_sleep(&status, atomic_read(timeout));
 
-        ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, details->restartWait || atomic_read(&details->complete) || atomic_read(&details->reopen), atomic_read(timeout));
+        ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, details->restartWait || atomic_read(&details->complete) || atomic_read(&details->reopen), msecs_to_jiffies(atomic_read(timeout)));
 
-        #ifdef TALPA_HAS_XHACK
-        if ( unlikely( xhack == true ) )
-        {
-            #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
-            mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(10));
-            #else
-            mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(10));
-            #endif
-        }
-        #endif
+        talpa_quirk_vc_post_sleep(&status);
 
         /* Woken up because intercept is complete? */
         if ( likely(!ret) )
@@ -2191,7 +2152,7 @@ static void setTimeout(const void* self, const char* string)
 
     ms = simple_strtoul(string, &res, 10);
     snprintf(this->mTimeoutConfigData.value, VETCTRL_CFGDATASIZE, "%u", ms);
-    atomic_set(&this->mTimeout, msecs_to_jiffies(ms));
+    atomic_set(&this->mTimeout, ms);
     dbg("Timeout set to %ums", ms);
 
     return;
@@ -2204,7 +2165,7 @@ static void setFSTimeout(const void* self, const char* string)
 
     ms = simple_strtoul(string, &res, 10);
     snprintf(this->mFSTimeoutConfigData.value, VETCTRL_CFGDATASIZE, "%u", ms);
-    atomic_set(&this->mFSTimeout, msecs_to_jiffies(ms));
+    atomic_set(&this->mFSTimeout, ms);
     dbg("FS-Timeout set to %ums", ms);
 
     return;
