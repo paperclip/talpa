@@ -68,6 +68,7 @@ static inline void talpa_quirk_vc_pre_sleep(bool* status, unsigned int timeout_m
   #else
         *status = mod_timer(&current->real_timer, jiffies + msecs_to_jiffies(1+timeout_ms*2));
   #endif
+
         if ( !*status )
         {
             /* Remove the timer since we have just activated an inactive one */
@@ -84,8 +85,6 @@ static inline void talpa_quirk_vc_pre_sleep(bool* status, unsigned int timeout_m
             dbg("X workaround activated!");
         }
     }
-
-  #endif
 }
 
 static inline void talpa_quirk_vc_post_sleep(bool* status)
@@ -112,6 +111,8 @@ static inline void talpa_quirk_vc_post_sleep(bool* status) { };
 
 #endif /* XHACK */
 
+
+#endif
 /*
  * End of linux_quirks.h
  */
