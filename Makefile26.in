@@ -4,7 +4,10 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include ${TALPA_ID} @t
 obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o talpa_vfshook.o talpa_syscallhook.o talpa_syscall.o
 
 ifeq "@buildlsm@" "yes"
-	obj-m += stacker.o talpa_capability.o talpa_lsm.o
+	obj-m += talpa_capability.o talpa_lsm.o
+	ifeq "@buildstacker@" "yes"
+		obj-m += stacker.o
+	endif
 endif
 
 include $(src)/src/app-ctrl/core/talpa-linux/common.mk
@@ -32,9 +35,11 @@ include $(src)/src/app-ctrl/intercepts/talpa-vfshook/common.mk
 talpa_vfshook-objs :=   $(talpaVFSHookOBJS)
 
 ifeq "@buildlsm@" "yes"
-	include $(src)/support/stacker/common.mk
-	stacker-objs := $(talpaStackerOBJS)
-	
+	ifeq "@buildstacker@" "yes"
+		include $(src)/support/stacker/common.mk
+		stacker-objs := $(talpaStackerOBJS)
+	endif
+
 	include $(src)/src/platforms/linux/talpa_capability/common.mk
 	talpa_capability-objs := $(talpaCapabilityOBJS)
 

@@ -45,7 +45,7 @@ AC_ARG_ENABLE(talpa-build,
             [talpabuild=yes])
 
 AC_ARG_WITH(kernel,
-            [  --with-kernel=DIR            specify the kernel that should be built against],
+            [  --with-kernel=DIR                    specify the kernel that should be built against],
             [ AC_SUBST(kerneldir,[$withval])
               AC_SUBST(sourcedir,[$withval]) ],
             [ kernver=`${UNAME} -r`
@@ -53,7 +53,7 @@ AC_ARG_WITH(kernel,
               AC_SUBST(sourcedir,[/lib/modules/${kernver}/source]) ])
 
 AC_ARG_WITH(kernel-include,
-            [  --with-kernel-include=DIR:DIR    specify the include path for kernel header files that should be built against],
+            [  --with-kernel-include=DIR:DIR        specify the include path for kernel header files that should be built against],
             [ AC_SUBST(kernelhdrspath,[$withval]) ],
             [ if test -s ${sourcedir}; then
                 AC_SUBST(kernelhdrspath,[$kerneldir/include:$sourcedir/include])
@@ -190,6 +190,11 @@ AC_ARG_ENABLE(x-workaround,
                 fi
               ],
               [ AC_SUBST(xhack, "-DTALPA_HAS_XHACK")])
+
+AC_ARG_WITH(stacker,
+              [  --with-stacker                       should additional and unsupported LSM stacking module be built [[yes]]],
+              [ buildstacker=$withval ],
+              [ buildstacker=yes ])
 
 CFLAGS=
 
@@ -638,8 +643,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
