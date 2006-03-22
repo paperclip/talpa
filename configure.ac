@@ -184,7 +184,7 @@ AC_ARG_WITH(test-interceptor,
             [testinterceptor=default])
 
 AC_ARG_ENABLE(x-workaround,
-              [  --disable-x-workaround         disable X server workaround where open(2) fails with -EINTR because of itimers are not honoured [[enabled]]],
+              [  --disable-x-workaround         disable X server workaround where open(2) fails with -EINTR because itimers are not honoured [[enabled]]],
               [ if test "$enableval" = "yes"; then
                     AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
                 fi
@@ -640,6 +640,19 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$interceptor_module" = "lsm"; then
             AC_SUBST(interceptor_module,vfshook)
             AC_SUBST(interceptor_name,VFSHookInterceptor)
+        fi
+    fi
+
+    # Check whether xhack must be forcefully turned off since it cannot be implemented on >=2.6.16
+    AC_MSG_CHECKING([for X workaround])
+    if test "$xhack" != "" -a $((kern_version_code)) -ge 132624; then
+        AC_MSG_RESULT([forced off])
+        AC_SUBST(xhack,"")
+    else
+        if test "$xhack" != ""; then
+            AC_MSG_RESULT([on])
+        else
+            AC_MSG_RESULT([off])
         fi
     fi
 
