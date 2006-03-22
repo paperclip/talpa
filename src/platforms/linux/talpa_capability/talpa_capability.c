@@ -34,6 +34,10 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
+#ifdef TALPA_VERSION
+const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
+#endif
+
 #define err(format, arg...) printk(KERN_ERR "talpa-capability: " format "\n" , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "talpa-capability: " format "\n" , ## arg)
 #define notice(format, arg...) printk(KERN_NOTICE "talpa-capability: " format "\n" , ## arg)
@@ -340,6 +344,10 @@ module_exit(talpa_capability_exit);
 MODULE_DESCRIPTION("Provides Linux Capabilities and allows stacking of talpa-lsm module.");
 MODULE_AUTHOR("Sophos Plc");
 MODULE_LICENSE("GPL");
+#if defined TALPA_VERSION && defined MODULE_VERSION
+MODULE_VERSION(TALPA_VERSION);
+#endif
+
 
 /*
  * End of talpa_capability.c

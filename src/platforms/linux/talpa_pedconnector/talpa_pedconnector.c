@@ -31,6 +31,10 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
+#ifdef TALPA_VERSION
+const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
+#endif
+
 /*
  * Module init and exit
  */
@@ -53,6 +57,10 @@ module_exit(talpa_pedconnector_exit);
 MODULE_DESCRIPTION("Establishes connection between talpa_pedevice and talpa_core/talpa_linux modules.");
 MODULE_AUTHOR("Sophos Plc");
 MODULE_LICENSE("GPL");
+#if defined TALPA_VERSION && defined MODULE_VERSION
+MODULE_VERSION(TALPA_VERSION);
+#endif
+
 
 /*
  * End of talpa_pedconnector.c

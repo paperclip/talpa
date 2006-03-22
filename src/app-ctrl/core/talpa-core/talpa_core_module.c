@@ -61,6 +61,10 @@ static IProcessExcluder*    processExcluder(void);
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
+#ifdef TALPA_VERSION
+const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
+#endif
+
 /*
  * Instance data.
  */
@@ -400,6 +404,9 @@ static void __exit talpa_core_exit(void)
 MODULE_AUTHOR("Sophos Plc");
 MODULE_DESCRIPTION("TALPA Filesystem Interceptor Core Module");
 MODULE_LICENSE("GPL");
+#if defined TALPA_VERSION && defined MODULE_VERSION
+MODULE_VERSION(TALPA_VERSION);
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 EXPORT_SYMBOL(TALPA_Core);

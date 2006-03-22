@@ -36,6 +36,10 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
+#ifdef TALPA_VERSION
+const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
+#endif
+
 #define err(format, arg...) printk(KERN_ERR "stacker: " format "\n" , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "stacker: " format "\n" , ## arg)
 #define notice(format, arg...) printk(KERN_NOTICE "stacker: " format "\n" , ## arg)
@@ -1725,6 +1729,10 @@ module_exit (stacker_exit);
 MODULE_DESCRIPTION("Enables stacking of multiple LSM modules.");
 MODULE_AUTHOR("Sophos Plc");
 MODULE_LICENSE("GPL");
+#if defined TALPA_VERSION && defined MODULE_VERSION
+MODULE_VERSION(TALPA_VERSION);
+#endif
+
 
 /*
  * End of stacker.c

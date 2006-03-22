@@ -71,6 +71,10 @@ static IPortabilityApplicationControl GL_talpa_linux =
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
+#ifdef TALPA_VERSION
+const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
+#endif
+
 const IPortabilityApplicationControl* TALPA_Portability(void)
 {
     return &GL_talpa_linux;
@@ -161,6 +165,10 @@ static void __exit talpa_linux_exit(void)
 MODULE_AUTHOR("Sophos Plc");
 MODULE_DESCRIPTION("TALPA Filesystem Interceptor Linux Platform Module");
 MODULE_LICENSE("GPL");
+#if defined TALPA_VERSION && defined MODULE_VERSION
+MODULE_VERSION(TALPA_VERSION);
+#endif
+
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 EXPORT_SYMBOL(TALPA_Portability);

@@ -33,6 +33,10 @@
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 #endif
 
+#ifdef TALPA_VERSION
+const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
+#endif
+
 static SyscallInterceptor*    mIntercept;
 
 
@@ -96,6 +100,10 @@ static void __exit talpa_syscall_exit(void)
 MODULE_AUTHOR("Sophos Plc");
 MODULE_DESCRIPTION("TALPA Filesystem Interceptor Syscall-Table Intercept Module");
 MODULE_LICENSE("GPL");
+#if defined TALPA_VERSION && defined MODULE_VERSION
+MODULE_VERSION(TALPA_VERSION);
+#endif
+
 
 module_init(talpa_syscall_init);
 module_exit(talpa_syscall_exit);
