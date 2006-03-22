@@ -35,8 +35,8 @@
 #include "platform/glue.h"
 
 
-
-#ifdef TALPA_HAS_XHACK
+/* Disable xhack quirk on 2.6.16 up since needed symbols are not exported */
+#if defined TALPA_HAS_XHACK && (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
 
 static inline void talpa_quirk_vc_sleep_init(bool* status)
 {
