@@ -224,7 +224,18 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, sk_alloc_security);
     set_to_null_if_dummy(ops, sk_free_security);
   #endif
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    set_to_null_if_dummy(ops, sk_getsid);
+  #endif
 #endif  /* CONFIG_SECURITY_NETWORK */
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+    set_to_null_if_dummy(ops, xfrm_policy_alloc_security);
+    set_to_null_if_dummy(ops, xfrm_policy_clone_security);
+    set_to_null_if_dummy(ops, xfrm_policy_free_security);
+    set_to_null_if_dummy(ops, xfrm_state_alloc_security);
+    set_to_null_if_dummy(ops, xfrm_state_free_security);
+    set_to_null_if_dummy(ops, xfrm_policy_lookup);
+#endif  /* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS
     set_to_null_if_dummy(ops, key_alloc);
     set_to_null_if_dummy(ops, key_free);
@@ -531,6 +542,59 @@ do \
     if ( likely( atomic_read(&stacked_count) > 0 ) ) \
     { \
         ret = _AUTHORITATIVE_STACKED(func, params); \
+    } \
+    else \
+    { \
+        ret = dummy_ops.func params; \
+    } \
+\
+    ret; \
+})
+
+#define _RETURN_ONE_STACKED(func, type, params) \
+({ \
+    struct stacked_module* sm; \
+    int hooks = 0; \
+    type result = 0; \
+    type ret; \
+\
+    rcu_read_lock(); \
+    list_for_each_entry_rcu(sm, &stacked_modules, head) \
+    { \
+        atomic_inc(&sm->usecnt); \
+        rcu_read_unlock(); \
+        if ( sm->ops.func ) \
+        { \
+            ret = sm->ops.func params; \
+            hooks++; \
+            if ( unlikely( ret && !result ) ) \
+            { \
+                result = ret; \
+            } \
+        } \
+        rcu_read_lock(); \
+        if ( unlikely( atomic_dec_and_test(&sm->usecnt) != 0 ) ) \
+        { \
+            wake_up(&sm->unload); \
+        } \
+    } \
+    rcu_read_unlock(); \
+\
+    if ( unlikely( hooks == 0 ) ) \
+    { \
+        result = dummy_ops.func params; \
+    } \
+\
+    result; \
+})
+
+#define RETURN_ONE_STACKED(func, type, params) \
+({ \
+    type ret; \
+\
+    if ( likely( atomic_read(&stacked_count) > 0 ) ) \
+    { \
+        ret = _RETURN_ONE_STACKED(func, type, params); \
     } \
     else \
     { \
@@ -1360,7 +1424,48 @@ static void stacker_sk_free_security(struct sock *sk)
 }
   #endif
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+static unsigned int stacker_sk_getsid(struct sock *sk, struct flowi *fl, u8 dir)
+{
+    return RETURN_ONE_STACKED(sk_getsid, unsigned int, (sk, fl, dir));
+}
+    #endif
+
 #endif  /* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+
+static int stacker_xfrm_policy_alloc_security(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+{
+    return ALLOC_STACKED(xfrm_policy_alloc_security, (xp, sec_ctx), xfrm_policy_free_security, (xp));
+}
+
+static int stacker_xfrm_policy_clone_security(struct xfrm_policy *old, struct xfrm_policy *new)
+{
+    return ALLOC_STACKED(xfrm_policy_clone_security, (old, new), xfrm_policy_free_security, (new));
+}
+
+static void stacker_xfrm_policy_free_security(struct xfrm_policy *xp)
+{
+    ALL_STACKED(xfrm_policy_free_security, (xp));
+}
+
+static int stacker_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+{
+    return ALLOC_STACKED(xfrm_state_alloc_security, (x, sec_ctx), xfrm_state_free_security, (x));
+}
+
+static void stacker_xfrm_state_free_security(struct xfrm_state *x)
+{
+    ALL_STACKED(xfrm_state_free_security, (x));
+}
+
+static int stacker_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+{
+    return RESTRICTIVE_STACKED(xfrm_policy_lookup, (xp, sk_sid, dir));
+}
+
+#endif  /* CONFIG_SECURITY_NETWORK_XFRM */
 
 #ifdef CONFIG_KEYS
 
@@ -1555,7 +1660,19 @@ struct security_operations stacker_ops = {
     .sk_alloc_security =    stacker_sk_alloc_security,
     .sk_free_security =     stacker_sk_free_security,
   #endif
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    .sk_getsid =                stacker_sk_getsid,
+  #endif
 
+#endif
+
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+    .xfrm_policy_alloc_security =   stacker_xfrm_policy_alloc_security,
+    .xfrm_policy_clone_security =   stacker_xfrm_policy_clone_security,
+    .xfrm_policy_free_security =    stacker_xfrm_policy_free_security,
+    .xfrm_state_alloc_security =    stacker_xfrm_state_alloc_security,
+    .xfrm_state_free_security =     stacker_xfrm_state_free_security,
+    .xfrm_policy_lookup =           stacker_xfrm_policy_lookup,
 #endif
 
 #ifdef CONFIG_KEYS
