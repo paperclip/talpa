@@ -421,8 +421,9 @@ static void **ia32_sys_call_table;
   #endif
 
 /* Code below, which finds the hidden system call table,
-   is borrowed from the ARLA project. It is confirmed to work
-   on 2.6 (x86, x86_64) and patched 2.4 (x86) kernels. */
+   is borrowed from the ARLA project and modified.
+   It is confirmed to work on 2.6 (x86, x86_64) and
+   patched 2.4 (x86) kernels. */
 
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     #include <linux/kallsyms.h>
@@ -436,17 +437,25 @@ const char * __attribute__((weak)) kallsyms_lookup(unsigned long addr, unsigned 
 
 static void **get_start_addr(void)
 {
-  #ifdef CONFIG_X86_64
-    return (void **)&tasklist_lock - 0x1000;
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    return (void **)&lock_kernel;
   #else
+    #ifdef CONFIG_X86_64
+    return (void **)&tasklist_lock - 0x1000;
+    #else
     return (void **)&init_mm;
+    #endif
   #endif
 }
 
   #ifdef CONFIG_IA32_EMULATION
 static void **get_start_addr_ia32(void)
 {
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    return (void **)&lock_kernel;
+    #else
     return (void **)&console_printk - 0x1000;
+    #endif
 }
   #endif
 
@@ -473,33 +482,35 @@ static int verify(void **p, const unsigned int unique_syscalls[], const unsigned
     unsigned int i, s;
 
 
-    /* Make sure that pointers are found at the right places */
+    /* Check that not implemented system calls all point to the same address.
+        This is where heuristic usually immediately fails. */
+    for ( i = 1; i < num_zapped_syscalls; i++ )
+    {
+        if ( p[zapped_syscalls[i]] != p[zapped_syscalls[0]] )
+        {
+                dbg("  [0x%p] not same %u", p, zapped_syscalls[i]);
+            return 0;
+        }
+    }
+
+    /* Check that all different sysmte calls are really different */
     for ( i = 0; i < num_unique_syscalls; i++ )
     {
         for ( s = 0; s < 223; s++ )
         {
             if ( (p[s] == p[unique_syscalls[i]]) && (s != unique_syscalls[i]) )
             {
-                dbg("  not unique %u", unique_syscalls[i]);
+                dbg("  [0x%p] not unique %u", p, unique_syscalls[i]);
                 return 0;
             }
         }
     }
 
-    /* More checks... (not implemented system calls) */
-    for ( i = 1; i < num_zapped_syscalls; i++ )
-    {
-        if ( p[zapped_syscalls[i]] != p[zapped_syscalls[0]] )
-        {
-                dbg("  not same %u", zapped_syscalls[i]);
-            return 0;
-        }
-    }
-
+    /* Lookup symbols (if we can) as a final check */
     if ( symlookup && kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
                                           || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
     {
-        dbg("  lookup mismatch");
+        dbg("  [0x%p] lookup mismatch", p);
         return 0;
     }
 
