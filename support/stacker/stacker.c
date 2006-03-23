@@ -507,6 +507,7 @@ do \
     struct stacked_module* sm; \
     int hooks = 0; \
     int result = 0; \
+    unsigned int permit = 0; \
     int ret; \
 \
     rcu_read_lock(); \
@@ -518,7 +519,11 @@ do \
         { \
             ret = sm->ops.func params; \
             hooks++; \
-            if ( unlikely( ret && !result ) ) \
+            if ( likely( !ret ) ) \
+            { \
+                permit++; \
+            } \
+            else if ( !result ) \
             { \
                 result = ret; \
             } \
@@ -531,7 +536,11 @@ do \
     } \
     rcu_read_unlock(); \
 \
-    if ( unlikely( hooks == 0 ) ) \
+    if ( likely( permit > 0 ) ) \
+    { \
+        result = 0; \
+    } \
+    else if ( hooks == 0 ) \
     { \
         result = dummy_ops.func params; \
     } \
