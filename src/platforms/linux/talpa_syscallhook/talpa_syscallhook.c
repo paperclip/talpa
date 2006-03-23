@@ -54,8 +54,14 @@ const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
 #define notice(format, arg...) printk(KERN_NOTICE "talpa-syscallhook: " format "\n" , ## arg)
 #define info(format, arg...) printk(KERN_INFO "talpa-syscallhook: " format "\n" , ## arg)
 #ifdef DEBUG
+  #define dbg_start() printk(KERN_DEBUG "TALPA [" __FILE__ " ### %s] " , __FUNCTION__)
+  #define dbg_cont(format, arg...) printk(format,## arg)
+  #define dbg_end() printk("\n")
   #define dbg(format, arg...) printk(KERN_DEBUG "TALPA [" __FILE__ " ### %s] " format "\n" , __FUNCTION__, ## arg)
 #else
+  #define dbg_start() do {} while (0)
+  #define dbg_cont(format, arg...) do {} while (0)
+  #define dbg_endt() do {} while (0)
   #define dbg(format, arg...) do {} while (0)
 #endif
 
@@ -462,11 +468,9 @@ static int kallsym_is_equal(unsigned long addr, const char *name)
     return 0;
 }
 
-static int verify(void **p, const int zapped_syscalls[], const int unique_syscalls[], int symlookup)
+static int verify(void **p, const unsigned int unique_syscalls[], const unsigned int num_unique_syscalls, const unsigned int zapped_syscalls[], const unsigned int num_zapped_syscalls, int symlookup)
 {
-    const int num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
-    const int num_unique_syscalls = sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
-    int i, s;
+    unsigned int i, s;
 
 
     /* Make sure that pointers are found at the right places */
@@ -476,6 +480,7 @@ static int verify(void **p, const int zapped_syscalls[], const int unique_syscal
         {
             if ( (p[s] == p[unique_syscalls[i]]) && (s != unique_syscalls[i]) )
             {
+                dbg("  not unique %u", unique_syscalls[i]);
                 return 0;
             }
         }
@@ -486,6 +491,7 @@ static int verify(void **p, const int zapped_syscalls[], const int unique_syscal
     {
         if ( p[zapped_syscalls[i]] != p[zapped_syscalls[0]] )
         {
+                dbg("  not same %u", zapped_syscalls[i]);
             return 0;
         }
     }
@@ -493,6 +499,7 @@ static int verify(void **p, const int zapped_syscalls[], const int unique_syscal
     if ( symlookup && kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
                                           || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
     {
+        dbg("  lookup mismatch");
         return 0;
     }
 
@@ -509,15 +516,36 @@ static int looks_good(void **p)
     return 1;
 }
 
-static void **talpa_find_syscall_table(void **ptr, const int zapped_syscalls[], const int unique_syscalls[], int symlookup)
+static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_syscalls[], const unsigned int num_unique_syscalls, const unsigned int zapped_syscalls[], const unsigned int num_zapped_syscalls, int symlookup)
 {
-    void **limit;
+    void **limit = ptr + 16 * 1024;
     void **table = NULL;
+#ifdef DEBUG
+    unsigned int i;
 
+    dbg_start();
+    dbg_cont("unique: ");
+    for ( i = 0; i < num_unique_syscalls; i++ )
+    {
+        dbg_cont("%u ", unique_syscalls[i]);
+    }
+    dbg_end();
+
+    dbg_start();
+    dbg_cont("zapped: ");
+    for ( i = 0; i < num_zapped_syscalls; i++ )
+    {
+        dbg_cont("%u ", zapped_syscalls[i]);
+    }
+    dbg_end();
+
+    dbg("scan from 0x%p to 0x%p", ptr, limit);
+#endif
 
     lower_bound = (void*)((unsigned long)lower_bound & ~0xfffff);
+    dbg("lower bound 0x%p", lower_bound);
 
-    for ( limit = ptr + 16 * 1024; ptr < limit && table == NULL; ptr++ )
+    for ( ; ptr < limit && table == NULL; ptr++ )
     {
         int ok = 1;
         int i;
@@ -533,7 +561,7 @@ static void **talpa_find_syscall_table(void **ptr, const int zapped_syscalls[], 
             }
         }
 
-        if ( ok && verify(ptr, zapped_syscalls, unique_syscalls, symlookup) )
+        if ( ok && verify(ptr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup) )
         {
             table = ptr;
             break;
@@ -580,8 +608,10 @@ static int __init talpa_syscallhook_init(void)
       #define __NR_write_ia32     4
       #define __NR_unlink_ia32    10
 
-    const int unique_syscalls_ia32[] = { __NR_exit_ia32, __NR_mount_ia32, __NR_read_ia32, __NR_write_ia32, __NR_open_ia32, __NR_close_ia32, __NR_unlink_ia32 };
-    const int zapped_syscalls_ia32[] = { __NR_break_ia32, __NR_stty_ia32, __NR_gtty_ia32, __NR_ftime_ia32, __NR_prof_ia32, __NR_lock_ia32, __NR_mpx_ia32, 0 };
+    const unsigned int unique_syscalls_ia32[] = { __NR_exit_ia32, __NR_mount_ia32, __NR_read_ia32, __NR_write_ia32, __NR_open_ia32, __NR_close_ia32, __NR_unlink_ia32 };
+    const unsigned int zapped_syscalls_ia32[] = { __NR_break_ia32, __NR_stty_ia32, __NR_gtty_ia32, __NR_ftime_ia32, __NR_prof_ia32, __NR_lock_ia32, __NR_mpx_ia32, 0 };
+    const unsigned int num_unique_syscalls_ia32 = sizeof(unique_syscalls_ia32)/sizeof(unique_syscalls_ia32[0]);
+    const unsigned int num_zapped_syscalls_ia32 = (sizeof(zapped_syscalls_ia32)/sizeof(zapped_syscalls_ia32[0])) - 1;
 
     if ( override_syscall32_table )
     {
@@ -590,7 +620,8 @@ static int __init talpa_syscallhook_init(void)
     }
     else
     {
-        ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), zapped_syscalls_ia32, unique_syscalls_ia32, 0);
+        ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
+        override_syscall32_table = (unsigned long)ia32_sys_call_table;
     }
 
     if ( ia32_sys_call_table == NULL )
@@ -598,14 +629,18 @@ static int __init talpa_syscallhook_init(void)
         err("Cannot find IA32 emulation syscall table!");
         return -ESRCH;
     }
+
+    dbg("IA32 syscall table at 0x%p", ia32_sys_call_table);
     #endif
 
-    const int unique_syscalls[] = { __NR_read, __NR_dup, __NR_open, __NR_close, __NR_mmap, __NR_exit, __NR_kill };
-    const int zapped_syscalls[] = { __NR_uselib, __NR_create_module, __NR_get_kernel_syms, __NR_security, __NR_get_thread_area, __NR_epoll_wait_old, __NR_vserver, 0 };
+    const unsigned int unique_syscalls[] = { __NR_read, __NR_dup, __NR_open, __NR_close, __NR_mmap, __NR_exit, __NR_kill };
+    const unsigned int zapped_syscalls[] = { __NR_uselib, __NR_create_module, __NR_get_kernel_syms, __NR_security, __NR_get_thread_area, __NR_epoll_wait_old, __NR_vserver, 0 };
   #elif CONFIG_X86
-    const int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write, __NR_open, __NR_close, __NR_unlink };
-    const int zapped_syscalls[] = { __NR_break, __NR_stty, __NR_gtty, __NR_ftime, __NR_prof, __NR_lock, __NR_mpx, 0 };
+    const unsigned int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write, __NR_open, __NR_close, __NR_unlink };
+    const unsigned int zapped_syscalls[] = { __NR_break, __NR_stty, __NR_gtty, __NR_ftime, __NR_prof, __NR_lock, __NR_mpx, 0 };
   #endif
+    const unsigned int num_unique_syscalls = sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
+    const unsigned int num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
 
     if ( override_syscall_table )
     {
@@ -614,7 +649,8 @@ static int __init talpa_syscallhook_init(void)
     }
     else
     {
-        sys_call_table = talpa_find_syscall_table(get_start_addr(), zapped_syscalls, unique_syscalls, 1);
+        sys_call_table = talpa_find_syscall_table(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+        override_syscall_table = (unsigned long)sys_call_table;
     }
 
     if ( sys_call_table == NULL )
@@ -622,6 +658,8 @@ static int __init talpa_syscallhook_init(void)
         err("Cannot find syscall table!");
         return -ESRCH;
     }
+
+    dbg("Syscall table at 0x%p", sys_call_table);
 #endif
 
     lock_kernel();
