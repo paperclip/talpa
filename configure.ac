@@ -196,6 +196,12 @@ AC_ARG_WITH(stacker,
               [ buildstacker=$withval ],
               [ buildstacker=yes ])
 
+AC_ARG_ENABLE(syscallhook,
+              [  --enable-syscallhook                 should talpa_syscallhook module be built depends on whether system call table is read-only or not [[autodetected]]],
+              [ auto_syscallhook=no
+                AC_SUBST(syscallhook, $enableval) ],
+              [ auto_syscallhook=yes])
+
 CFLAGS=
 
 #
@@ -548,6 +554,33 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    # Check whether to build syscallhook dependent modules
+    AC_MSG_CHECKING([for writable system call table])
+    if test "$auto_syscallhook" = "yes"; then
+        TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
+        ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
+        tests/configure/rodata
+        if test $? -eq 0; then
+            AC_MSG_RESULT([yes])
+            AC_SUBST(syscallhook, "yes")
+        else
+            AC_MSG_RESULT([no])
+            AC_SUBST(syscallhook, "no")
+        fi
+        ${RM} -f tests/configure/rodata
+    else
+        if test "$syscallhook" = "yes"; then
+            AC_MSG_RESULT([manual yes])
+        else
+            AC_MSG_RESULT([manual no])
+        fi
+    fi
+
+    if test "$syscallhook" = "no" -a "$interceptor_module" != "lsm"; then
+        AC_SUBST(interceptor_module,lsm)
+        AC_SUBST(interceptor_name,LSMInterceptor)
+    fi
+
     # Check whether to build LSM related modules
     AC_MSG_CHECKING([for LSM support])
     if test "$auto_lsm" = "yes"; then
@@ -656,8 +689,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)

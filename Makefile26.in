@@ -1,7 +1,11 @@
 
 EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include ${TALPA_ID} @talpaversion@ @debug@ @assert@ @inodeallocsem@ @tasknewtty@ @rcubackport@ @signalbackport@ @jiffiesbackport@ @lsm265@ @lsm266@ @lsm2610@ @hidden@ @execve@ @xhack@
 
-obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o talpa_vfshook.o talpa_syscallhook.o talpa_syscall.o
+obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o
+
+ifeq "@syscallhook@" "yes"
+	obj-m += talpa_syscallhook.o talpa_syscall.o talpa_vfshook.o
+endif
 
 ifeq "@buildlsm@" "yes"
 	obj-m += talpa_capability.o talpa_lsm.o
@@ -25,14 +29,16 @@ talpa_pedevice-objs :=  $(talpaPedeviceOBJS)
 include $(src)/src/platforms/linux/talpa_pedconnector/common.mk
 talpa_pedconnector-objs := $(talpaPEDConnectorOBJS)
 
-include $(src)/src/platforms/linux/talpa_syscallhook/common.mk
-talpa_syscallhook-objs := $(talpaSyscallHookOBJS)
+ifeq "@syscallhook@" "yes"
+	include $(src)/src/platforms/linux/talpa_syscallhook/common.mk
+	talpa_syscallhook-objs := $(talpaSyscallHookOBJS)
 
-include $(src)/src/app-ctrl/intercepts/talpa-syscall/common.mk
-talpa_syscall-objs :=   $(talpaSyscallOBJS)
+	include $(src)/src/app-ctrl/intercepts/talpa-syscall/common.mk
+	talpa_syscall-objs :=   $(talpaSyscallOBJS)
 
-include $(src)/src/app-ctrl/intercepts/talpa-vfshook/common.mk
-talpa_vfshook-objs :=   $(talpaVFSHookOBJS)
+	include $(src)/src/app-ctrl/intercepts/talpa-vfshook/common.mk
+	talpa_vfshook-objs :=   $(talpaVFSHookOBJS)
+endif
 
 ifeq "@buildlsm@" "yes"
 	ifeq "@buildstacker@" "yes"
