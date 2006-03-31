@@ -441,7 +441,7 @@ static void **get_start_addr(void)
     return (void **)&lock_kernel;
   #else
     #ifdef CONFIG_X86_64
-    return (void **)&tasklist_lock - 0x1000;
+    return (void **)&tasklist_lock - 0x2000;
     #else
     return (void **)&init_mm;
     #endif
@@ -454,7 +454,7 @@ static void **get_start_addr_ia32(void)
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
     return (void **)&lock_kernel;
     #else
-    return (void **)&console_printk - 0x1000;
+    return (void **)&console_printk - 0x2000;
     #endif
 }
   #endif
@@ -529,7 +529,7 @@ static int looks_good(void **p)
 
 static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_syscalls[], const unsigned int num_unique_syscalls, const unsigned int zapped_syscalls[], const unsigned int num_zapped_syscalls, int symlookup)
 {
-    void **limit = ptr + 16 * 1024;
+    void **limit = ptr + 0x6000;
     void **table = NULL;
 #ifdef DEBUG
     unsigned int i;
