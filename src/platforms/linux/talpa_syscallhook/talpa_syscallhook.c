@@ -128,8 +128,19 @@ static char *hook_mask = "oclemu";
 static char *hook_mask = "oclmu";
 #endif
 
-static unsigned long override_syscall_table;
-static unsigned long override_syscall32_table;
+#ifdef TALPA_SYSCALL_TABLE
+static unsigned long syscall_table = TALPA_SYSCALL_TABLE;
+#else
+static unsigned long syscall_table;
+#endif
+
+#ifdef TALPA_SYSCALL32_TABLE
+static unsigned long syscall32_table = TALPA_SYSCALL32_TABLE;
+#else
+static unsigned long syscall32_table;
+#endif
+
+static unsigned long force;
 
 /*
  * Exported interface
@@ -624,15 +635,28 @@ static int __init talpa_syscallhook_init(void)
     const unsigned int num_unique_syscalls_ia32 = sizeof(unique_syscalls_ia32)/sizeof(unique_syscalls_ia32[0]);
     const unsigned int num_zapped_syscalls_ia32 = (sizeof(zapped_syscalls_ia32)/sizeof(zapped_syscalls_ia32[0])) - 1;
 
-    if ( override_syscall32_table )
+    if ( syscall32_table )
     {
-        ia32_sys_call_table = (void **)override_syscall32_table;
-        info("Userspace specified ia32_sys_call_table at 0x%p", ia32_sys_call_table);
+        ia32_sys_call_table = (void **)syscall32_table;
+
+        if ( verify(ia32_sys_call_table, unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0) )
+        {
+            dbg("userspace specified ia32_sys_call_table at 0x%p", ia32_sys_call_table);
+        }
+        else if ( force )
+        {
+            dbg("userspace forced ia32_sys_call_table at 0x%p", ia32_sys_call_table);
+        }
+        else
+        {
+            dbg("not an ia32_sys_call_table at 0x%p", ia32_sys_call_table);
+            ia32_sys_call_table = NULL;
+        }
     }
     else
     {
         ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
-        override_syscall32_table = (unsigned long)ia32_sys_call_table;
+        syscall32_table = (unsigned long)ia32_sys_call_table;
     }
 
     if ( ia32_sys_call_table == NULL )
@@ -653,15 +677,28 @@ static int __init talpa_syscallhook_init(void)
     const unsigned int num_unique_syscalls = sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
     const unsigned int num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
 
-    if ( override_syscall_table )
+    if ( syscall_table )
     {
-        sys_call_table = (void **)override_syscall_table;
-        info("Userspace specified sys_call_table at 0x%p", sys_call_table);
-    }
+        sys_call_table = (void **)syscall_table;
+
+        if ( verify(sys_call_table, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1) )
+        {
+            dbg("userspace specified sys_call_table at 0x%p", sys_call_table);
+        }
+        else if ( force )
+        {
+            dbg("userspace forced sys_call_table at 0x%p", sys_call_table);
+        }
+        else
+        {
+            dbg("not a sys_call_table at 0x%p", sys_call_table);
+            sys_call_table = NULL;
+        }
+}
     else
     {
         sys_call_table = talpa_find_syscall_table(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
-        override_syscall_table = (unsigned long)sys_call_table;
+        syscall_table = (unsigned long)sys_call_table;
     }
 
     if ( sys_call_table == NULL )
@@ -825,8 +862,9 @@ EXPORT_SYMBOL(talpa_syscallhook_register);
 EXPORT_SYMBOL(talpa_syscallhook_unregister);
 
 module_param(hook_mask, charp, 0400);
-module_param(override_syscall_table, ulong, 0400);
-module_param(override_syscall32_table, ulong, 0400);
+module_param(syscall_table, ulong, 0400);
+module_param(syscall32_table, ulong, 0400);
+module_param(force, ulong, 0400);
 
 #else
 
@@ -834,8 +872,9 @@ EXPORT_SYMBOL_NOVERS(talpa_syscallhook_register);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_unregister);
 
 MODULE_PARM(hook_mask, "s");
-MODULE_PARM(override_syscall_table, "l");
-MODULE_PARM(override_syscall32_table, "l");
+MODULE_PARM(syscall_table, "l");
+MODULE_PARM(syscall32_table, "l");
+MODULE_PARM(force, "l");
 
 #endif /* >= 2.6.0 */
 
@@ -844,8 +883,9 @@ MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close,
 #else
 MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close, l=uselib, m=mount and u=umount (default: oclmu)");
 #endif
-MODULE_PARM_DESC(override_syscall_table, "override value for the system call table address (normally autodetected)");
-MODULE_PARM_DESC(override_syscall32_table, "override value for the ia32 emulation system call table address (normally autodetected)");
+MODULE_PARM_DESC(syscall_table, "system call table address");
+MODULE_PARM_DESC(syscall32_table, "ia32 emulation system call table address");
+MODULE_PARM_DESC(force, "ignore system call table verfication results");
 
 module_init(talpa_syscallhook_init);
 module_exit(talpa_syscallhook_exit);
