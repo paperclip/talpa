@@ -658,10 +658,12 @@ static int __init talpa_syscallhook_init(void)
         else
         {
             dbg("not an ia32_sys_call_table at 0x%p", ia32_sys_call_table);
-            ia32_sys_call_table = NULL;
+            syscall32_table = NULL;
         }
     }
-    else
+
+    /* If valid address wasn't supplied to us we'll try to autodetect it */
+    if ( !syscall32_table )
     {
         ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
         syscall32_table = (unsigned long)ia32_sys_call_table;
@@ -698,10 +700,12 @@ static int __init talpa_syscallhook_init(void)
         else
         {
             dbg("not a sys_call_table at 0x%p", sys_call_table);
-            sys_call_table = NULL;
+            syscall_table = NULL;
         }
     }
-    else
+
+    /* If valid address wasn't supplied to us we'll try to autodetect it */
+    if ( !syscall_table )
     {
         sys_call_table = talpa_find_syscall_table(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
         syscall_table = (unsigned long)sys_call_table;
