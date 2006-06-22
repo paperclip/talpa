@@ -373,7 +373,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
                 patch->i_ops = dentry->d_inode->i_op;
-                patch->f_ops = dentry->d_inode->i_fop;
+                patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
                 patch->lookup = NULL;
@@ -473,7 +473,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
                 patch->i_ops = dentry->d_inode->i_op;
-                patch->f_ops = dentry->d_inode->i_fop;
+                patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
                 patch->lookup = NULL;
@@ -942,7 +942,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     if ( dentry && (S_ISREG(dentry->d_inode->i_mode) || smbfs) )
     {
         patch->i_ops = dentry->d_inode->i_op;
-        patch->f_ops = dentry->d_inode->i_fop;
+        patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
         patch->open = patch->f_ops->open;
         patch->release = patch->f_ops->release;
         patch->ioctl = patch->f_ops->ioctl;
@@ -1041,7 +1041,7 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, struc
             patch->f_ops->ioctl = patch->ioctl;
 
             patch->i_ops = dentry->d_inode->i_op;
-            patch->f_ops = dentry->d_inode->i_fop;
+            patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
             patch->open = patch->f_ops->open;
             patch->release = patch->f_ops->release;
             patch->ioctl = patch->f_ops->ioctl;
