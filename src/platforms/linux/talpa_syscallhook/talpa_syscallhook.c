@@ -658,7 +658,7 @@ static int __init talpa_syscallhook_init(void)
         else
         {
             dbg("not an ia32_sys_call_table at 0x%p", ia32_sys_call_table);
-            syscall32_table = NULL;
+            syscall32_table = 0UL;
         }
     }
 
@@ -700,7 +700,7 @@ static int __init talpa_syscallhook_init(void)
         else
         {
             dbg("not a sys_call_table at 0x%p", sys_call_table);
-            syscall_table = NULL;
+            syscall_table = 0UL;
         }
     }
 
