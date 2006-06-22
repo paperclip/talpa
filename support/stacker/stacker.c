@@ -146,6 +146,9 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, inode_getxattr);
     set_to_null_if_dummy(ops, inode_listxattr);
     set_to_null_if_dummy(ops, inode_removexattr);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+    set_to_null_if_dummy(ops, inode_xattr_getsuffix);
+#endif
     set_to_null_if_dummy(ops, inode_getsecurity);
     set_to_null_if_dummy(ops, inode_setsecurity);
     set_to_null_if_dummy(ops, inode_listsecurity);
@@ -224,7 +227,12 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, socket_shutdown);
     set_to_null_if_dummy(ops, socket_sock_rcv_skb);
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,2)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+    set_to_null_if_dummy(ops, socket_getpeersec_stream);
+    set_to_null_if_dummy(ops, socket_getpeersec_dgram);
+    #else
     set_to_null_if_dummy(ops, socket_getpeersec);
+    #endif
     set_to_null_if_dummy(ops, sk_alloc_security);
     set_to_null_if_dummy(ops, sk_free_security);
   #endif
@@ -968,10 +976,21 @@ static int stacker_inode_removexattr(struct dentry *dentry, char *name)
     return RESTRICTIVE_STACKED(inode_removexattr, (dentry, name));
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+const char *stacker_inode_xattr_getsuffix(void)
+{
+    return RETURN_ONE_STACKED(inode_xattr_getsuffix, const char *, ());
+}
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)) || defined TALPA_HAS_2610_LSM
 
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+static int stacker_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
+    #else
 static int stacker_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+    #endif
 {
     return RESTRICTIVE_STACKED(inode_getsecurity, (inode, name, buffer, size, err));
 }
@@ -1417,10 +1436,22 @@ static int stacker_socket_sock_rcv_skb(struct sock * sk, struct sk_buff * skb)
 }
 
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,2)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+static int stacker_socket_getpeersec_stream(struct socket *sock, char __user *optval, int __user *optlen, unsigned len)
+{
+    return RESTRICTIVE_STACKED(socket_getpeersec_stream, (sock, optval, optlen, len));
+}
+
+static int stacker_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
+{
+    return RESTRICTIVE_STACKED(socket_getpeersec_dgram, (skb, secdata, seclen));
+}
+    #else
 static int stacker_socket_getpeersec(struct socket *sock, char __user *optval, int __user *optlen, unsigned len)
 {
     return RESTRICTIVE_STACKED(socket_getpeersec, (sock, optval, optlen, len));
 }
+    #endif
 
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
 static int stacker_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
@@ -1580,6 +1611,9 @@ struct security_operations stacker_ops = {
     .inode_getxattr =       stacker_inode_getxattr,
     .inode_listxattr =      stacker_inode_listxattr,
     .inode_removexattr =    stacker_inode_removexattr,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+    .inode_xattr_getsuffix = stacker_inode_xattr_getsuffix,
+#endif
     .inode_getsecurity =    stacker_inode_getsecurity,
     .inode_setsecurity =    stacker_inode_setsecurity,
     .inode_listsecurity =   stacker_inode_listsecurity,
@@ -1668,7 +1702,12 @@ struct security_operations stacker_ops = {
     .socket_shutdown =      stacker_socket_shutdown,
     .socket_sock_rcv_skb =  stacker_socket_sock_rcv_skb,
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,2)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+    .socket_getpeersec_stream = stacker_socket_getpeersec_stream,
+    .socket_getpeersec_dgram  = stacker_socket_getpeersec_dgram,
+    #else
     .socket_getpeersec =    stacker_socket_getpeersec,
+    #endif
 
     .sk_alloc_security =    stacker_sk_alloc_security,
     .sk_free_security =     stacker_sk_free_security,
