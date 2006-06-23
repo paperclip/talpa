@@ -57,10 +57,7 @@ static inline void talpa_quirk_vc_pre_sleep(bool* status, unsigned int timeout_m
     if ( unlikely( *status == true ) )
     {
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
-        ktime_t tout = ktime_set(timeout_ms/1000, 0); /* This would be the real nanoseconds calculation
-                                                                but we don't care: (timeout_ms%1000)*1000) */
-
-        *status = (hrtimer_forward(&current->signal->real_timer, tout)>0)?true:false;
+        *status = (hrtimer_cancel(&current->signal->real_timer)==1)?true:false;
   #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
         *status = mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(1+timeout_ms*2));
   #else
@@ -90,7 +87,7 @@ static inline void talpa_quirk_vc_post_sleep(bool* status)
     if ( unlikely( *status == true ) )
     {
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
-        hrtimer_forward(&current->signal->real_timer, current->signal->it_real_incr);
+        hrtimer_start(&current->signal->real_timer, current->signal->it_real_incr, HRTIMER_REL);
   #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
         mod_timer(&current->signal->real_timer, jiffies + current->signal->it_real_incr);
 

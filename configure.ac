@@ -676,9 +676,9 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    # Check whether xhack must be forcefully turned off since it cannot be implemented on >=2.6.16
+    # Check whether xhack must be forcefully turned off since it cannot be implemented on 2.6.16
     AC_MSG_CHECKING([for X workaround])
-    if test "$xhack" != "" -a $((kern_version_code)) -ge 132624; then
+    if test "$xhack" != "" -a $((kern_version_code)) -eq 132624; then
         AC_MSG_RESULT([forced off])
         AC_SUBST(xhack,"")
     else
