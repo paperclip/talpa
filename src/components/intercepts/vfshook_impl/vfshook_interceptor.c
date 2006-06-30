@@ -1368,10 +1368,15 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
     char* dir2;
 
 
+#ifdef MS_MOVE
+#define VFSHOOK_MS_IGNORE (MS_BIND | MS_MOVE)
+#else
+#define VFSHOOK_MS_IGNORE (MS_BIND)
+#endif
     /* Interception housekeeping work: Patch filesystem?
        Do it only if the actual mount succeeded.
        We also ignore bind mounts and subtree moves. */
-    if ( !err && !(flags & (MS_BIND | MS_MOVE)) )
+    if ( !err && !(flags & VFSHOOK_MS_IGNORE) )
     {
         dir = getname(dir_name);
 
