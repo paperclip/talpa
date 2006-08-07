@@ -151,6 +151,15 @@ AC_ARG_ENABLE(lsm,
                     AC_SUBST(lsm,$enableval) ],
                 [   auto_lsm=yes])
 
+AC_ARG_ENABLE(lsm-keys,
+                [  --enable-lsm-keys              LSM implementation has keys support [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(lsmkeys,"-DTALPA_HAS_LSM_KEYS")
+                    fi
+                    auto_lsmkeys=no
+                ],
+                [   auto_lsmkeys=yes])
+
 AC_ARG_ENABLE(lsm-2610,
                 [  --enable-lsm-2610              for example RHAS 4.0 2.6.9 kernel has LSM backported from 2.6.10 [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -626,6 +635,18 @@ if test $((kern_version_code)) -ge 132608; then
         TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath)
         TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
 
+        # Autodetect if LSM has key support
+        if test "$auto_lsmkeys" = "yes"; then
+            AC_MSG_CHECKING([for LSM key support])
+            ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/lsmkeys.c -o /dev/null 1>/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(lsmkeys,"-DTALPA_HAS_LSM_KEYS")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+
         if test $((kern_version_code)) -le 132617; then
             # Autodetect if LSM from 2.6.10 is backported to 2.6.9
             if test "$auto_lsm2610" = "yes"; then
@@ -689,8 +710,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)

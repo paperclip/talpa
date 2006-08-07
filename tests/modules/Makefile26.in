@@ -1,5 +1,5 @@
 
-EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../include @debug@ @assert@ @inodeallocsem@ @tasknewtty@ @rcubackport@ @signalbackport@ @jiffiesbackport@ @lsm265@ @lsm266@ @lsm2610@ @hidden@ @execve@ @xhack@
+EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../include @debug@ @assert@ @inodeallocsem@ @tasknewtty@ @rcubackport@ @signalbackport@ @jiffiesbackport@ @lsm265@ @lsm266@ @lsm2610@ @lsmkeys@ @hidden@ @execve@ @xhack@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \

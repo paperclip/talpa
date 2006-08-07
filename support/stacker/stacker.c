@@ -248,11 +248,11 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, xfrm_state_free_security);
     set_to_null_if_dummy(ops, xfrm_policy_lookup);
 #endif  /* CONFIG_SECURITY_NETWORK_XFRM */
-#ifdef CONFIG_KEYS
+#ifdef TALPA_HAS_LSM_KEYS
     set_to_null_if_dummy(ops, key_alloc);
     set_to_null_if_dummy(ops, key_free);
     set_to_null_if_dummy(ops, key_permission);
-#endif /* CONFIG_KEYS */
+#endif /* TALPA_HAS_LSM_KEYS */
 }
 
 static int stacker_register_security(const char *name, struct security_operations *ops)
@@ -1511,7 +1511,7 @@ static int stacker_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir
 
 #endif  /* CONFIG_SECURITY_NETWORK_XFRM */
 
-#ifdef CONFIG_KEYS
+#ifdef TALPA_HAS_LSM_KEYS
 
 static int stacker_key_alloc(struct key *key)
 {
@@ -1528,7 +1528,7 @@ static int stacker_key_permission(key_ref_t key_ref, struct task_struct *context
     return RESTRICTIVE_STACKED(key_permission, (key_ref, context, perm));
 }
 
-#endif  /* CONFIG_KEYS */
+#endif  /* TALPA_HAS_LSM_KEYS */
 
 struct security_operations stacker_ops = {
     .register_security =    stacker_register_security,
@@ -1727,7 +1727,7 @@ struct security_operations stacker_ops = {
     .xfrm_policy_lookup =           stacker_xfrm_policy_lookup,
 #endif
 
-#ifdef CONFIG_KEYS
+#ifdef TALPA_HAS_LSM_KEYS
     .key_alloc =            stacker_key_alloc,
     .key_free =             stacker_key_free,
     .key_permission =       stacker_key_permission,
