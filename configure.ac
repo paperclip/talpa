@@ -224,8 +224,6 @@ AC_CHECK_TOOL(MODULELINKER, ld, :)
 #
 if test "$talpabuild" = "yes"; then
 
-AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\\\"${PACKAGE_VERSION}\\\\\"")
-
 #
 # Setup our search macros.
 #
@@ -482,6 +480,7 @@ AC_MSG_CHECKING([for appropriate build system])
 if test $((kern_version_code)) -ge 132608; then
     AC_MSG_RESULT([2.6 build system detected])
     AC_SUBST(ko,ko)
+    AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\\\"${PACKAGE_VERSION}\\\\\"")
 
     AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
 
@@ -715,6 +714,7 @@ if test $((kern_version_code)) -ge 132608; then
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
+    AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\"${PACKAGE_VERSION}\\\"")
 
     # Check for hidden syscall table
     if test "$auto_hidden" = "yes"; then
