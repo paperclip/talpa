@@ -91,6 +91,15 @@ AC_ARG_ENABLE(new-parent,
                 ],
                 [   auto_parent=yes])
 
+AC_ARG_ENABLE(dpath,
+                [  --enable-dpath                 For example Fedora FC5 exports __d_path which is unusual for 2.6 kernels [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
+                    fi
+                    auto_dpath=no
+                ],
+                [   auto_dpath=yes])
+
 AC_ARG_ENABLE(path-lookup,
                 [  --enable-path-lookup           some kernels older than 2.4.25 have backported a change which exports path_lookup [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -126,6 +135,15 @@ AC_ARG_ENABLE(backported-rcu,
                     auto_rcubackport=no
                 ],
                 [   auto_rcubackport=yes])
+
+AC_ARG_ENABLE(backported-mutexes,
+                [  --enable-backported-mutexes    Fedora FC5 2.6.15 has mutexes backported from vanilla 2.6.16 [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
+                    fi
+                    auto_mutexbackport=no
+                ],
+                [   auto_mutexbackport=yes])
 
 AC_ARG_ENABLE(backported-signal,
                 [  --enable-backported-signal     Fedora FC4 2.6.11 has the task_struct->signal backported from vanilla 2.6.12 [[autodetected]]],
@@ -192,13 +210,23 @@ AC_ARG_WITH(test-interceptor,
             [testinterceptor=$withval],
             [testinterceptor=default])
 
+AC_ARG_ENABLE(hrtimers,
+              [  --enable-hrtimers              are hrtimers exported [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(hrtimers,"-DTALPA_HAS_HRTIMERS")
+                    fi
+                    auto_hrtimers=no
+                ],
+                [   auto_hrtimers=yes])
+
 AC_ARG_ENABLE(x-workaround,
-              [  --disable-x-workaround         disable X server workaround where open(2) fails with -EINTR because itimers are not honoured [[enabled]]],
-              [ if test "$enableval" = "yes"; then
-                    AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
-                fi
-              ],
-              [ AC_SUBST(xhack, "-DTALPA_HAS_XHACK")])
+              [  --disable-x-workaround         disable X server workaround where open(2) fails with -EINTR because itimers are not honoured [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
+                    fi
+                    auto_xhack=no
+                ],
+                [   auto_xhack=yes])
 
 AC_ARG_WITH(stacker,
               [  --with-stacker                       should additional and unsupported LSM stacking module be built [[yes]]],
@@ -206,7 +234,7 @@ AC_ARG_WITH(stacker,
               [ buildstacker=yes ])
 
 AC_ARG_ENABLE(syscallhook,
-              [  --enable-syscallhook                 should talpa_syscallhook module be built depends on whether system call table is read-only or not [[autodetected]]],
+              [  --enable-syscallhook           should talpa_syscallhook module be built depends on whether system call table is read-only or not [[autodetected]]],
               [ auto_syscallhook=no
                 AC_SUBST(syscallhook, $enableval) ],
               [ auto_syscallhook=yes])
@@ -319,7 +347,7 @@ $5
     fi
  else
     checkString=`sed -e 's/"/\\"/g' <<++++
-$4
+$3
 ++++`
     if test "$checkString" != ""; then
         eval "$checkString"
@@ -484,6 +512,22 @@ if test $((kern_version_code)) -ge 132608; then
 
     AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
 
+    # Check for exported __d_path
+    if test "$auto_dpath" = "yes"; then
+        AC_MSG_CHECKING([for exported __d_path])
+        if test -f "$TALPA_HEADER_LOCATION/linux/dcache.h"; then
+            ${EGREP} __d_path "$TALPA_HEADER_LOCATION/linux/dcache.h" >/dev/null 2>&1
+            if test $? -ne 0; then
+                AC_MSG_RESULT([hidden])
+            else
+                AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
+                AC_MSG_RESULT([exported])
+            fi
+        else
+            AC_MSG_RESULT([undetectable])
+        fi
+    fi
+
     # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
     AC_MSG_CHECKING([for syscallhook module execve support])
     if test -f $kerneldir/fs/exec.c; then
@@ -523,6 +567,20 @@ if test $((kern_version_code)) -ge 132608; then
             if test $? -eq 0; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(rcubackport,"-DTALPA_HAS_BACKPORTED_RCU")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+    fi
+
+    # Autodetect if mutexes were backported
+    if test $((kern_version_code)) -lt 132624; then
+        if test "$auto_mutexbackport" = "yes"; then
+            TALPA_LOCATE_HEADER(linux/mutex.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
+            AC_MSG_CHECKING([for backported mutexes])
+            if test $? -eq 0 -a -f "$TALPA_HEADER_LOCATION/linux/mutex.h"; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
             else
                 AC_MSG_RESULT([not detected])
             fi
@@ -696,21 +754,41 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    # Check whether xhack must be forcefully turned off since it cannot be implemented on 2.6.16
-    AC_MSG_CHECKING([for X workaround])
-    if test "$xhack" != "" -a $((kern_version_code)) -eq 132624; then
-        AC_MSG_RESULT([forced off])
-        AC_SUBST(xhack,"")
-    else
-        if test "$xhack" != ""; then
-            AC_MSG_RESULT([on])
+    # Check for hrtimers presence
+    if test "$auto_hrtimers" = "yes"; then
+        # Vanilla 2.6.16 has hrtimers but no exports. However, backports can exist.
+        # Vanilla 2.6.17 exports the needed symbols but again handle backports as well.
+        AC_MSG_CHECKING([for exported hrtimers])
+        ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/hrtimersversion17.c -o /dev/null 1>/dev/null 2>&1
+        if test $? -eq 0; then
+            AC_SUBST(hrtimers,"-DTALPA_HAS_HRTIMERS")
+            AC_MSG_RESULT([present])
         else
-            AC_MSG_RESULT([off])
+            AC_MSG_RESULT([missing])
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    # Check whether xhack can be implemented
+    if test "$auto_xhack" = "yes"; then
+        AC_MSG_CHECKING([for X workaround])
+        AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
+
+        if test "$hrtimers" = ""; then
+            ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/hrtimersversion16.c -o /dev/null 1>/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_SUBST(xhack,"")
+            fi
+        fi
+
+        if test "$xhack" != ""; then
+            AC_MSG_RESULT([enabled])
+        else
+            AC_MSG_RESULT([disabled])
+        fi
+    fi
+
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)

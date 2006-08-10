@@ -28,7 +28,7 @@
 
 #include "platforms/linux/glue.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && (!defined TALPA_HAS_DPATH)
 /**
  * d_path - return the path of a dentry
  * @dentry: dentry to report

@@ -1,5 +1,5 @@
 
-EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE} @talpaversion@ @debug@ @assert@ @inodeallocsem@ @tasknewtty@ @rcubackport@ @signalbackport@ @jiffiesbackport@ @lsm265@ @lsm266@ @lsm2610@ @lsmkeys@ @hidden@ @execve@ @xhack@
+EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE} @talpaversion@ @debug@ @assert@ @dpath@ @inodeallocsem@ @tasknewtty@ @rcubackport@ @mutexbackport@ @signalbackport@ @jiffiesbackport@ @lsm265@ @lsm266@ @lsm2610@ @lsmkeys@ @hidden@ @execve@ @xhack@
 
 obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o
 

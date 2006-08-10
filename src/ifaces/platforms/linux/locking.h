@@ -29,7 +29,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4)
 #include <linux/rwsem.h>
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_MUTEXES
 #include <linux/mutex.h>
 #else
 #include <asm/semaphore.h>
@@ -37,7 +37,7 @@
 
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_MUTEXES
 
 typedef struct mutex talpa_mutex_t;
 

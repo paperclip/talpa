@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/sched.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_HRTIMERS
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 #else
@@ -56,7 +56,7 @@ static inline void talpa_quirk_vc_pre_sleep(bool* status, unsigned int timeout_m
 {
     if ( unlikely( *status == true ) )
     {
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_HRTIMERS
         *status = (hrtimer_cancel(&current->signal->real_timer)==1)?true:false;
   #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
         *status = mod_timer(&current->signal->real_timer, jiffies + msecs_to_jiffies(1+timeout_ms*2));
@@ -67,7 +67,7 @@ static inline void talpa_quirk_vc_pre_sleep(bool* status, unsigned int timeout_m
         if ( !*status )
         {
             /* Remove the timer since we have just activated an inactive one */
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_HRTIMERS
             /* No-op */
   #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
             del_timer(&current->signal->real_timer);
@@ -86,7 +86,7 @@ static inline void talpa_quirk_vc_post_sleep(bool* status)
 {
     if ( unlikely( *status == true ) )
     {
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_HRTIMERS
         hrtimer_start(&current->signal->real_timer, current->signal->it_real_incr, HRTIMER_REL);
   #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
         mod_timer(&current->signal->real_timer, jiffies + current->signal->it_real_incr);
