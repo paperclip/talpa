@@ -1,3 +1,7 @@
+#ifndef KBUILD_BASENAME
+#define KBUILD_BASENAME "#lsmkeystest"
+#endif
+
 #include "linux/security.h"
 
 struct key;
