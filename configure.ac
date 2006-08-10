@@ -73,6 +73,12 @@ AC_ARG_ENABLE(assertions,
                     AC_SUBST(assert,"-DASSERT")
                 fi])
 
+AC_ARG_WITH(system-map,
+              [  --with-system-map                    location of the System.map file [[autodetected]]],
+              [ system_map=$withval
+                auto_system_map=no ],
+              [ auto_system_map=yes ])
+
 AC_ARG_ENABLE(hidden-syscall-table,
                 [  --enable-hidden-syscall-table  enable hunting for a hidden syscall table [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -424,8 +430,9 @@ ${RM} -f tests/configure/kernrelease
 AM_CONDITIONAL(KBUILD26, test $((kern_version_code)) -ge 132608)
 # Test whether kbuild uses M= or SUBDIRS=, 2.6.8 was the first kernel to use M=
 AM_CONDITIONAL(KBUILDUSEM, test $((kern_version_code)) -ge 132616)
-# Set it to true for time being
+# Set these to true for time being
 AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
+AM_CONDITIONAL(TESTXWORKAROUND, test 1 -eq 1)
 
 # Select interceptor to use for testing
 case $testinterceptor in
@@ -458,6 +465,14 @@ case $testinterceptor in
         AC_MSG_ERROR(Unknown interceptor)
         ;;
 esac
+
+# Try to find the System.map file
+if test "$auto_system_map" = "yes"; then
+    system_map="/boot/System.map-${kern_uts_release}"
+fi
+if test ! -f "$system_map"; then
+    system_map=""
+fi
 
 # Check for i_alloc_sem only for kernels older than
 # 2.4.22 for 2.4 series, and older than 2.6.6 for 2.6
@@ -504,6 +519,37 @@ if test $((kern_version_code)) -lt 132106; then
     fi
 fi
 
+function find_syscall_table
+{
+    sys_call_table=`grep sys_call_table $1 2>/dev/null | cut -d ' ' -f 1`
+    if test "$sys_call_table" = ""; then
+        return 1
+    fi
+
+    march=`${UNAME} -m`
+    if test "$march" = "x86_64"; then
+        sys_call_table32=`grep ia32_sys_call_table $1 2>/dev/null | cut -d ' ' -f 1`
+        if test "$sys_call_table32" = ""; then
+            return 1
+        fi
+
+        # If passed through environment do nothing since makefile will handle that
+        if test "$TALPA_SYSCALL_TABLE" = "" -a "$TALPA_SYSCALL32_TABLE" = ""; then
+            FIND_SYSCALL_TABLE_RESULT="-DTALPA_SYSCALL_TABLE=0x${sys_call_table} -DTALPA_SYSCALL32_TABLE=0x${sys_call_table32}"
+            return 0
+        fi
+
+        return 1
+    fi
+
+    if test "$TALPA_SYSCALL_TABLE" = ""; then
+        FIND_SYSCALL_TABLE_RESULT="-DTALPA_SYSCALL_TABLE=0x${sys_call_table}"
+        return 0
+    fi
+
+    return 1
+}
+
 AC_MSG_CHECKING([for appropriate build system])
 if test $((kern_version_code)) -ge 132608; then
     AC_MSG_RESULT([2.6 build system detected])
@@ -511,6 +557,9 @@ if test $((kern_version_code)) -ge 132608; then
     AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\\\"${PACKAGE_VERSION}\\\\\"")
 
     AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
+    if find_syscall_table "$system_map"; then
+        AC_SUBST(hidden,"${hidden} ${FIND_SYSCALL_TABLE_RESULT}")
+    fi
 
     # Check for exported __d_path
     if test "$auto_dpath" = "yes"; then
@@ -621,7 +670,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Check whether to build syscallhook dependent modules
-    AC_MSG_CHECKING([for writable system call table])
+    AC_MSG_CHECKING([for system call table hooking support])
     if test "$auto_syscallhook" = "yes"; then
         TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
         ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
@@ -630,8 +679,23 @@ if test $((kern_version_code)) -ge 132608; then
             AC_MSG_RESULT([yes])
             AC_SUBST(syscallhook, "yes")
         else
-            AC_MSG_RESULT([no])
-            AC_SUBST(syscallhook, "no")
+            # If passed through environment do nothing since makefile will handle that
+            if test "$TALPA_RODATA_START" = "" -a "$TALPA_RODATA_END" = ""; then
+                start_rodata=`grep __start_rodata $system_map 2>/dev/null | cut -d ' ' -f 1`
+                end_rodata=`grep __end_rodata $system_map 2>/dev/null | cut -d ' ' -f 1`
+                if test "$start_rodata" != "" -a "$end_rodata" != ""; then
+                    AC_MSG_RESULT([yes])
+                    AC_SUBST(syscallhook, "yes")
+                    AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
+                else
+                    AC_MSG_RESULT([no])
+                    AC_SUBST(syscallhook, "no")
+                fi
+            else
+                AC_MSG_RESULT([yes])
+                AC_SUBST(syscallhook, "yes")
+                AC_SUBST(rodata, "-DTALPA_HAS_RODATA")
+            fi
         fi
         ${RM} -f tests/configure/rodata
     else
@@ -777,6 +841,7 @@ if test $((kern_version_code)) -ge 132608; then
             ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/hrtimersversion16.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_SUBST(xhack,"")
+                AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
             fi
         fi
 
@@ -787,8 +852,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
@@ -802,6 +867,9 @@ else
             if test $? -ne 0; then
                 AC_MSG_RESULT([hidden])
                 AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
+                if find_syscall_table "$system_map"; then
+                    AC_SUBST(hidden,"${hidden} ${FIND_SYSCALL_TABLE_RESULT}")
+                fi
             else
                 AC_MSG_RESULT([exported])
             fi

@@ -36,6 +36,10 @@
   #include <linux/ptrace.h>
   #include <linux/moduleparam.h>
 #endif
+#ifdef TALPA_HAS_RODATA
+#include <asm/page.h>
+#include <asm/cacheflush.h>
+#endif
 
 #include "platforms/linux/talpa_syscallhook.h"
 
@@ -128,19 +132,35 @@ static char *hook_mask = "oclemu";
 static char *hook_mask = "oclmu";
 #endif
 
-#ifdef TALPA_SYSCALL_TABLE
+#ifdef TALPA_HIDDEN_SYSCALLS
+  #ifdef TALPA_SYSCALL_TABLE
 static unsigned long syscall_table = TALPA_SYSCALL_TABLE;
-#else
+  #else
 static unsigned long syscall_table;
-#endif
+  #endif
 
-#ifdef TALPA_SYSCALL32_TABLE
+  #ifdef TALPA_SYSCALL32_TABLE
 static unsigned long syscall32_table = TALPA_SYSCALL32_TABLE;
-#else
+  #else
 static unsigned long syscall32_table;
-#endif
+  #endif
 
 static unsigned long force;
+#endif
+
+#ifdef TALPA_HAS_RODATA
+  #ifdef TALPA_RODATA_START
+static unsigned long rodata_start = TALPA_RODATA_START;
+  #else
+static unsigned long rodata_start;
+  #endif
+
+  #ifdef TALPA_RODATA_START
+static unsigned long rodata_end = TALPA_RODATA_END;
+  #else
+static unsigned long rodata_end;
+  #endif
+#endif
 
 /*
  * Exported interface
@@ -602,6 +622,43 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
+#ifndef TALPA_HAS_RODATA
+void talpa_syscallhook_unro(void)
+{
+    return;
+}
+#else
+void talpa_syscallhook_unro(int rw)
+{
+    unsigned long addr;
+
+    for ( addr = rodata_start; addr < rodata_end; addr += PAGE_SIZE )
+    {
+  #ifdef CONFIG_X86_64
+        if ( rw )
+        {
+            change_page_attr_addr(addr, 1, PAGE_KERNEL);
+        }
+        else
+        {
+            change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
+        }
+  #elif CONFIG_X86
+        if ( rw )
+        {
+            change_page_attr(virt_to_page(addr), 1, PAGE_KERNEL);
+        }
+        else
+        {
+            change_page_attr(virt_to_page(addr), 1, PAGE_KERNEL_RO);
+        }
+  #endif
+    }
+
+    global_flush_tlb();
+}
+#endif
+
 /*
  * Module init and exit
  */
@@ -753,6 +810,8 @@ static int __init talpa_syscallhook_init(void)
   #error "Architecture currently not supported!"
 #endif
 
+    talpa_syscallhook_unro(1);
+
     if ( strchr(hook_mask, 'o') )
     {
         sys_call_table[__NR_open] = talpa_open;
@@ -858,6 +917,8 @@ static void __exit talpa_syscallhook_exit(void)
   #endif
 #endif
 
+    talpa_syscallhook_unro(0);
+
     unlock_kernel();
 
     /* Now wait for a last caller to exit */
@@ -872,9 +933,15 @@ EXPORT_SYMBOL(talpa_syscallhook_register);
 EXPORT_SYMBOL(talpa_syscallhook_unregister);
 
 module_param(hook_mask, charp, 0400);
+  #ifdef TALPA_HIDDEN_SYSCALLS
 module_param(syscall_table, ulong, 0400);
 module_param(syscall32_table, ulong, 0400);
 module_param(force, ulong, 0400);
+  #endif
+  #ifdef TALPA_HAS_RODATA
+module_param(rodata_start, ulong, 0400);
+module_param(rodata_end, ulong, 0400);
+  #endif
 
 #else
 
@@ -882,9 +949,15 @@ EXPORT_SYMBOL_NOVERS(talpa_syscallhook_register);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_unregister);
 
 MODULE_PARM(hook_mask, "s");
+  #ifdef TALPA_HIDDEN_SYSCALLS
 MODULE_PARM(syscall_table, "l");
 MODULE_PARM(syscall32_table, "l");
 MODULE_PARM(force, "l");
+  #endif
+  #ifdef TALPA_HAS_RODATA
+MODULE_PARM(rodata_start, "l");
+MODULE_PARM(rodata_end, "l");
+  #endif
 
 #endif /* >= 2.6.0 */
 
@@ -893,9 +966,15 @@ MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close,
 #else
 MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close, l=uselib, m=mount and u=umount (default: oclmu)");
 #endif
+#ifdef TALPA_HIDDEN_SYSCALLS
 MODULE_PARM_DESC(syscall_table, "system call table address");
 MODULE_PARM_DESC(syscall32_table, "ia32 emulation system call table address");
 MODULE_PARM_DESC(force, "ignore system call table verfication results");
+#endif
+#ifdef TALPA_HAS_RODATA
+MODULE_PARM_DESC(rodata_start, "start of read-only data section");
+MODULE_PARM_DESC(rodata_end, "end of read-only data section");
+#endif
 
 module_init(talpa_syscallhook_init);
 module_exit(talpa_syscallhook_exit);
