@@ -264,8 +264,14 @@ TESTS                   = tlp-init.sh \
                           tlp-2-066.sh \
                           tlp-2-067.sh \
                           tlp-2-068.sh \
-                          tlp-2-069.sh \
-                          tlp-3-001.sh \
+                          tlp-2-069.sh
+
+if TESTXWORKAROUND
+TESTS +=                  tlp-2-070.sh \
+	                  tlp-2-071.sh
+endif
+
+TESTS +=                  tlp-3-001.sh \
                           tlp-3-002.sh \
                           tlp-3-003.sh \
                           tlp-3-004.sh \
@@ -326,11 +332,6 @@ TESTS                   = tlp-init.sh \
                             tlp-1-111.sh \
                             tlp-1-112.sh) \
                           tlp-cleanup.sh
-
-if TESTXWORKAROUND
-TESTS +=                  tlp-2-070.sh \
-	                  tlp-2-071.sh
-endif
 
 check_SCRIPTS =           $(TESTS) \
 			  tlp-4-003a.sh \

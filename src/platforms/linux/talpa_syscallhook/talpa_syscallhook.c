@@ -623,7 +623,7 @@ extern void *sys_call_table[];
 #endif
 
 #ifndef TALPA_HAS_RODATA
-void talpa_syscallhook_unro(void)
+void talpa_syscallhook_unro(int rw)
 {
     return;
 }

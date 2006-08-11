@@ -29,6 +29,7 @@ AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
 AC_PROG_EGREP
+AC_PATH_PROG(CUT, cut)
 AC_PATH_PROG(SED, sed)
 AC_PATH_PROG(UNAME, uname)
 AC_PROG_LN_S
@@ -521,14 +522,14 @@ fi
 
 function find_syscall_table
 {
-    sys_call_table=`grep sys_call_table $1 2>/dev/null | cut -d ' ' -f 1`
+    sys_call_table=`${EGREP} " sys_call_table" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
     if test "$sys_call_table" = ""; then
         return 1
     fi
 
     march=`${UNAME} -m`
     if test "$march" = "x86_64"; then
-        sys_call_table32=`grep ia32_sys_call_table $1 2>/dev/null | cut -d ' ' -f 1`
+        sys_call_table32=`${EGREP} " ia32_sys_call_table" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$sys_call_table32" = ""; then
             return 1
         fi
@@ -681,8 +682,8 @@ if test $((kern_version_code)) -ge 132608; then
         else
             # If passed through environment do nothing since makefile will handle that
             if test "$TALPA_RODATA_START" = "" -a "$TALPA_RODATA_END" = ""; then
-                start_rodata=`grep __start_rodata $system_map 2>/dev/null | cut -d ' ' -f 1`
-                end_rodata=`grep __end_rodata $system_map 2>/dev/null | cut -d ' ' -f 1`
+                start_rodata=`${EGREP} " __start_rodata" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                end_rodata=`${EGREP} " __end_rodata" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$start_rodata" != "" -a "$end_rodata" != ""; then
                     AC_MSG_RESULT([yes])
                     AC_SUBST(syscallhook, "yes")
@@ -834,22 +835,22 @@ if test $((kern_version_code)) -ge 132608; then
 
     # Check whether xhack can be implemented
     if test "$auto_xhack" = "yes"; then
-        AC_MSG_CHECKING([for X workaround])
         AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
 
         if test "$hrtimers" = ""; then
             ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/hrtimersversion16.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_SUBST(xhack,"")
-                AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
             fi
         fi
+    fi
 
-        if test "$xhack" != ""; then
-            AC_MSG_RESULT([enabled])
-        else
-            AC_MSG_RESULT([disabled])
-        fi
+    AC_MSG_CHECKING([for X workaround])
+    if test "$xhack" != ""; then
+        AC_MSG_RESULT([enabled])
+    else
+        AC_MSG_RESULT([disabled])
+        AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
     fi
 
     ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
