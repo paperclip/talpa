@@ -931,6 +931,7 @@ else
     AM_CONDITIONAL(KBUILD26, test 1 -eq 1)
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
+    AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
 fi
 
 
