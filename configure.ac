@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.36)
+AC_INIT(talpa, 1.1.0)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2006 Sophos PLC)
 
@@ -152,6 +152,15 @@ AC_ARG_ENABLE(backported-mutexes,
                 ],
                 [   auto_mutexbackport=yes])
 
+AC_ARG_ENABLE(inode_mutexes,
+                [  --enable-inode_mutexes         Later RedHat Enterprise 4 kernels have backported mutexes without the inode changes [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(inodemutex,"-DTALPA_INODE_USES_MUTEXES")
+                    fi
+                    auto_inodemutex=no
+                ],
+                [   auto_inodemutex=yes])
+
 AC_ARG_ENABLE(backported-signal,
                 [  --enable-backported-signal     Fedora FC4 2.6.11 has the task_struct->signal backported from vanilla 2.6.12 [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -233,7 +242,10 @@ AC_ARG_ENABLE(x-workaround,
                     fi
                     auto_xhack=no
                 ],
-                [   auto_xhack=yes])
+                [   auto_xhack=yes
+                    AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
+
+                ])
 
 AC_ARG_WITH(stacker,
               [  --with-stacker                       should additional and unsupported LSM stacking module be built [[yes]]],
@@ -635,6 +647,29 @@ if test $((kern_version_code)) -ge 132608; then
                 AC_MSG_RESULT([not detected])
             fi
         fi
+    else
+        # Kernels starting with 2.6.16 have them
+        AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
+    fi
+
+    # Autodetect if struct inode uses mutexes
+    if test $((kern_version_code)) -lt 132624 -a "$mutexbackport" != ""; then
+        if test "$auto_inodemutex" = "yes"; then
+            TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
+            AC_MSG_CHECKING([for i_mutex inode struct member])
+            ${EGREP} i_mutex\; $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(inodemutex,"-DTALPA_INODE_USES_MUTEXES")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+    else
+        if test "$mutexbackport" != ""; then
+            # Kernels starting with 2.6.16 use them
+            AC_SUBST(inodemutex,"-DTALPA_INODE_USES_MUTEXES")
+        fi
     fi
 
     # Autodetect if task_struct->signal was backported
@@ -699,6 +734,25 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
         ${RM} -f tests/configure/rodata
+        # Get change_page_attr_addr on x86_64
+        if test "$kern_arch" = "x86_64" -a "$syscallhook" = "yes" -a "$rodata" != ""; then
+            # Test for blacklisted kernels - known to crash if rodata is used
+            AC_MSG_CHECKING([for blacklisted kernels])
+            # Stock SUSE 10.1 x86_64
+            if test "$kern_uts_release" = "2.6.16.13-4-default" -o "$kern_uts_release" = "2.6.16.13-4-smp"; then
+                AC_MSG_ERROR([known bad])
+            else
+                AC_MSG_RESULT([all fine])
+            fi
+            AC_MSG_CHECKING([for change_page_attr_addr symbol])
+            kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+            if test "$kfuncchpgattraddr" != ""; then
+                AC_MSG_RESULT([ok])
+                AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
+            else
+                AC_MSG_ERROR([failed to get])
+            fi
+        fi
     else
         if test "$syscallhook" = "yes"; then
             AC_MSG_RESULT([manual yes])
@@ -835,8 +889,6 @@ if test $((kern_version_code)) -ge 132608; then
 
     # Check whether xhack can be implemented
     if test "$auto_xhack" = "yes"; then
-        AC_SUBST(xhack,"-DTALPA_HAS_XHACK")
-
         if test "$hrtimers" = ""; then
             ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/hrtimersversion16.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
@@ -845,16 +897,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    AC_MSG_CHECKING([for X workaround])
-    if test "$xhack" != ""; then
-        AC_MSG_RESULT([enabled])
-    else
-        AC_MSG_RESULT([disabled])
-        AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
-    fi
-
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
@@ -921,17 +965,26 @@ else
     fi
 fi
 
+AC_MSG_CHECKING([for X workaround])
+if test "$xhack" != ""; then
+    AC_MSG_RESULT([enabled])
+else
+    AC_MSG_RESULT([disabled])
+    AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
+fi
+
 AC_SUBST(kernelincludes,TALPA_INCLUDE_PATH($kernelhdrspath))
 
 #
 # ...Should we build?
 #
 else
-    # define these two to please autoconf
+    # define these to please autoconf
     AM_CONDITIONAL(KBUILD26, test 1 -eq 1)
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
-    AM_CONDITIONAL(TESTXWORKAROUND, test 0 -eq 1)
+    ## Defined to be true so that tests are included in source tar file
+    AM_CONDITIONAL(TESTXWORKAROUND, test 1 -eq 1)
 fi
 
 

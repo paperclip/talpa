@@ -4,7 +4,9 @@
 
 int main()
 {
-#ifdef CONFIG_X86
+#if defined CONFIG_X86_64
+    printf("x86_64");
+#elif defined CONFIG_X86
     printf("i386");
 #else
     printf("unsupported");

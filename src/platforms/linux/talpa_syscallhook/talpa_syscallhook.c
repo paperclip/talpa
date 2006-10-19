@@ -469,7 +469,12 @@ const char * __attribute__((weak)) kallsyms_lookup(unsigned long addr, unsigned 
 static void **get_start_addr(void)
 {
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    #ifdef CONFIG_SMP
     return (void **)&lock_kernel;
+    #else
+      #include <linux/mutex.h>
+    return (void **)&mutex_lock;
+    #endif
   #else
     #ifdef CONFIG_X86_64
     return (void **)&tasklist_lock - 0x4000;
@@ -483,7 +488,12 @@ static void **get_start_addr(void)
 static void **get_start_addr_ia32(void)
 {
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+      #ifdef CONFIG_SMP
     return (void **)&lock_kernel;
+      #else
+        #include <linux/mutex.h>
+    return (void **)&mutex_lock;
+      #endif
     #else
     return (void **)&console_printk - 0x4000;
     #endif
@@ -635,13 +645,16 @@ void talpa_syscallhook_unro(int rw)
     for ( addr = rodata_start; addr < rodata_end; addr += PAGE_SIZE )
     {
   #ifdef CONFIG_X86_64
+        typedef int (*lfunc)(unsigned long addr, int numpages, pgprot_t prot);
+        static lfunc talpa_change_page_attr_addr = (lfunc)TALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR;
+
         if ( rw )
         {
-            change_page_attr_addr(addr, 1, PAGE_KERNEL);
+            talpa_change_page_attr_addr(addr, 1, PAGE_KERNEL);
         }
         else
         {
-            change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
+            talpa_change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
         }
   #elif CONFIG_X86
         if ( rw )
@@ -723,6 +736,11 @@ static int __init talpa_syscallhook_init(void)
     if ( !syscall32_table )
     {
         ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
+        /* There was a case when start_addr and sys_call_table were not on the same byte allignment, so retry with toggled bit zero */
+        if ( !ia32_sys_call_table )
+        {
+            ia32_sys_call_table = talpa_find_syscall_table((void **)((unsigned long)get_start_addr_ia32()^1), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
+        }
         syscall32_table = (unsigned long)ia32_sys_call_table;
     }
 
@@ -765,6 +783,11 @@ static int __init talpa_syscallhook_init(void)
     if ( !syscall_table )
     {
         sys_call_table = talpa_find_syscall_table(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+        /* There was a case when start_addr and sys_call_table were not on the same byte allignment, so retry with toggled bit zero */
+        if ( !sys_call_table )
+        {
+            sys_call_table = talpa_find_syscall_table((void **)((unsigned long)get_start_addr()^1), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+        }
         syscall_table = (unsigned long)sys_call_table;
     }
 
