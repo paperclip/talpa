@@ -779,10 +779,17 @@ static int stacker_sb_kern_mount(struct super_block *sb)
 }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
+static int stacker_sb_statfs(struct dentry * dentry)
+{
+    return RESTRICTIVE_STACKED(sb_statfs, (dentry));
+}
+#else
 static int stacker_sb_statfs(struct super_block * sb)
 {
     return RESTRICTIVE_STACKED(sb_statfs, (sb));
 }
+#endif
 
 static int stacker_sb_mount(char *dev_name, struct nameidata * nd, char *type, unsigned long flags, void *data)
 {
@@ -1178,10 +1185,17 @@ static int stacker_task_getscheduler(struct task_struct * p)
     return RESTRICTIVE_STACKED(task_getscheduler, (p));
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
+static int stacker_task_kill(struct task_struct * p, struct siginfo * info, int sig, u32 secid)
+{
+    return RESTRICTIVE_STACKED(task_kill, (p, info, sig, secid));
+}
+#else
 static int stacker_task_kill(struct task_struct * p, struct siginfo * info, int sig)
 {
     return RESTRICTIVE_STACKED(task_kill, (p, info, sig));
 }
+#endif
 
 static int stacker_task_wait(struct task_struct * p)
 {
@@ -1317,10 +1331,17 @@ static int stacker_netlink_send(struct sk_buff * skb)
 }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
+static int stacker_netlink_recv(struct sk_buff * skb, int cap)
+{
+    return RESTRICTIVE_STACKED(netlink_recv, (skb, cap));
+}
+#else
 static int stacker_netlink_recv(struct sk_buff * skb)
 {
     return RESTRICTIVE_STACKED(netlink_recv, (skb));
 }
+#endif
 
 static void stacker_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
@@ -1442,10 +1463,17 @@ static int stacker_socket_getpeersec_stream(struct socket *sock, char __user *op
     return RESTRICTIVE_STACKED(socket_getpeersec_stream, (sock, optval, optlen, len));
 }
 
+      #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
+static int stacker_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
+{
+    return RESTRICTIVE_STACKED(socket_getpeersec_dgram, (sock, skb, secid));
+}
+      #else
 static int stacker_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
 {
     return RESTRICTIVE_STACKED(socket_getpeersec_dgram, (skb, secdata, seclen));
 }
+      #endif
     #else
 static int stacker_socket_getpeersec(struct socket *sock, char __user *optval, int __user *optlen, unsigned len)
 {
