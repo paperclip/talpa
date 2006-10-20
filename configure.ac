@@ -179,6 +179,15 @@ AC_ARG_ENABLE(backported-jiffies,
                 ],
                 [   auto_jiffiesbackport=yes])
 
+AC_ARG_ENABLE(no-tasklist-lock,
+                [  --enable-no-tasklist-lock      Starting with vanilla 2.6.18 tasklist_lock is no longer exported [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(notasklistlock,"-DTALPA_NO_TASKLIST_LOCK")
+                    fi
+                    auto_notasklistlock=no
+                ],
+                [   auto_notasklistlock=yes])
+
 AC_ARG_ENABLE(lsm,
                 [  --enable-lsm                   try to build LSM dependent modules [[autodetected]]],
                 [   auto_lsm=no
@@ -533,6 +542,49 @@ if test $((kern_version_code)) -lt 132106; then
     fi
 fi
 
+# Check for tasklist_lock export
+if test "$auto_notasklistlock" = "yes"; then
+    AC_MSG_CHECKING([for tasklist_lock export])
+    if test $((kern_version_code)) -ge 132608; then
+        if test $((kern_version_code)) -ge 132626; then
+            AC_SUBST(notasklistlock,"-DTALPA_NO_TASKLIST_LOCK")
+            AC_MSG_RESULT([not available])
+        elif test -f $kerneldir/kernel/fork.c; then
+            ${EGREP} EXPORT_SYMBOL\\\(tasklist_lock\\\)\; $kerneldir/kernel/fork.c >/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([available])
+            else
+                AC_SUBST(notasklistlock,"-DTALPA_NO_TASKLIST_LOCK")
+                AC_MSG_RESULT([not available])
+            fi
+        elif test -f $sourcedir/kernel/fork.c; then
+            ${EGREP} EXPORT_SYMBOL\\\(tasklist_lock\\\)\; $sourcedir/kernel/fork.c >/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([available])
+            else
+                AC_SUBST(notasklistlock,"-DTALPA_NO_TASKLIST_LOCK")
+                AC_MSG_RESULT([not available])
+            fi
+        else
+            AC_MSG_RESULT([unknown, assuming available])
+        fi
+    else
+        AC_MSG_RESULT([available (2.4)])
+    fi
+fi
+
+# Find tasklist_lock address if not exported
+if test "$notasklistlock" != ""; then
+    AC_MSG_CHECKING([for tasklist_lock address])
+    tasklist_lock_addr=`${EGREP} " tasklist_lock" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    if test "$tasklist_lock_addr" != ""; then
+        AC_MSG_RESULT([0x$tasklist_lock_addr])
+        AC_SUBST(notasklistlock, "$notasklistlock -DTALPA_TASKLIST_LOCK_ADDR=0x$tasklist_lock_addr")
+    else
+        AC_MSG_ERROR([not found])
+    fi
+fi
+
 function find_syscall_table
 {
     sys_call_table=`${EGREP} " sys_call_table" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
@@ -595,6 +647,14 @@ if test $((kern_version_code)) -ge 132608; then
     AC_MSG_CHECKING([for syscallhook module execve support])
     if test -f $kerneldir/fs/exec.c; then
         ${EGREP} EXPORT_SYMBOL\\\(do_execve\\\)\; $kerneldir/fs/exec.c >/dev/null 2>&1
+        if test $? -ne 0; then
+            AC_SUBST(execve,"")
+            AC_MSG_RESULT([not available])
+        else
+            AC_MSG_RESULT([available])
+        fi
+    elif test -f $sourcedir/fs/exec.c; then
+        ${EGREP} EXPORT_SYMBOL\\\(do_execve\\\)\; $sourcedir/fs/exec.c >/dev/null 2>&1
         if test $? -ne 0; then
             AC_SUBST(execve,"")
             AC_MSG_RESULT([not available])
@@ -898,8 +958,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)

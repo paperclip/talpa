@@ -1581,9 +1581,9 @@ static void walkMountTree(void)
     struct list_head *nexthead = NULL;
 
 
-    read_lock(&tasklist_lock);
+    talpa_tasklist_lock();
     inittask = find_task_by_pid(1);
-    read_unlock(&tasklist_lock);
+    talpa_tasklist_unlock();
 
     if ( !inittask )
     {

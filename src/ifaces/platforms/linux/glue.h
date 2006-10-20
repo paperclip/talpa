@@ -23,6 +23,7 @@
 #include <linux/version.h>
 #include <linux/autoconf.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include <linux/dcache.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
@@ -158,6 +159,35 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 #endif /* version < 2.6.7 */
 
 #endif /* version < 2.6.0 */
+
+/*
+ * tasklist_lock un-export handling
+ */
+#ifdef TALPA_NO_TASKLIST_LOCK
+static inline void talpa_tasklist_lock(void)
+{
+    rwlock_t* talpa_tasklist_lock_addr = (rwlock_t *)TALPA_TASKLIST_LOCK_ADDR;
+
+    read_lock(talpa_tasklist_lock_addr);
+}
+
+static inline void talpa_tasklist_unlock(void)
+{
+    rwlock_t* talpa_tasklist_lock_addr = (rwlock_t *)TALPA_TASKLIST_LOCK_ADDR;
+
+    read_unlock(talpa_tasklist_lock_addr);
+}
+#else
+static inline void talpa_tasklist_lock(void)
+{
+    read_lock(&tasklist_lock);
+}
+
+static inline void talpa_tasklist_unlock(void)
+{
+    read_unlock(&tasklist_lock);
+}
+#endif
 
 #endif
 

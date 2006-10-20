@@ -27,6 +27,7 @@
 #include <linux/mount.h>
 
 #include "common/talpa.h"
+#include "platforms/linux/glue.h"
 #include "linux_systemroot.h"
 
 
@@ -73,9 +74,9 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
         memcpy(object, &template_LinuxSystemRoot, sizeof(template_LinuxSystemRoot));
         object->i_ISystemRoot.object = object;
 
-        read_lock(&tasklist_lock);
+        talpa_tasklist_lock();
         inittask = find_task_by_pid(1);
-        read_unlock(&tasklist_lock);
+        talpa_tasklist_unlock();
 
         if ( inittask )
         {
