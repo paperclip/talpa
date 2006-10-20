@@ -29,11 +29,12 @@
 
 typedef struct
 {
-    void  (*examineFile)      (const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
-    void  (*examineFilesystem)(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info);
-    bool  (*enable)           (void* self);
-    void  (*disable)          (void* self);
-    bool  (*isEnabled)        (const void* self);
+    void                (*examineFile)       (const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
+    EInterceptAction    (*examineInode)      (const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode);
+    void                (*examineFilesystem) (const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info);
+    bool                (*enable)            (void* self);
+    void                (*disable)           (void* self);
+    bool                (*isEnabled)         (const void* self);
     /*
      *  Object supporting this interface instance.
      */

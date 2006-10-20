@@ -34,7 +34,7 @@ typedef struct
     unsigned int          (*mode)               (const void* self);
     unsigned long         (*inode)              (const void* self);
     bool                  (*isWritable)         (const void* self);
-    bool                  (*isWritableAnywhere) (const void* self);
+    unsigned int          (*isWritableAnywhere) (const void* self);
     uint64_t              (*device)             (const void* self);
     uint32_t              (*deviceMajor)        (const void* self);
     uint32_t              (*deviceMinor)        (const void* self);

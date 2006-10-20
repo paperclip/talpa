@@ -57,6 +57,7 @@ static DenySyslogFilter template_DenySyslogFilter =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

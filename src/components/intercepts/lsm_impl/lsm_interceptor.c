@@ -131,6 +131,24 @@ static inline int examineFile(const void* self, EFilesystemOperation op, struct 
     IFileInfo *pFInfo;
 
 
+    /* We can't use a file object without a dentry or inode */
+    if ( ( file->f_dentry == NULL ) || ( file->f_dentry->d_inode == NULL ) )
+    {
+        return 0;
+    }
+
+    /* First check with the examineInode method */
+    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, kdev_t_to_nr(inode_dev(file->f_dentry->d_inode)), file->f_dentry->d_inode->i_ino);
+
+    if ( likely ( decision == 0 ) )
+    {
+        return 0;
+    }
+    else if ( decision != -EAGAIN )
+    {
+        return decision;
+    }
+
     /* Make sure our open and close attempts while examining will be excluded */
     current->flags |= PF_TALPA_INTERNAL;
 
@@ -153,6 +171,18 @@ static inline int examineDirectoryEntry(const void* self, EFilesystemOperation o
     int decision = 0;
     IFileInfo *pFInfo;
 
+
+    /* First check with the examineInode method */
+    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, kdev_t_to_nr(inode_dev(dentry->d_inode)), dentry->d_inode->i_ino);
+
+    if ( likely ( decision == 0 ) )
+    {
+        return 0;
+    }
+    else if ( decision != -EAGAIN )
+    {
+        return decision;
+    }
 
     /* Make sure our open and close attempts while examining will be excluded */
     current->flags |= PF_TALPA_INTERNAL;

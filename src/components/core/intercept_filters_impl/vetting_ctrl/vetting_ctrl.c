@@ -109,6 +109,7 @@ static VettingController template_VettingController =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

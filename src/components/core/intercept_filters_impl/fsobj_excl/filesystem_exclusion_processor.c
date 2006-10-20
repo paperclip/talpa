@@ -75,6 +75,7 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

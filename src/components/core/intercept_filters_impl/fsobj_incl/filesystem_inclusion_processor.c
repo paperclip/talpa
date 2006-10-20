@@ -60,6 +60,7 @@ static FilesystemInclusionProcessor template_FilesystemInclusionProcessor =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

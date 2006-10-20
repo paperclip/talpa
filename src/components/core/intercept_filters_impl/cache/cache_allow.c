@@ -44,6 +44,7 @@ static CacheAllow template_CacheAllow =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,
@@ -94,8 +95,9 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     }
 
     /* If the access was allowed by an external vetting client add it to the cache */
-    /* Do not cache the file if it is writable by somebody. */
-    if ( report->hasBeenExternallyVetted(report) && !info->isWritableAnywhere(info) )
+    /* Do not cache the file if it is writable by somebody, unless it is only us. */
+    if ( report->hasBeenExternallyVetted(report) &&
+            ( (info->isWritableAnywhere(info) == 0) || ((info->isWritableAnywhere(info) == 1) && info->isWritable(info)) ) )
     {
         this->mCache->add(this->mCache->object, info->fsType(info), info->device(info), info->inode(info));
     }

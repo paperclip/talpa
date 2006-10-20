@@ -29,6 +29,7 @@
  * Forward declare implementation methods.
  */
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode);
 
 static bool enable(void* self);
 static void disable(void* self);
@@ -43,6 +44,7 @@ static CacheEval template_CacheEval =
     {
         {
             examineFile,
+            examineInode,
             NULL,
             enable,
             disable,
@@ -98,6 +100,22 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     }
 
     return;
+}
+
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode)
+{
+    /* Do not check if cached on close */
+    if ( unlikely( op == EFS_Close ) )
+    {
+        return EIA_Next;
+    }
+
+    if ( this->mCache->find(this->mCache->object, device, inode) > 0 )
+    {
+        return EIA_Allow;
+    }
+
+    return EIA_Next;
 }
 
 static bool enable(void* self)

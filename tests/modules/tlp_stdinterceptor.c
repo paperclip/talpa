@@ -109,6 +109,7 @@ static TestFilter template_TestFilter =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

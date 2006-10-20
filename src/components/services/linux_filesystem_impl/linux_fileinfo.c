@@ -41,7 +41,7 @@ static unsigned int          flags              (const void* self);
 static unsigned int          mode               (const void* self);
 static unsigned long         inode              (const void* self);
 static bool                  isWritable         (const void* self);
-static bool                  isWritableAnywhere (const void* self);
+static unsigned int          isWritableAnywhere (const void* self);
 static uint64_t              device             (const void* self);
 static uint32_t              deviceMajor        (const void* self);
 static uint32_t              deviceMinor        (const void* self);
@@ -123,7 +123,7 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
                 object->mMode = nd.dentry->d_inode->i_mode;
                 object->mIno = nd.dentry->d_inode->i_ino;
                 object->mVFSMount = mntget(nd.mnt);
-                object->mWriteCount = atomic_read(&nd.dentry->d_inode->i_writecount);
+                object->mWriteCount = (atomic_read(&nd.dentry->d_inode->i_writecount)<=0)?0:atomic_read(&nd.dentry->d_inode->i_writecount);
                 object->mDevice = kdev_t_to_nr(inode_dev(nd.dentry->d_inode));
                 object->mDeviceMajor = MAJOR(inode_dev(nd.dentry->d_inode));
                 object->mDeviceMinor = MINOR(inode_dev(nd.dentry->d_inode));
@@ -422,18 +422,16 @@ static bool isWritable(const void* self)
     return false;
 }
 
-static bool isWritableAnywhere(const void* self)
+static unsigned int isWritableAnywhere(const void* self)
 {
-    if ( this->mInode && ( atomic_read(&this->mInode->i_writecount) > 0 ) )
+    if ( this->mInode )
     {
-        return true;
+        return (atomic_read(&this->mInode->i_writecount)<=0)?0:atomic_read(&this->mInode->i_writecount);
     }
-    else if ( !this->mInode && ( this->mWriteCount > 0 ) )
+    else
     {
-        return true;
+        return this->mWriteCount;
     }
-
-    return false;
 }
 
 static uint64_t device(const void* self)

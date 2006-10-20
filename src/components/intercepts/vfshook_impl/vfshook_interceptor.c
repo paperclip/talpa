@@ -226,23 +226,30 @@ static int talpaOpen(struct inode *inode, struct file *file)
         /* Do not examine if we should not intercept opens and we are already examining one */
         if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
         {
-            IFileInfo *pFInfo;
+            /* First check with the examineInode method */
+            ret = GL_object.mTargetProcessor->examineInode(GL_object.mTargetProcessor, EFS_Open, kdev_t_to_nr(inode_dev(inode)), inode->i_ino);
 
-
-            pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
-            /* Make sure our open and close attempts while examining will be excluded */
-            current->flags |= PF_TALPA_INTERNAL;
-            if ( likely( pFInfo != NULL ) )
+            if ( ret == -EAGAIN )
             {
-                ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
-                pFInfo->delete(pFInfo);
+                IFileInfo *pFInfo;
+
+
+                pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
+                if ( likely( pFInfo != NULL ) )
+                {
+                    /* Make sure our open and close attempts while examining will be excluded */
+                    current->flags |= PF_TALPA_INTERNAL;
+                    ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+                    /* Restore normal process examination */
+                    current->flags &= ~PF_TALPA_INTERNAL;
+                    pFInfo->delete(pFInfo);
+                }
             }
+
             if ( likely( (ret == 0) && patch->open ) )
             {
                 ret = patch->open(inode, file);
             }
-            /* Restore normal process examination */
-            current->flags &= ~PF_TALPA_INTERNAL;
         }
         else if ( patch->open )
         {

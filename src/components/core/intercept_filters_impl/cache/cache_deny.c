@@ -44,6 +44,7 @@ static CacheDeny template_CacheDeny =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

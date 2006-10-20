@@ -58,6 +58,7 @@ static OperationExclusionProcessor template_OperationExclusionProcessor =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

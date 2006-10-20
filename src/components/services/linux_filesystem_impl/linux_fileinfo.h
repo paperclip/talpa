@@ -38,7 +38,7 @@ typedef struct tag_LinuxFileInfo
     int                         mFlags;
     int                         mMode;
     unsigned long               mIno;
-    int                         mWriteCount;
+    unsigned int                mWriteCount;
     struct inode*               mInode;
     struct vfsmount*            mVFSMount;
     uint64_t                    mDevice;

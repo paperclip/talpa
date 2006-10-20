@@ -66,6 +66,7 @@ static ProcessExclusionProcessor template_ProcessExclusionProcessor =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

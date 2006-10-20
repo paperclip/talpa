@@ -64,6 +64,7 @@ static SyslogFilter template_SyslogFilter =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,

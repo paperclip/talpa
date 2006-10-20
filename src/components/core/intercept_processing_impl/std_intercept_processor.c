@@ -39,6 +39,7 @@
  * Forward declare implementation methods.
  */
 static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file);
+static int examineInode(const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode);
 static int runAllowChain(const void* self, const IFileInfo* info);
 static int examineFilesystemInfo(const void* self, const IFilesystemInfo* info);
 static void addEvaluationFilter(void* self, IInterceptFilter* filter);
@@ -72,6 +73,7 @@ static StandardInterceptProcessor template_StandardInterceptProcessor =
     {
         {
             examineFileInfo,
+            examineInode,
             runAllowChain,
             examineFilesystemInfo,
             addEvaluationFilter,
@@ -263,6 +265,61 @@ static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file)
 
     return 0;
 }
+
+static int examineInode(const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode)
+{
+    FilterEntry*        posptr;
+    EInterceptAction    action;
+    int                 retCode = 0;
+
+
+    /*
+     * Perform evaluation - anything but Next halts all processing.
+     */
+     start_eval:
+     action = EIA_Next;
+     talpa_list_for_each_entry(posptr, &this->mEvaluationActions, list)
+     {
+        if ( unlikely( !posptr->filter->examineInode || !posptr->filter->isEnabled(posptr->filter->object) ) )
+        {
+            continue;
+        }
+
+        action = posptr->filter->examineInode(posptr->filter->object, op, device, inode);
+
+        if ( action == EIA_Next )
+        {
+            continue;
+        }
+        else if ( unlikely( action == EIA_Restart ) )
+        {
+            goto start_eval;
+        }
+        break;
+    }
+
+    switch ( action )
+    {
+        case EIA_Allow:
+            break;
+        case EIA_Next:
+            retCode = -EAGAIN;
+            break;
+        case EIA_Timeout:
+            retCode = -ETIME;
+            break;
+        case EIA_Deny:
+        case EIA_Error:
+            retCode = -EPERM;
+            break;
+        case EIA_Restart:
+            retCode = -EPROTO;
+            break;
+    }
+
+    return retCode;
+}
+
 static int runAllowChain(const void* self, const IFileInfo* info)
 {
     FilterEntry*            posptr;

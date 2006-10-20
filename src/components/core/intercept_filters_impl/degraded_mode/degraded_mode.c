@@ -69,6 +69,7 @@ static DegradedModeProcessor template_DegradedModeProcessor =
     {
         {
             examineFile,
+            NULL,
             examineFilesystem,
             enable,
             disable,
