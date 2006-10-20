@@ -435,10 +435,7 @@ kern_version_code=`tests/configure/kernversion`
 AC_MSG_RESULT([${kern_version_code}])
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
-TALPA_LOCATE_HEADER(linux/utsrelease.h, $kernelhdrspath, /bin/true, /bin/true, [quiet])
-if test "$TALPA_HEADER_LOCATION" != ""; then
-    cckernrelease="-DSEPARATE_UTS_RELEASE"
-fi
+TALPA_LOCATE_HEADER(linux/utsrelease.h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
 ${CC} -Werror -pipe -D__KERNEL__ $cckernrelease TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernrelease.c -o tests/configure/kernrelease
 kern_uts_release=`tests/configure/kernrelease`
 AC_MSG_RESULT([${kern_uts_release}])
