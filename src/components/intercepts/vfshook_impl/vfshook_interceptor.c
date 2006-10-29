@@ -327,6 +327,63 @@ static int talpaRelease(struct inode *inode, struct file *file)
     hookExitRv(ret);
 }
 
+static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int err = -ESRCH;
+
+
+    hookEntry();
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( inode->i_fop == p->sf_ops )
+        {
+            patch = getPatch(p);
+            dbg("ioctl on %s", patch->fstype->name);
+            break;
+        }
+    }
+
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+    if ( patch )
+    {
+        if ( patch->ioctl )
+        {
+            err = patch->ioctl(inode, filp, cmd, arg);
+
+            if ( cmd == SMB_IOC_NEWCONN )
+            {
+                if ( !err )
+                {
+                    processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, false);
+                }
+                else
+                {
+                    dbg("smbfs newconn ioctl failed (%d)!", err);
+                }
+            }
+            else
+            {
+                dbg("Unexpected smbmount behaviour!");
+            }
+        }
+        else
+        {
+            err = -ENOTTY;
+            err("smbfs_ioctl unexpectedly missing!");
+        }
+
+        putPatch(patch);
+    }
+
+    hookExitRv(err);
+}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd)
 #else
@@ -379,13 +436,22 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 /* Re-patch, this time using file operations */
                 patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
+                patch->lookup = NULL;
+                patch->create = NULL;
+                dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+                if ( patch->sf_ops && patch->sf_ops->ioctl == talpaIoctl )
+                {
+                    dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+                    patch->sf_ops->ioctl = patch->ioctl;
+                    patch->sf_ops = NULL;
+                    patch->ioctl = NULL;
+                }
                 patch->i_ops = dentry->d_inode->i_op;
+                dbg("  storing original inode operations [0x%p]", patch->i_ops);
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
-                patch->lookup = NULL;
-                patch->create = NULL;
-
+                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
                 patch->f_ops->open = talpaOpen;
                 patch->f_ops->release = talpaRelease;
                 smp_wmb();
@@ -479,76 +545,28 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 /* Re-patch, this time using file operations */
                 patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
+                patch->lookup = NULL;
+                patch->create = NULL;
+                dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+                if ( patch->sf_ops && patch->sf_ops->ioctl == talpaIoctl )
+                {
+                    dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+                    patch->sf_ops->ioctl = patch->ioctl;
+                    patch->sf_ops = NULL;
+                    patch->ioctl = NULL;
+                }
                 patch->i_ops = dentry->d_inode->i_op;
+                dbg("  storing original inode operations [0x%p]", patch->i_ops);
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
-                patch->lookup = NULL;
-                patch->create = NULL;
-
+                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
                 patch->f_ops->open = talpaOpen;
                 patch->f_ops->release = talpaRelease;
                 smp_wmb();
 
                 dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
             }
-        }
-
-        putPatch(patch);
-    }
-
-    hookExitRv(err);
-}
-
-static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
-{
-    struct patchedFilesystem *p;
-    struct patchedFilesystem *patch = NULL;
-    int err = -ESRCH;
-
-
-    hookEntry();
-
-    talpa_rcu_read_lock(&GL_object.mPatchLock);
-
-    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
-    {
-        if ( inode->i_op == p->i_ops )
-        {
-            patch = getPatch(p);
-            dbg("ioctl on %s", patch->fstype->name);
-            break;
-        }
-    }
-
-    talpa_rcu_read_unlock(&GL_object.mPatchLock);
-
-    if ( patch )
-    {
-        if ( patch->ioctl )
-        {
-            err = patch->ioctl(inode, filp, cmd, arg);
-
-            if ( cmd == SMB_IOC_NEWCONN )
-            {
-                if ( !err )
-                {
-                    processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, false);
-                }
-                else
-                {
-                    dbg("smbfs newconn ioctl failed (%d)!", err);
-                }
-            }
-            else
-            {
-                dbg("Unexpected smbmount behaviour!");
-            }
-        }
-        else
-        {
-            err = -ENOTTY;
-            err("smbfs_ioctl unexpectedly missing!");
         }
 
         putPatch(patch);
@@ -939,7 +957,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         return -ENOMEM;
     }
 
-    if ( patch->f_ops )
+    if ( patch->f_ops || patch->i_ops )
     {
         dbg("Filesystem %s already patched", mnt->mnt_sb->s_type->name);
         return 0;
@@ -948,38 +966,34 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && (S_ISREG(dentry->d_inode->i_mode) || smbfs) )
     {
-        patch->i_ops = dentry->d_inode->i_op;
-        patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-        patch->open = patch->f_ops->open;
-        patch->release = patch->f_ops->release;
-        patch->ioctl = patch->f_ops->ioctl;
+        if ( !S_ISREG(dentry->d_inode->i_mode) && smbfs )
+        {
+            patch->sf_ops = (struct file_operations *)dentry->d_inode->i_fop;
+            patch->ioctl = patch->sf_ops->ioctl;
+            dbg("  storing original smbfs file operations [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+        }
+        else
+        {
+            patch->i_ops = dentry->d_inode->i_op;
+            dbg("  storing original inode operations [0x%p]", patch->i_ops);
+            patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
+            patch->open = patch->f_ops->open;
+            patch->release = patch->f_ops->release;
+            dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+        }
     }
     else
     {
         if ( !dentry )
         {
             dentry = mnt->mnt_root;
+            dbg("  root dentry [0x%p]", dentry);
         }
 
         patch->i_ops = dentry->d_inode->i_op;
-
-        if ( !patch->lookup )
-        {
-            patch->lookup = patch->i_ops->lookup;
-        }
-        else
-        {
-            dbg("  inode lookup already patched");
-        }
-
-        if ( !patch->create )
-        {
-            patch->create = patch->i_ops->create;
-        }
-        else
-        {
-            dbg("  inode create already patched");
-        }
+        patch->lookup = patch->i_ops->lookup;
+        patch->create = patch->i_ops->create;
+        dbg("  storing original inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
     }
 
     return 0;
@@ -990,22 +1004,20 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
-        dbg("  patching file operations 0x%p 0x%p (open, release)", patch->open, patch->release);
+        dbg("  patching file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         patch->f_ops->open = talpaOpen;
         patch->f_ops->release = talpaRelease;
     }
     else if ( dentry && smbfs )
     {
-        dbg("  patching file operations 0x%p (ioctl)", patch->ioctl);
-        patch->f_ops->ioctl = talpaIoctl;
+        dbg("  patching smbfs ioctl [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+        patch->sf_ops->ioctl = talpaIoctl;
     }
     else
     {
-        dbg("  patching inode lookup 0x%p", patch->lookup);
         patch->i_ops->lookup = talpaInodeLookup;
-        dbg("  patching inode creation 0x%p", patch->create);
         patch->i_ops->create = talpaInodeCreate;
-        smp_wmb();
+        dbg("  patching inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
     }
     smp_wmb();
 
@@ -1014,7 +1026,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     return 0;
 }
 
-static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, struct patchedFilesystem* patch)
+static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     bool shouldinc = true;
 
@@ -1026,71 +1038,74 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, struc
     }
 
     /* If we have a regular file from this filesystem we patch the file_operations */
-    if ( dentry )
+    if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
         if ( patch->i_ops->lookup == talpaInodeLookup )
         {
-            dbg("  restoring inode lookup operation 0x%p", patch->lookup);
+            dbg("  restoring inode lookup operation [0x%p][0x%p]", patch->i_ops, patch->lookup);
             patch->i_ops->lookup = patch->lookup;
             patch->lookup = NULL;
         }
 
         if ( patch->i_ops->create == talpaInodeCreate )
         {
-            dbg("  restoring inode create operation 0x%p", patch->create);
+            dbg("  restoring inode create operation [0x%p][0x%p]", patch->i_ops, patch->create);
             patch->i_ops->create = patch->create;
             patch->create = NULL;
         }
 
-        if ( patch->f_ops->ioctl == talpaIoctl )
+        if ( patch->sf_ops && (patch->sf_ops->ioctl == talpaIoctl) )
         {
-            dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
-            patch->f_ops->ioctl = patch->ioctl;
-
-            patch->i_ops = dentry->d_inode->i_op;
-            patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-            patch->open = patch->f_ops->open;
-            patch->release = patch->f_ops->release;
-            patch->ioctl = patch->f_ops->ioctl;
-            smp_wmb();
+            /* Never happens on mount, we can have regular file only when smbfs ioctl calls processMount */
+            dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+            patch->sf_ops->ioctl = patch->ioctl;
+            patch->sf_ops = NULL;
+            patch->ioctl = NULL;
             shouldinc = false;
         }
 
-        dbg("  patching file operations 0x%p 0x%p", patch->open, patch->release);
+        patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
+        patch->open = patch->f_ops->open;
+        patch->release = patch->f_ops->release;
+        dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+        dbg("  patching file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         patch->f_ops->open = talpaOpen;
         patch->f_ops->release = talpaRelease;
         smp_wmb();
+    }
+    else if ( smbfs )
+    {
+        /* Called directly from mount, fops are not patched, iops are so nothing to do here.
+            But we want to increase usecnt so will not signal otherwise. */
+        dbg("Do nothing for smbfs mounts before ioctl gets called.");
     }
     else
     {
         /* We will only get here if re-patching a fs which doesn't already
            have fops->open patched and we didn't find a regular file. Normally
            we ignore it since it means inode operations are already patched.
-           But for the smbfs case we must patch them here. */
+           But in some cases (smbfs) we might arrive here with i_ops unpatched. */
 
-        if ( patch->f_ops->ioctl == talpaIoctl )
+        if ( patch->i_ops )
         {
-            dbg("  restoring smbfs ioctl operation 0x%p", patch->ioctl);
-            patch->f_ops->ioctl = patch->ioctl;
-            patch->ioctl = NULL;
-            patch->f_ops = NULL;
-            patch->i_ops = mnt->mnt_root->d_inode->i_op;
-            patch->lookup = patch->i_ops->lookup;
-            patch->create = patch->i_ops->create;
-            shouldinc = false;
+            if ( patch->sf_ops )
+            {
+                /* Don't increase usecnt since this is a post smbfs ioctl path. */
+                shouldinc = false;
+                dbg("Not increasing usecnt for post ioctl smbfs mounts.");
+            }
+            if ( patch->i_ops->lookup != talpaInodeLookup )
+            {
+                dbg("  patching inode lookup [0x%p][0x%p]", patch->i_ops, patch->lookup);
+                patch->i_ops->lookup = talpaInodeLookup;
+            }
+            if ( patch->i_ops->create != talpaInodeCreate )
+            {
+                dbg("  patching inode creation [0x%p][0x%p]", patch->i_ops, patch->create);
+                patch->i_ops->create = talpaInodeCreate;
+            }
+            smp_wmb();
         }
-
-        if ( patch->i_ops->lookup != talpaInodeLookup )
-        {
-            dbg("  patching inode lookup 0x%p", patch->lookup);
-            patch->i_ops->lookup = talpaInodeLookup;
-        }
-        if ( patch->i_ops->create != talpaInodeCreate )
-        {
-            dbg("  patching inode creation 0x%p", patch->create);
-            patch->i_ops->create = talpaInodeCreate;
-        }
-        smp_wmb();
     }
 
     dbg("Re-patched filesystem %s", mnt->mnt_sb->s_type->name);
@@ -1100,9 +1115,16 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, struc
 
 static int restoreFilesystem(struct patchedFilesystem* patch)
 {
+    if ( patch->sf_ops )
+    {
+        dbg("Restoring smbfs file operations 0x%p 0x%p", patch->sf_ops, patch->ioctl);
+        patch->sf_ops->ioctl = patch->ioctl;
+        smp_wmb();
+    }
+
     if ( patch->f_ops )
     {
-        dbg("Restoring file operations 0x%p 0x%p 0x%p", patch->open, patch->release, patch->ioctl);
+        dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
         patch->f_ops->open = patch->open;
         patch->f_ops->release = patch->release;
         patch->f_ops->ioctl = patch->ioctl;
@@ -1187,6 +1209,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     if ( fromMount && onNoScanList(fsname) )
     {
         reg = dget(mnt->mnt_root);
+        dbg("  root dentry [0x%p]", reg);
         /* Special patching workaround for smbfs is required */
         if ( !strcmp(fsname, "smbfs") )
         {
@@ -1245,11 +1268,15 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         {
             /* Re-patch filesystem, increase usecnt if repatch think we should
                but never for re-mounts. */
-            shouldinc = repatchFilesystem(mnt, reg, patch);
+            shouldinc = repatchFilesystem(mnt, reg, smbfs, patch);
             if ( shouldinc && !(flags & MS_REMOUNT) )
             {
                 atomic_inc(&patch->usecnt);
                 dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
+            }
+            else
+            {
+                dbg("usecnt for %s stayed %d", fsname, atomic_read(&patch->usecnt));
             }
         }
     }
@@ -1376,9 +1403,9 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 
 
 #ifdef MS_MOVE
-#define VFSHOOK_MS_IGNORE (MS_BIND | MS_MOVE)
+#define VFSHOOK_MS_IGNORE (MS_MOVE)
 #else
-#define VFSHOOK_MS_IGNORE (MS_BIND)
+#define VFSHOOK_MS_IGNORE (0)
 #endif
     /* Interception housekeeping work: Patch filesystem?
        Do it only if the actual mount succeeded.
