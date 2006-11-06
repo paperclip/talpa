@@ -326,11 +326,14 @@ TESTS +=                  tlp-3-001.sh \
                           tlp-8-002.sh \
                           tlp-8-003.sh \
                           tlp-8-004.sh \
+                          tlp-1-109.sh \
+                          tlp-1-110.sh \
                           $(if $(NOLOADTEST),,\
-                            tlp-1-109.sh \
-                            tlp-1-110.sh \
                             tlp-1-111.sh \
                             tlp-1-112.sh) \
+                          tlp-1-120.sh \
+                          tlp-1-121.sh \
+                          tlp-1-122.sh \
                           tlp-cleanup.sh
 
 check_SCRIPTS =           $(TESTS) \
