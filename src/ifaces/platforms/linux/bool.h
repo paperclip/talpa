@@ -1,5 +1,5 @@
 /*
- * bool.h
+ * linux_bool.h
  *
  * TALPA Filesystem Interceptor
  *
@@ -16,14 +16,26 @@
  * write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-#ifndef H_BOOL
-#define H_BOOL
+#ifndef H_LINUXBOOL
+#define H_LINUXBOOL
 
-#include "platform/bool.h"
+#include <linux/version.h>
+#include <linux/types.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+typedef int bool;
+#endif
+
+#ifndef true
+#define true    (1==1)
+#endif
+
+#ifndef false
+#define false   (1==0)
+#endif
 
 #endif
 
 /*
- * End of bool.h
+ * End of linux_bool.h
  */
-

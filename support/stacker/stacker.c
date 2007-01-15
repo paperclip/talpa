@@ -236,7 +236,15 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, sk_alloc_security);
     set_to_null_if_dummy(ops, sk_free_security);
   #endif
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+    set_to_null_if_dummy(ops, sk_clone_security);
+    set_to_null_if_dummy(ops, sk_getsecid);
+    set_to_null_if_dummy(ops, sock_graft);
+    set_to_null_if_dummy(ops, inet_conn_request);
+    set_to_null_if_dummy(ops, inet_csk_clone);
+    set_to_null_if_dummy(ops, req_classify_flow);
+  #endif
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
     set_to_null_if_dummy(ops, sk_getsid);
   #endif
 #endif  /* CONFIG_SECURITY_NETWORK */
@@ -247,6 +255,11 @@ static void stacker_fix_security(struct security_operations *ops)
     set_to_null_if_dummy(ops, xfrm_state_alloc_security);
     set_to_null_if_dummy(ops, xfrm_state_free_security);
     set_to_null_if_dummy(ops, xfrm_policy_lookup);
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+    set_to_null_if_dummy(ops, xfrm_state_pol_flow_match);
+    set_to_null_if_dummy(ops, xfrm_flow_state_match);
+    set_to_null_if_dummy(ops, xfrm_decode_session);
+  #endif
 #endif  /* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef TALPA_HAS_LSM_KEYS
     set_to_null_if_dummy(ops, key_alloc);
@@ -1369,17 +1382,24 @@ static int stacker_unix_may_send(struct socket * sock, struct socket * other)
     return RESTRICTIVE_STACKED(unix_may_send, (sock, other));
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6)) || defined TALPA_HAS_266_LSM
+  #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6)) || defined TALPA_HAS_266_LSM
 static int stacker_socket_create(int family, int type, int protocol, int kern)
 {
     return RESTRICTIVE_STACKED(socket_create, (family, type, protocol, kern));
 }
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+static int stacker_socket_post_create(struct socket * sock, int family, int type, int protocol, int kern)
+{
+    return RESTRICTIVE_STACKED(socket_post_create, (sock, family, type, protocol, kern));
+}
+    #else
 static void stacker_socket_post_create(struct socket * sock, int family, int type, int protocol, int kern)
 {
     ALL_STACKED(socket_post_create, (sock, family, type, protocol, kern));
 }
-#else
+    #endif
+  #else
 static int stacker_socket_create(int family, int type, int protocol)
 {
     return RESTRICTIVE_STACKED(socket_create, (family, type, protocol));
@@ -1389,7 +1409,7 @@ static void stacker_socket_post_create(struct socket * sock, int family, int typ
 {
     ALL_STACKED(socket_post_create, (sock, family, type, protocol));
 }
-#endif
+  #endif
 
 static int stacker_socket_bind(struct socket * sock, struct sockaddr * address, int addrlen)
 {
@@ -1496,21 +1516,60 @@ static void stacker_sk_free_security(struct sock *sk)
 }
   #endif
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+static void stacker_sk_clone_security(const struct sock *sk, struct sock *newsk)
+{
+    ALL_STACKED(sk_clone_security, (sk, newsk));
+}
+
+static void stacker_sk_getsecid(struct sock *sk, u32 *secid)
+{
+    ALL_STACKED(sk_getsecid, (sk, secid));
+}
+
+static void stacker_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+{
+    ALL_STACKED(req_classify_flow, (req, fl));
+}
+
+static void stacker_sock_graft(struct sock* sk, struct socket *parent)
+{
+    ALL_STACKED(sock_graft, (sk, parent));
+}
+
+static int stacker_inet_conn_request(struct sock *sk, struct sk_buff *skb, struct request_sock *req)
+{
+    return AUTHORITATIVE_STACKED(inet_conn_request, (sk, skb, req));
+}
+
+static void stacker_inet_csk_clone(struct sock *newsk, const struct request_sock *req)
+{
+    ALL_STACKED(inet_csk_clone, (newsk, req));
+}
+    #else
 static unsigned int stacker_sk_getsid(struct sock *sk, struct flowi *fl, u8 dir)
 {
     return RETURN_ONE_STACKED(sk_getsid, unsigned int, (sk, fl, dir));
 }
     #endif
+  #endif
 
 #endif  /* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+static int stacker_xfrm_policy_alloc_security(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk)
+{
+    return ALLOC_STACKED(xfrm_policy_alloc_security, (xp, sec_ctx, sk), xfrm_policy_free_security, (xp));
+}
+  #else
 static int stacker_xfrm_policy_alloc_security(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
 {
     return ALLOC_STACKED(xfrm_policy_alloc_security, (xp, sec_ctx), xfrm_policy_free_security, (xp));
 }
+  #endif
 
 static int stacker_xfrm_policy_clone_security(struct xfrm_policy *old, struct xfrm_policy *new)
 {
@@ -1522,20 +1581,51 @@ static void stacker_xfrm_policy_free_security(struct xfrm_policy *xp)
     ALL_STACKED(xfrm_policy_free_security, (xp));
 }
 
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+static int stacker_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *polsec, u32 secid)
+{
+    return ALLOC_STACKED(xfrm_state_alloc_security, (x, sec_ctx, polsec, secid), xfrm_state_free_security, (x));
+}
+  #else
 static int stacker_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
 {
     return ALLOC_STACKED(xfrm_state_alloc_security, (x, sec_ctx), xfrm_state_free_security, (x));
 }
+  #endif
 
 static void stacker_xfrm_state_free_security(struct xfrm_state *x)
 {
     ALL_STACKED(xfrm_state_free_security, (x));
 }
 
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+static int stacker_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
+{
+    return RESTRICTIVE_STACKED(xfrm_policy_lookup, (xp, fl_secid, dir));
+}
+  #else
 static int stacker_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
 {
     return RESTRICTIVE_STACKED(xfrm_policy_lookup, (xp, sk_sid, dir));
 }
+  #endif
+
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+static int stacker_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *xp, struct flowi *fl)
+{
+    return RESTRICTIVE_STACKED(xfrm_state_pol_flow_match, (x, xp, fl));
+}
+
+static int stacker_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm, struct xfrm_policy *xp)
+{
+    return RESTRICTIVE_STACKED(xfrm_flow_state_match, (fl, xfrm, xp));
+}
+
+static int stacker_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
+{
+    return RESTRICTIVE_STACKED(xfrm_decode_session, (skb, secid, 1));
+}
+  #endif
 
 #endif  /* CONFIG_SECURITY_NETWORK_XFRM */
 
@@ -1741,7 +1831,16 @@ struct security_operations stacker_ops = {
     .sk_free_security =     stacker_sk_free_security,
   #endif
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+    .sk_clone_security =    stacker_sk_clone_security,
+    .sk_getsecid =          stacker_sk_getsecid,
+    .sock_graft =           stacker_sock_graft,
+    .inet_conn_request =    stacker_inet_conn_request,
+    .inet_csk_clone =       stacker_inet_csk_clone,
+    .req_classify_flow =    stacker_req_classify_flow,
+    #else
     .sk_getsid =                stacker_sk_getsid,
+    #endif
   #endif
 
 #endif
@@ -1753,6 +1852,11 @@ struct security_operations stacker_ops = {
     .xfrm_state_alloc_security =    stacker_xfrm_state_alloc_security,
     .xfrm_state_free_security =     stacker_xfrm_state_free_security,
     .xfrm_policy_lookup =           stacker_xfrm_policy_lookup,
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+    .xfrm_state_pol_flow_match =    stacker_xfrm_state_pol_flow_match,
+    .xfrm_flow_state_match =        stacker_xfrm_flow_state_match,
+    .xfrm_decode_session =          stacker_xfrm_decode_session,
+  #endif
 #endif
 
 #ifdef TALPA_HAS_LSM_KEYS
