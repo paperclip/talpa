@@ -189,9 +189,37 @@ static inline void talpa_tasklist_unlock(void)
 }
 #endif
 
+/*
+ * hidden vfsmnt_lock handling
+ */
+#ifdef TALPA_USE_VFSMOUNT_LOCK
+static inline void talpa_vfsmount_lock(void)
+{
+    spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)TALPA_VFSMOUNT_LOCK_ADDR;
+
+    spin_lock(talpa_vfsmount_lock_addr);
+}
+
+static inline void talpa_vfsmount_unlock(void)
+{
+    spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)TALPA_VFSMOUNT_LOCK_ADDR;
+
+    spin_unlock(talpa_vfsmount_lock_addr);
+}
+#else
+static inline void talpa_vfsmount_lock(void)
+{
+    /* Do nothing */
+}
+
+static inline void talpa_vfsmount_unlock(void)
+{
+    /* Do nothing */
+}
+#endif
+
 #endif
 
 /*
  * End of linux_glue.h
  */
-
