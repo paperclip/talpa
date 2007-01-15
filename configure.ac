@@ -264,7 +264,7 @@ AC_ARG_ENABLE(x-workaround,
 AC_ARG_WITH(stacker,
               [  --with-stacker                       should additional and unsupported LSM stacking module be built [[yes]]],
               [ buildstacker=$withval ],
-              [ buildstacker=yes ])
+              [ buildstacker=no ])
 
 AC_ARG_ENABLE(syscallhook,
               [  --enable-syscallhook           should talpa_syscallhook module be built depends on whether system call table is read-only or not [[autodetected]]],
