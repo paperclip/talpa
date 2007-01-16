@@ -32,9 +32,9 @@ if KBUILD26
 
 if KBUILDUSEM
 kbuildenv := M
-else
+else !KBUILDUSEM
 kbuildenv := SUBDIRS
-endif
+endif !KBUILDUSEM  
 
 EXTRA_DIST += $(shell find src -type f -name "*.h")
 
@@ -49,16 +49,21 @@ TALPAMODULES := \
 				talpa_vfshook.ko 
 
 if BUILDLSM
+
 TALPAMODULES += \
-				stacker.ko \
 				talpa_capability.ko \
 				talpa_lsm.ko
 
 ## Manually add sources which aren't currently handled by automake.
 
 TALPAMODULESRC += src/app-ctrl/intercepts/talpa-lsm/talpa_lsm_module.c
-TALPAMODULESRC += support/stacker/stacker.c
 TALPAMODULESRC += src/platforms/linux/talpa_capability/talpa_capability.c
+
+if BUILDSTACKER
+
+TALPAMODULES += stacker.ko
+
+TALPAMODULESRC += support/stacker/stacker.c
 
 STACKERMODULES = \
 	stacker.ko
@@ -66,11 +71,14 @@ STACKERMODULES = \
 STACKERMODULESRC = \
 	support/stacker/stacker.c
 
-.PHONY: stacker exampleclients benchmark
-
 stacker: $(STACKERMODULES)
 
-endif
+.PHONY: stacker exampleclients benchmark
+else !BUILDSTACKER
+.PHONY: exampleclients benchmark
+endif !BUILDSTACKER
+
+endif BUILDLSM
 
 modulesdir       = $(libdir)
 modules_SCRIPTS  = $(TALPAMODULES)
@@ -85,7 +93,7 @@ clean-local :
 	@cd clients && make clean
 	@cd tests/benchmark && make clean
 
-else
+else !KBUILD26
 
 modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @talpaversion@ @debug@ @assert@ @pathlookup@ @newparent@ @inodeallocsem@ @backportedprefetch@ @snprintf@ @xhack@ ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE}
 modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/src -I$(srcdir)/src/ifaces -I$(srcdir)/include @kernelincludes@
@@ -99,7 +107,7 @@ clean-local :
 
 .PHONY: exampleclients benchmark
 
-endif
+endif !KBUILD26
 
 ## Clean up the fallout resulting from kbuild operating in the source tree.
 dist-hook:

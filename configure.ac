@@ -263,8 +263,15 @@ AC_ARG_ENABLE(x-workaround,
 
 AC_ARG_WITH(stacker,
               [  --with-stacker                       should additional and unsupported LSM stacking module be built [[yes]]],
-              [ buildstacker=$withval ],
-              [ buildstacker=no ])
+              [ buildstacker=$withval
+                if test "$withval" = "yes"; then
+                    AM_CONDITIONAL(BUILDSTACKER, test 1 -eq 1)
+                else
+                    AM_CONDITIONAL(BUILDSTACKER, test 0 -eq 1)
+                fi ],
+              [ buildstacker=no
+                AM_CONDITIONAL(BUILDSTACKER, test 0 -eq 1)
+              ])
 
 AC_ARG_ENABLE(syscallhook,
               [  --enable-syscallhook           should talpa_syscallhook module be built depends on whether system call table is read-only or not [[autodetected]]],
@@ -1061,6 +1068,7 @@ else
     AM_CONDITIONAL(KBUILD26, test 1 -eq 1)
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
+    AM_CONDITIONAL(BUILDSTACKER, test 1 -eq 1)
     ## Defined to be true so that tests are included in source tar file
     AM_CONDITIONAL(TESTXWORKAROUND, test 1 -eq 1)
 fi
