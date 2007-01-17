@@ -597,18 +597,6 @@ if test "$notasklistlock" != ""; then
     fi
 fi
 
-# Find vfsmnt_lock address
-if test "$auto_vfsmntlock" = "yes"; then
-    AC_MSG_CHECKING([for vfsmount_lock address])
-    vfsmnt_lock_addr=`${EGREP} " vfsmount_lock" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-    if test "$vfsmnt_lock_addr" != ""; then
-        AC_MSG_RESULT([0x$vfsmnt_lock_addr])
-        AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
-    else
-        AC_MSG_ERROR([not found])
-    fi
-fi
-
 function find_syscall_table
 {
     sys_call_table=`${EGREP} " sys_call_table" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
@@ -664,6 +652,18 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         else
             AC_MSG_RESULT([undetectable])
+        fi
+    fi
+
+    # Find vfsmnt_lock address
+    if test "$auto_vfsmntlock" = "yes" -a "$dpath" != ""; then
+        AC_MSG_CHECKING([for vfsmount_lock address])
+        vfsmnt_lock_addr=`${EGREP} " vfsmount_lock" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$vfsmnt_lock_addr" != ""; then
+            AC_MSG_RESULT([0x$vfsmnt_lock_addr])
+            AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
+        else
+            AC_MSG_ERROR([not found])
         fi
     fi
 
