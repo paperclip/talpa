@@ -656,7 +656,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Find vfsmnt_lock address
-    if test "$auto_vfsmntlock" = "yes" -a "$dpath" != ""; then
+    if test "$auto_vfsmntlock" = "yes" -a "$dpath" = ""; then
         AC_MSG_CHECKING([for vfsmount_lock address])
         vfsmnt_lock_addr=`${EGREP} " vfsmount_lock" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$vfsmnt_lock_addr" != ""; then
