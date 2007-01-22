@@ -43,6 +43,7 @@
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "filesystem/ifile_info.h"
+#include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
 
 
@@ -580,9 +581,12 @@ struct dentryContext
 {
     struct file*    dir;
     char*           dirent;
+    size_t          bufsize;
+    bool            overflow;
     bool            fill;
     bool            skip;
     char*           root;
+    size_t          rootsize;
     unsigned int    rootlen;
 };
 
@@ -607,6 +611,14 @@ static int fillDentry(void * __buf, const char * name, int namlen, off_t offset,
     else if ( dc->skip )
     {
         dc->skip = false;
+        return 0;
+    }
+
+    /* Check if we have enough space in dirent to copy the whole path in */
+    if ( dc->bufsize < (strlen(dc->root) + 1 + namlen + 1) )
+    {
+        dc->overflow = true;
+        dbg("pathname too long, skipping");
         return 0;
     }
 
@@ -787,7 +799,7 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
     return NULL;
 }
 
-static struct dentry *scanDirectory(const char* dirname)
+static struct dentry *scanDirectory(const char* dirname, char* rootbuf, size_t rootsize, char* buf, size_t bufsize, bool* overflow)
 {
     struct dentry *reg = NULL;
     struct dentryContext* dc;
@@ -805,23 +817,17 @@ static struct dentry *scanDirectory(const char* dirname)
 
     if ( !dc || !nd )
     {
-        goto nomem;
-    }
-
-    /* Allocate a page of memory for dentry name and pass the
-       parent directory name to fillDentry */
-    dc->dirent = (char *)__get_free_page(GFP_KERNEL);
-    dc->root = (char *)__get_free_page(GFP_KERNEL);
-
-    if ( !dc->dirent || !dc->root )
-    {
         goto out;
     }
 
+    dc->rootsize = rootsize;
+    dc->root = rootbuf;
+    dc->bufsize = bufsize;
+    dc->dirent = buf;
     strcpy(dc->root, dirname);
     dc->rootlen = strlen(dc->root);
 
-    dbg("root at %s", dc->root);
+    dbg("root at %s, max path %lu bytes", dc->root, dc->bufsize);
 rescan:
     dc->dir = openDirectory(&dirs, depth, dc->root, &newdir);
 
@@ -837,7 +843,7 @@ rescan:
         stripLastPathElement(dc->root);
         purgeDirectories(&dirs, depth);
         --depth;
-        dbg("backing out to %s (%d) [%u]", dc->root, PTR_ERR(dc->dir), depth);
+        dbg("backing out to %s (%ld) [%u]", dc->root, PTR_ERR(dc->dir), depth);
         dc->rootlen = strlen(dc->root);
         goto rescan;
     }
@@ -849,6 +855,9 @@ rescan:
         /* Fill flag will be set in fillDentry if an
            interesting dentry is found. */
         dc->fill = false;
+        /* Overflow signals that the dirent buffer was
+           to small for at least one path in this scan. */
+        dc->overflow = false;
         /* Skip first entry if we are continuing to
            read an open directory.  */
         if ( !newdir )
@@ -857,6 +866,7 @@ rescan:
         }
         err = vfs_readdir(dc->dir, fillDentry, dc);
         newdir = false;
+        *overflow |= dc->overflow;
 
         /* Back-out if at end-of-directory or if error occured */
         if ( (err < 0) || !dc->fill )
@@ -886,8 +896,9 @@ rescan:
                 dbg("regular %s", dc->dirent);
                 reg = dget(nd->dentry);
             }
-            /* If it is a directory and not a root of a mounted filesystem, enter into it */
-            else if ( S_ISDIR(nd->dentry->d_inode->i_mode) && (nd->dentry != nd->mnt->mnt_root) )
+            /* If it is a directory and not a root of a mounted filesystem, enter into it.
+               But only if we have enough space in the buffer to copy that path. */
+            else if ( S_ISDIR(nd->dentry->d_inode->i_mode) && (nd->dentry != nd->mnt->mnt_root) && (dc->rootsize > strlen(dc->dirent)) )
             {
                 dbg("entering %s", dc->dirent);
                 depth++;
@@ -905,15 +916,6 @@ rescan:
     } while ( !reg ); /* !reg = search finished, we have a regular file */
 
 out:
-    if ( dc->dirent )
-    {
-        free_page((unsigned long)dc->dirent);
-    }
-    if ( dc->root )
-    {
-        free_page((unsigned long)dc->root);
-    }
-nomem:
     kfree(nd);
     kfree(dc);
     cleanupDirectories(&dirs);
@@ -927,19 +929,44 @@ static struct dentry *findRegular(struct vfsmount* root)
     struct dentry *reg = NULL;
     struct dentry *droot;
     struct vfsmount *mntroot;
-    char *page, *name;
+    char *path, *name;
+    size_t path_size = 0;
+    bool overflow = false;
+    char *rootbuf, *buf;
+    size_t root_size = 0;
 
 
-    page = (char *)__get_free_page(GFP_KERNEL);
-    if ( page )
+    path = talpa_alloc_path(&path_size);
+    if ( !path )
     {
-        droot = dget(root->mnt_root);
-        mntroot = mntget(root);
-        name = d_path(root->mnt_root, root, page, PAGE_SIZE);
-        reg = scanDirectory(name);
+        return NULL;
+    }
+
+    droot = dget(root->mnt_root);
+    mntroot = mntget(root);
+    name = d_path(root->mnt_root, root, path, path_size);
+    if ( IS_ERR(name) )
+    {
         mntput(mntroot);
         dput(droot);
-        free_page((unsigned long)page);
+        talpa_free_path(path);
+        return NULL;
+    }
+    rootbuf = talpa_alloc_path(&root_size);
+    buf = talpa_alloc_path(&path_size);
+    if ( rootbuf && buf )
+    {
+        reg = scanDirectory(name, rootbuf, root_size, buf, path_size, &overflow);
+    }
+    talpa_free_path(rootbuf);
+    talpa_free_path(buf);
+    mntput(mntroot);
+    dput(droot);
+    talpa_free_path(path);
+
+    if ( !reg && overflow )
+    {
+        dbg("Detected path deeper than buffers can hold! (%lu/%lu)", root_size, path_size);
     }
 
     return reg;
@@ -1267,7 +1294,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         }
         else
         {
-            /* Re-patch filesystem, increase usecnt if repatch think we should
+            /* Re-patch filesystem, increase usecnt if repatch thinks we should
                but never for re-mounts. */
             shouldinc = repatchFilesystem(mnt, reg, smbfs, patch);
             if ( shouldinc && !(flags & MS_REMOUNT) )
@@ -1399,7 +1426,8 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
     struct nameidata nd;
     struct nameidata nd2;
     char* dir;
-    char* page;
+    char* path;
+    size_t path_size;
     char* dir2;
 
 
@@ -1419,16 +1447,16 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
         {
             if ( !talpa_path_lookup(dir, TALPA_LOOKUP, &nd) )
             {
-                page = (char *)__get_free_page(GFP_KERNEL);
-                if ( page )
+                path = talpa_alloc_path(&path_size);
+                if ( path )
                 {
                     /* Double path resolve. Makes smbmount way of mounting work. */
-                    dir2 = d_path(nd.dentry, nd.mnt, page, PAGE_SIZE);
-                    if ( dir2 )
+                    dir2 = d_path(nd.dentry, nd.mnt, path, path_size);
+                    if ( !IS_ERR(dir2) )
                     {
                        if ( !talpa_path_lookup(dir2, TALPA_LOOKUP, &nd2) )
                        {
-                            free_page((unsigned long)page);
+                            talpa_free_path(path);
                             path_release(&nd);
                             putname(dir);
 
@@ -1439,7 +1467,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                         }
                     }
 
-                    free_page((unsigned long)page);
+                    talpa_free_path(path);
                 }
 
                 path_release(&nd);

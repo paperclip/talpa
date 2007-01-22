@@ -39,6 +39,7 @@
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "filesystem/ifile_info.h"
 #include "platform/talpa_capability.h"
+#include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
 
 /* define this to use inode_permission hook, undef it to use file_permission */
@@ -571,7 +572,8 @@ static void talpa_cap_file_free_security(struct file *file)
 
 static inline int talpa_sb_mount(char *dev_name, struct nameidata *nd, char *type, unsigned long flags, void *data)
 {
-    char *mpage;
+    char *mpath;
+    size_t path_size = 0;
     char *mountpoint;
     int decision;
 
@@ -583,16 +585,20 @@ static inline int talpa_sb_mount(char *dev_name, struct nameidata *nd, char *typ
         return 0;
     }
 
-    mpage = (char *)__get_free_page(GFP_KERNEL);
-    if ( unlikely(mpage == NULL) )
+    mpath = talpa_alloc_path(&path_size);
+    if ( unlikely(mpath == NULL) )
     {
         return -ENOMEM;
     }
 
-    mountpoint = d_path(nd->dentry, nd->mnt, mpage, PAGE_SIZE);
+    mountpoint = d_path(nd->dentry, nd->mnt, mpath, path_size);
+    if ( unlikely( IS_ERR(mountpoint) != 0 ) )
+    {
+        mountpoint = NULL;
+    }
     decision = examineFilesystem(&GL_object, EFS_Mount, dev_name, mountpoint, type);
 
-    free_page((unsigned long)mpage);
+    talpa_free_path(mpath);
 
     return decision;
 }
@@ -621,7 +627,8 @@ static int talpa_cap_sb_mount(char *dev_name, struct nameidata *nd, char *type, 
 
 static inline int talpa_sb_umount(struct vfsmount *mnt, int flags)
 {
-    char *mpage;
+    char *mpath;
+    size_t path_size = 0;
     char *mountpoint;
 
 
@@ -630,12 +637,16 @@ static inline int talpa_sb_umount(struct vfsmount *mnt, int flags)
         return 0;
     }
 
-    mpage = (char *)__get_free_page(GFP_KERNEL);
-    if ( likely(mpage != NULL) )
+    mpath = talpa_alloc_path(&path_size);
+    if ( likely(mpath != NULL) )
     {
-        mountpoint = d_path(mnt->mnt_mountpoint, mnt->mnt_parent, mpage, PAGE_SIZE);
+        mountpoint = d_path(mnt->mnt_mountpoint, mnt->mnt_parent, mpath, path_size);
+        if ( unlikely( IS_ERR(mountpoint) != 0 ) )
+        {
+            mountpoint = NULL;
+        }
         examineFilesystem(&GL_object, EFS_Umount, NULL, mountpoint, NULL);
-        free_page((unsigned long)mpage);
+        talpa_free_path(mpath);
     }
 
     return 0;

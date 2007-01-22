@@ -395,19 +395,26 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
 
 
                 dbg("[intercepted %u-%u-%u] requested re-open for writting (offset %ld)", processParentPID(current), current->tgid, current->pid, offset);
-                details->file->close(details->file->object);
-                if ( details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE, 0) >= 0 )
+                if ( filename )
                 {
-                    res = details->file->seek(details->file->object, offset, 0);
-                    if ( res != offset )
+                    details->file->close(details->file->object);
+                    if ( details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE, 0) >= 0 )
                     {
-                        err("Failed to re-position in file!");
-                        details->file->close(details->file->object);
+                        res = details->file->seek(details->file->object, offset, 0);
+                        if ( res != offset )
+                        {
+                            err("Failed to re-position in file!");
+                            details->file->close(details->file->object);
+                        }
+                    }
+                    else
+                    {
+                        dbg("[intercepted %u-%u-%u] re-open failed", processParentPID(current), current->tgid, current->pid);
                     }
                 }
                 else
                 {
-                    dbg("[intercepted %u-%u-%u] re-open failed", processParentPID(current), current->tgid, current->pid);
+                    dbg("[intercepted %u-%u-%u] re-open failed (no filename)", processParentPID(current), current->tgid, current->pid);
                 }
                 atomic_set(&details->reopen, 0);
                 talpa_complete(&details->reopenCompletion);
@@ -483,7 +490,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     const char* filename;
     const char* fstype;
     unsigned int len;
-    unsigned int filename_len;
+    unsigned int filename_len = 0;
     unsigned int fstype_len = 0;
     VettingDetails* details;
     VettingGroup* group;
@@ -502,7 +509,10 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     }
 
     filename = info->filename(info);
-    filename_len = strlen(filename);
+    if ( likely(filename != NULL) )
+    {
+        filename_len = strlen(filename);
+    }
     fstype = info->fsType(info);
     if ( likely(fstype != NULL) )
     {
@@ -537,8 +547,12 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     /* See how much memory do we need for VettingDetails packet */
     rootdir = threadInfo->rootDir(threadInfo);
 
-    len = sizeof(struct TalpaPacket_VettingDetails) + sizeof(struct TalpaPacketFragment_FileDetails);
-    len += filename_len + 1;
+    len = sizeof(struct TalpaPacket_VettingDetails);
+    if ( likely(filename != NULL) )
+    {
+        len += sizeof(struct TalpaPacketFragment_FileDetails);
+        len += filename_len + 1;
+    }
     if ( likely(rootdir != NULL) )
     {
         rootdir_len = strlen(rootdir);
@@ -574,6 +588,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     packet->fsuid = userInfo->fsuid(userInfo);
     packet->gid = userInfo->gid(userInfo);
     packet->egid = userInfo->egid(userInfo);
+    if ( likely(filename != NULL) )
     {
         struct TalpaPacketFragment_FileDetails* file = (struct TalpaPacketFragment_FileDetails *)(((char *)packet) + sizeof(struct TalpaPacket_VettingDetails));
         file->operation = this->mFOPLookup[operation];
@@ -635,39 +650,47 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
 
     if ( likely( !file->isOpen(file->object) ) )
     {
-        /* Use just the process relative part of the filename if the process is
-            not at the system root. It was intended to call threadInfo->atSystemRoot
-            here, but rootdir_len > 0 is currently equivalent to that. It used
-            to be rootdir_len > 1 but userspace wants to have a special case. */
-        if ( unlikely( rootdir_len > 0 ) )
+        if ( unlikely( !local_filename ) )
         {
-            local_filename += rootdir_len;
-        }
-
-        /* Open the file for the stream server. Use the appropriate method depending on operation code. */
-        if ( unlikely( operation == EFS_Exec ) )
-        {
-            ret = details->file->openExec(file->object, local_filename);
-        }
-        else
-        {
-            ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE, 0);
-            /* We cannot distinguish between open and exec with vfs interceptor
-               so it is possible that this failed because of the lack of read permission.
-               Try to with open_exec as a last resort. */
-            if ( unlikely( ret == -EACCES ) )
-            {
-                ret = details->file->openExec(file->object, local_filename);
-            }
-        }
-
-        if ( unlikely( ret < 0 ) )
-        {
+            ret = -ENODATA;
             goto file_open_failed;
         }
         else
         {
-            dbg("[intercepted %u-%u-%u] Opened readonly", processParentPID(current), current->tgid, current->pid);
+            /* Use just the process relative part of the filename if the process is
+                not at the system root. It was intended to call threadInfo->atSystemRoot
+                here, but rootdir_len > 0 is currently equivalent to that. It used
+                to be rootdir_len > 1 but userspace wants to have a special case. */
+            if ( unlikely( rootdir_len > 0 ) )
+            {
+                local_filename += rootdir_len;
+            }
+
+            /* Open the file for the stream server. Use the appropriate method depending on operation code. */
+            if ( unlikely( operation == EFS_Exec ) )
+            {
+                ret = details->file->openExec(file->object, local_filename);
+            }
+            else
+            {
+                ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE, 0);
+                /* We cannot distinguish between open and exec with vfs interceptor
+                so it is possible that this failed because of the lack of read permission.
+                Try to with open_exec as a last resort. */
+                if ( unlikely( ret == -EACCES ) )
+                {
+                    ret = details->file->openExec(file->object, local_filename);
+                }
+            }
+
+            if ( unlikely( ret < 0 ) )
+            {
+                goto file_open_failed;
+            }
+            else
+            {
+                dbg("[intercepted %u-%u-%u] Opened readonly", processParentPID(current), current->tgid, current->pid);
+            }
         }
     }
     else
@@ -1691,7 +1714,7 @@ static struct TalpaProtocolHeader* obtainVettingDetails(void* self, VettingClien
             {
                 int ret;
 
-                dbg("[client %u-%u-%u] going to sleep [%u]", processParentPID(current), current->tgid, current->pid, jiffies_to_msecs(client->timeout_ms));
+                dbg("[client %u-%u-%u] going to sleep", processParentPID(current), current->tgid, current->pid);
                 talpa_group_unlock(&group->lock);
                 if ( client->timeout_ms == 0 )
                 {

@@ -44,6 +44,8 @@ check_PROGRAMS =    tlp-1-001 \
                     tlp-1-109 \
                     tlp-1-110 \
                     tlp-1-111 \
+                    tlp-1-113 \
+                    tlp-1-114 \
                     tlp-2-001 \
                     tlp-2-002 \
                     tlp-2-010 \
@@ -137,6 +139,8 @@ tlp_1_026_SOURCES = tlp-1-026.c
 tlp_1_109_SOURCES = tlp-1-109.c
 tlp_1_110_SOURCES = tlp-1-110.c
 tlp_1_111_SOURCES = tlp-1-111.c
+tlp_1_113_SOURCES = tlp-1-113.c
+tlp_1_114_SOURCES = tlp-1-114.c ../clients/vc-lib.c
 tlp_2_001_SOURCES = tlp-2-001.c
 tlp_2_002_SOURCES = tlp-2-002.c
 tlp_2_010_SOURCES = tlp-2-010.c
@@ -331,6 +335,8 @@ TESTS +=                  tlp-3-001.sh \
                           $(if $(NOLOADTEST),,\
                             tlp-1-111.sh \
                             tlp-1-112.sh) \
+                          tlp-1-113.sh \
+                          tlp-1-114.sh \
                           tlp-1-120.sh \
                           tlp-1-121.sh \
                           tlp-1-122.sh \

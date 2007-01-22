@@ -25,6 +25,7 @@
 #include <asm/uaccess.h>
 
 #include "common/talpa.h"
+#include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
 #include "linux_filesysteminfo.h"
 #include "filesystem/isystemroot.h"
@@ -78,23 +79,24 @@ static LinuxFilesystemInfo template_LinuxFilesystemInfo =
 /* Makes an absolute path from nameidata, and allocates a string for it */
 static char* absolutePath(struct nameidata* nd)
 {
-    char* page;
+    char* path;
+    size_t path_size = 0;
     char* absolute = NULL;
     ISystemRoot* root;
     char* apath;
 
 
-    page = (char *)__get_free_page(GFP_KERNEL);
+    path = talpa_alloc_path(&path_size);
 
-    if ( !page )
+    if ( !path )
     {
         return NULL;
     }
 
     root = TALPA_Portability()->systemRoot();
-    apath = talpa_d_path(nd->dentry, nd->mnt, root->directoryEntry(root->object), root->mountPoint(root->object), page, PAGE_SIZE);
+    apath = talpa_d_path(nd->dentry, nd->mnt, root->directoryEntry(root->object), root->mountPoint(root->object), path, path_size);
 
-    if ( apath )
+    if ( !IS_ERR(apath) )
     {
         absolute = kmalloc(strlen(apath) + 1, GFP_KERNEL);
         if ( absolute )
@@ -103,7 +105,7 @@ static char* absolutePath(struct nameidata* nd)
         }
     }
 
-    free_page((unsigned long)page);
+    talpa_free_path(path);
 
     return absolute;
 }
@@ -148,10 +150,6 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
         if ( operation == EFS_Mount )
         {
             object->mType = copyString(type);
-            if ( !object->mType )
-            {
-                goto error;
-            }
 
             if ( !talpa_path_lookup(dev_name, TALPA_LOOKUP, &nd) )
             {
@@ -178,23 +176,22 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                 }
             }
 
-            if ( !talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd) )
+            if ( dir_name )
             {
-                object->mMountPoint = absolutePath(&nd);
+                if ( !talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd) )
+                {
+                    object->mMountPoint = absolutePath(&nd);
 
-                path_release(&nd);
-            }
+                    path_release(&nd);
+                }
 
-            if ( !object->mMountPoint )
-            {
-                object->mMountPoint = copyString(dir_name);
                 if ( !object->mMountPoint )
                 {
-                    goto error;
+                    object->mMountPoint = copyString(dir_name);
                 }
             }
         }
-        else if ( operation == EFS_Umount )
+        else if ( (operation == EFS_Umount) && dir_name )
         {
             if ( talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd) )
             {
@@ -217,6 +214,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                     goto error2;
                 }
             }
+
             if ( nd.mnt->mnt_devname )
             {
                 if ( nd.mnt->mnt_sb->s_bdev )
@@ -253,19 +251,11 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
             if ( nd.mnt->mnt_sb->s_type->name )
             {
                 object->mType = copyString(nd.mnt->mnt_sb->s_type->name);
-                if ( !object->mType )
-                {
-                    goto error2;
-                }
             }
 
             if ( !object->mType )
             {
                 object->mType = copyString(type);
-                if ( !object->mType )
-                {
-                    goto error2;
-                }
             }
 
             dbg("Device %s resolved from mount point %s - %s", object->mDeviceName, object->mMountPoint, object->mType);
@@ -274,7 +264,6 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
         }
         else
         {
-            err("Calling FilesystemInfo constructor with a wrong operation!");
             goto error;
         }
 

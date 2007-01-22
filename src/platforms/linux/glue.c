@@ -122,6 +122,11 @@ char* talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dentr
     path = __d_path(dentry, vfsmnt, root, rootmnt, buffer, buflen);
     spin_unlock(&dcache_lock);
 
+    if ( unlikely( IS_ERR(path) != 0 ) )
+    {
+        path = NULL;
+    }
+
     return path;
 }
 

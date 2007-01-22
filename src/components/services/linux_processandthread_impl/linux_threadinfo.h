@@ -35,7 +35,7 @@ typedef struct tag_LinuxThreadInfo
     unsigned long               mEnvSize;
     unsigned char*              mEnv;
     unsigned long               mTTY;
-    char*                       mPage;
+    char*                       mPath;
     char*                       mRootDir;
     struct dentry*              mRootDentry;
     struct vfsmount*            mRootMount;

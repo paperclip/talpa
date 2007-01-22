@@ -162,11 +162,7 @@ static void deleteLinuxThreadInfo(struct tag_LinuxThreadInfo* object)
         {
             kfree(object->mEnv);
         }
-        if ( likely(object->mPage != NULL) )
-        {
-            free_page((unsigned long)object->mPage);
-        }
-
+        talpa_free_path(object->mPath);
         dput(object->mRootDentry);
         mntput(object->mRootMount);
 
@@ -224,18 +220,20 @@ static bool atSystemRoot(const void* self)
 
 static const char* rootDir(const void* self)
 {
+    size_t path_size = 0;
+
+
     if ( this->mRootDir )
     {
         return this->mRootDir;
     }
 
-    this->mPage = (char *)__get_free_page(GFP_KERNEL);
-    if ( likely(this->mPage != NULL) )
+    this->mPath = talpa_alloc_path(&path_size);
+    if ( likely(this->mPath != NULL) )
     {
         ISystemRoot* root = TALPA_Portability()->systemRoot();
 
-        *this->mPage = 0;
-        this->mRootDir = talpa_d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPage, PAGE_SIZE);
+        this->mRootDir = talpa_d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPath, path_size);
     }
     else
     {

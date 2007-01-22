@@ -74,18 +74,33 @@ static inline void talpa_large_free(void *ptr)
     vfree(ptr);
 }
 
-static inline char *talpa_alloc_path(void)
+static inline char *talpa_alloc_path(size_t *size)
 {
-    return (char *)__get_free_page(GFP_KERNEL);
+    unsigned int order = 4;
+    char *buf;
+    size_t bufsize;
+
+    do
+    {
+        bufsize = PAGE_SIZE << order;
+        buf = kmalloc(bufsize, GFP_KERNEL);
+        order--;
+    } while ( !buf && (order > 0) );
+
+    if ( buf && size )
+    {
+        *size = bufsize;
+    }
+
+    return buf;
 }
 
-static inline void talpa_free_path(char *ptr)
+static inline void talpa_free_path(char *buf)
 {
-    free_page((unsigned long)ptr);
+    kfree(buf);
 }
 
 #endif
 /*
  * End of alloc.h
  */
-

@@ -26,6 +26,7 @@
 
 #include "common/talpa.h"
 #include "filesystem/isystemroot.h"
+#include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
 #include "linux_fileinfo.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -112,12 +113,14 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
 
         if ( likely((rc = talpa_path_lookup(filename, TALPA_LOOKUP, &nd)) == 0 ) )
         {
-            object->mPage = (char *)__get_free_page(GFP_KERNEL);
-            if ( likely(object->mPage != NULL) )
+            size_t path_size = 0;
+
+            object->mPath = talpa_alloc_path(&path_size);
+            if ( likely(object->mPath != NULL) )
             {
                 ISystemRoot* root = TALPA_Portability()->systemRoot();
 
-                object->mFilename = talpa_d_path(nd.dentry, nd.mnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPage, PAGE_SIZE);
+                object->mFilename = talpa_d_path(nd.dentry, nd.mnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
                 object->mOperation = operation;
                 object->mFlags = flags;
                 object->mMode = nd.dentry->d_inode->i_mode;
@@ -159,13 +162,14 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
     if ( likely(object != NULL) )
     {
         struct file *file;
+        size_t path_size = 0;
 
 
         memcpy(object, &template_LinuxFileInfo, sizeof(template_LinuxFileInfo));
         object->i_IFileInfo.object = object;
 
-        object->mPage = (char *)__get_free_page(GFP_KERNEL);
-        if ( unlikely(!object->mPage) )
+        object->mPath = talpa_alloc_path(&path_size);
+        if ( unlikely(!object->mPath) )
         {
             kfree(object);
             warn("Not getting a single free page!");
@@ -177,7 +181,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
         {
             ISystemRoot* root = TALPA_Portability()->systemRoot();
 
-            object->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPage, PAGE_SIZE);
+            object->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
             object->mOperation = operation;
             object->mFlags = file->f_flags;
             object->mVFSMount = mntget(file->f_vfsmnt);
@@ -200,7 +204,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
         }
         else
         {
-            free_page((unsigned long)object->mPage);
+            talpa_free_path(object->mPath);
             kfree(object);
 //             dbg("File structure for %d gone in %s[%u]!",fd,current->comm,current->pid);
 
@@ -217,6 +221,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     struct file *file;
     struct inode* inode;
     ISystemRoot* root;
+    size_t path_size = 0;
 
 
     file = (struct file *)fileobj;
@@ -236,8 +241,8 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     memcpy(fi, &template_LinuxFileInfo, sizeof(template_LinuxFileInfo));
     fi->i_IFileInfo.object = fi;
 
-    fi->mPage = (char *)__get_free_page(GFP_KERNEL);
-    if ( unlikely(!fi->mPage) )
+    fi->mPath = talpa_alloc_path(&path_size);
+    if ( unlikely(!fi->mPath) )
     {
         kfree(fi);
         warn("Not getting a single free page!");
@@ -248,7 +253,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     inode = file->f_dentry->d_inode;
     root = TALPA_Portability()->systemRoot();
 
-    fi->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPage, PAGE_SIZE);
+    fi->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
     fi->mOperation = operation;
     fi->mFlags = file->f_flags;
     fi->mMode = inode->i_mode;
@@ -269,6 +274,7 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     struct inode* inode;
     struct vfsmount* vfsmnt;
     ISystemRoot* root;
+    size_t path_size = 0;
 
 
     if ( unlikely( !dentryobj || !mntobj ) )
@@ -287,8 +293,8 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     memcpy(fi, &template_LinuxFileInfo, sizeof(template_LinuxFileInfo));
     fi->i_IFileInfo.object = fi;
 
-    fi->mPage = (char *)__get_free_page(GFP_KERNEL);
-    if ( unlikely(!fi->mPage) )
+    fi->mPath = talpa_alloc_path(&path_size);
+    if ( unlikely(!fi->mPath) )
     {
         kfree(fi);
         warn("Not getting a single free page!");
@@ -301,7 +307,7 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     vfsmnt = (struct vfsmount *)mntobj;
     root = TALPA_Portability()->systemRoot();
 
-    fi->mFilename = talpa_d_path(dentry, vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPage, PAGE_SIZE);
+    fi->mFilename = talpa_d_path(dentry, vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
     fi->mOperation = operation;
     fi->mFlags = flags;
     fi->mVFSMount = mntget(vfsmnt);
@@ -370,7 +376,7 @@ static void deleteLinuxFileInfo(struct tag_LinuxFileInfo* object)
             mntput(object->mVFSMount);
         }
 
-        free_page((unsigned long)object->mPage);
+        talpa_free_path(object->mPath);
         kfree(object->mDeviceName);
         kfree(object->mFSType);
         kfree(object);

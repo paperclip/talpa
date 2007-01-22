@@ -44,7 +44,7 @@ typedef struct tag_LinuxFileInfo
     uint64_t                    mDevice;
     uint32_t                    mDeviceMajor;
     uint32_t                    mDeviceMinor;
-    char*                       mPage;
+    char*                       mPath;
     char*                       mDeviceName;
     char*                       mFSType;
 } LinuxFileInfo;
@@ -63,4 +63,3 @@ extern LinuxFileInfo* newLinuxFileInfoFromInode(EFilesystemOperation operation, 
 /*
  * End of linux_fileinfo.h
  */
-
