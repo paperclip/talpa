@@ -160,7 +160,7 @@ Cache* newCache(void)
             object->mCache[i].inode = 0;
         }
 
-        sprintf(object->mStatisticsData.value, "%u,%u,%u", object->mEntries, object->mPrime, object->mSetSize);
+        sprintf(object->mParamsConfigData.value, "%u,%u,%u", object->mEntries, object->mPrime, object->mSetSize);
 
         talpa_cache_lock_init(&object->mCacheLock);
         talpa_rcu_lock_init(&object->mConfigLock);
