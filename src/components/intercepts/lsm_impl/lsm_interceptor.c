@@ -161,7 +161,7 @@ static inline int examineFile(const void* self, EFilesystemOperation op, struct 
 #ifdef TALPA_SAME_FILE
         if ( clonefile )
         {
-            GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, file);
+            pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, file);
         }
 #endif
         decision = this->mTargetProcessor->examineFileInfo(this->mTargetProcessor, pFInfo, pFile);
