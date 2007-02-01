@@ -3,7 +3,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
                 @debug@ @assert@ \
                 @dpath@ @inodeallocsem@ @tasknewtty@ @rcubackport@ @mutexbackport@ @inodemutex@ @signalbackport@ \
                 @jiffiesbackport@ @lsm265@ @lsm266@ @lsm2610@ @lsmkeys@ @hidden@ @execve@ @xhack@ @rodata@ \
-                @kfuncchpgattraddr@ @notasklistlock@ @vfsmntlock@
+                @kfuncchpgattraddr@ @notasklistlock@ @vfsmntlock@ @samefile@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \

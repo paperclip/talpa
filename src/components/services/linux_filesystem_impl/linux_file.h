@@ -45,6 +45,7 @@ typedef struct tag_LinuxFile
     bool                    mWritable;
     struct file*            mFile;
     struct files_struct*    mFiles;
+    loff_t                  mOffset;
 } LinuxFile;
 
 /*

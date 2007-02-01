@@ -126,7 +126,7 @@ static LSMInterceptor GL_object =
 
 #define this    ((LSMInterceptor*)self)
 
-static inline int examineFile(const void* self, EFilesystemOperation op, struct file* file)
+static inline int examineFile(const void* self, EFilesystemOperation op, struct file* file, bool clonefile)
 {
     int decision = 0;
     IFileInfo *pFInfo;
@@ -157,7 +157,20 @@ static inline int examineFile(const void* self, EFilesystemOperation op, struct 
 
     if ( likely(pFInfo != NULL) )
     {
-        decision = this->mTargetProcessor->examineFileInfo(this->mTargetProcessor, pFInfo, NULL);
+        IFile *pFile = NULL;
+#ifdef TALPA_SAME_FILE
+        if ( clonefile )
+        {
+            GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, file);
+        }
+#endif
+        decision = this->mTargetProcessor->examineFileInfo(this->mTargetProcessor, pFInfo, pFile);
+#ifdef TALPA_SAME_FILE
+        if ( likely(pFile != NULL) )
+        {
+            pFile->delete(pFile);
+        }
+#endif
         pFInfo->delete(pFInfo);
     }
 
@@ -443,7 +456,7 @@ static int talpa_file_permission(struct file *file, int mask)
         hookExitRv(0);
     }
 
-    decision = examineFile(&GL_object, op, file);
+    decision = examineFile(&GL_object, op, file, true);
 
     file->f_security = ERR_PTR(decision);
 
@@ -492,7 +505,7 @@ static inline int talpa_file_mmap(struct file * file, unsigned long prot, unsign
         hookExitRv(0);
     }
 
-    decision = examineFile(&GL_object, op, file);
+    decision = examineFile(&GL_object, op, file, true);
 
     file->f_security = ERR_PTR(decision);
 
@@ -511,7 +524,7 @@ static inline int talpa_bprm_check_security(struct linux_binprm* bprm)
         return 0;
     }
 
-    ret = examineFile(&GL_object, EFS_Exec, bprm->file);
+    ret = examineFile(&GL_object, EFS_Exec, bprm->file, true);
 
     return ret;
 }
@@ -551,7 +564,7 @@ static inline void talpa_file_free_security(struct file *file)
         return;
     }
 
-    examineFile(&GL_object, EFS_Close, file);
+    examineFile(&GL_object, EFS_Close, file, false);
 
     return;
 }

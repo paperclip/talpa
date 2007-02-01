@@ -279,6 +279,15 @@ AC_ARG_ENABLE(syscallhook,
                 AC_SUBST(syscallhook, $enableval) ],
               [ auto_syscallhook=yes])
 
+AC_ARG_ENABLE(same-file,
+              [  --enable-same-file             should file being intercepted be directly used for stream interface operations or a new copy opened [[disabled]]],
+              [ if test $enableval = "yes"; then
+                    AC_SUBST(samefile, "-DTALPA_SAME_FILE")
+                else
+                    AC_SUBST(samefile, "")
+                fi ],
+              [ AC_SUBST(samefile, "") ])
+
 CFLAGS=
 
 #
@@ -982,8 +991,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)

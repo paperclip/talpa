@@ -80,7 +80,8 @@ static LinuxFile template_LinuxFile =
         Regular,
         false,
         NULL,
-        NULL
+        NULL,
+        0
     };
 #define this    ((LinuxFile*)self)
 
@@ -115,6 +116,7 @@ static inline bool verifyFile(struct file* file)
 LinuxFile* cloneLinuxFile(struct file* fobject)
 {
     LinuxFile* object;
+    loff_t offset;
 
 
     if ( !verifyFile(fobject) )
@@ -139,6 +141,15 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
 
         object->mFile = fobject;
         object->mFiles = current->files;
+
+        offset = seek(object, 0, 1);
+        if ( unlikely(offset < 0) )
+        {
+            kfree(object);
+            return NULL;
+        }
+
+        object->mOffset = offset;
     }
     return object;
 }
@@ -195,6 +206,7 @@ static int open(void* self, const char* filename, unsigned int flags, unsigned i
     this->mOpenType = Regular;
     this->mFile = file;
     this->mFiles = current->files;
+    this->mOffset = 0;
 
     return 0;
 }
@@ -219,6 +231,7 @@ static int openExec(void* self, const char* filename)
     this->mOpenType = Exec;
     this->mFile = file;
     this->mFiles = current->files;
+    this->mOffset = 0;
 
     return 0;
 }
@@ -254,6 +267,7 @@ static int openInternal(void* self, void* dentry, unsigned int flags)
         this->mOpenType = Internal;
         this->mFile = file;
         this->mFiles = NULL;
+        this->mOffset = 0;
     }
 
     return 0;
@@ -294,7 +308,7 @@ static int close(void* self)
             retval = filp_close(this->mFile, this->mFiles);
             break;
         case Cloned:
-            retval = seek(this, 0, 0);
+            retval = seek(this, this->mOffset, 0);
             atomic_dec(&this->mFile->f_count);
             break;
         case Internal:
@@ -307,6 +321,7 @@ static int close(void* self)
 
     this->mFile = NULL;
     this->mFiles = NULL;
+    this->mOffset = 0;
 
     return retval;
 }

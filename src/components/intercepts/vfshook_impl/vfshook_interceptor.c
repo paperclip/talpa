@@ -234,15 +234,25 @@ static int talpaOpen(struct inode *inode, struct file *file)
             {
                 IFileInfo *pFInfo;
 
-
                 pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
                 if ( likely( pFInfo != NULL ) )
                 {
+                    IFile *pFile = NULL;
+
+#ifdef TALPA_SAME_FILE
+                    pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, file);
+#endif
                     /* Make sure our open and close attempts while examining will be excluded */
                     current->flags |= PF_TALPA_INTERNAL;
-                    ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+                    ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, pFile);
                     /* Restore normal process examination */
                     current->flags &= ~PF_TALPA_INTERNAL;
+#ifdef TALPA_SAME_FILE
+                    if ( likely(pFile != NULL) )
+                    {
+                        pFile->delete(pFile);
+                    }
+#endif
                     pFInfo->delete(pFInfo);
                 }
             }
@@ -297,13 +307,23 @@ static int talpaRelease(struct inode *inode, struct file *file)
         {
             IFileInfo *pFInfo;
 
-
             pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
             /* Make sure our open and close attempts while examining will be excluded */
             current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
             {
-                GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+                IFile *pFile = NULL;
+
+#ifdef TALPA_SAME_FILE
+                pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, file);
+#endif
+                GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, pFile);
+#ifdef TALPA_SAME_FILE
+                if ( likely(pFile != NULL) )
+                {
+                    pFile->delete(pFile);
+                }
+#endif
                 pFInfo->delete(pFInfo);
             }
             if ( patch->release )

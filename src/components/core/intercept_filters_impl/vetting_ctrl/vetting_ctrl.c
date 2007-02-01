@@ -624,7 +624,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     atomic_set(&details->complete, 0);
 
     /* See did we get the File object? */
-    if ( likely( file == NULL ) )
+    if ( file == NULL )
     {
         file = this->mFilesystemFactory->newFile(this->mFilesystemFactory);
         dbg("Created file object 0x%p", file);
@@ -648,7 +648,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
 
     local_filename = (char *)filename;
 
-    if ( likely( !file->isOpen(file->object) ) )
+    if ( !file->isOpen(file->object) )
     {
         if ( unlikely( !local_filename ) )
         {
