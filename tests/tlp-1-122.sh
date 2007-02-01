@@ -26,8 +26,10 @@ dd if=/dev/zero of=${tmpdir}/fs1.img bs=1M count=4 >/dev/null 2>&1
 dd if=/dev/zero of=${tmpdir}/fs2.img bs=1M count=4 >/dev/null 2>&1
 
 mkfs='/sbin/mkfs.minix'
+fs=minix
 if [ ! -x "$mkfs" ]; then
     mkfs='/sbin/mkfs.vfat'
+    fs=vfat
     if [ ! -x "$mkfs" ]; then
         mkfs=''
     fi
@@ -40,15 +42,15 @@ fi
 ${mkfs} ${tmpdir}/fs1.img >/dev/null
 ${mkfs} ${tmpdir}/fs2.img >/dev/null
 
-mount ${tmpdir}/fs2.img ${tmpdir}/mnt2 -o loop
+mount -t $fs ${tmpdir}/fs2.img ${tmpdir}/mnt2 -o loop
 ls >${tmpdir}/mnt2/file
 umount ${tmpdir}/mnt2
 
 # We can't be sure we'll have all we need to run this test so skip if anything fails
-if ! mount ${tmpdir}/fs1.img ${tmpdir}/mnt1 -o loop; then
+if ! mount -t $fs ${tmpdir}/fs1.img ${tmpdir}/mnt1 -o loop; then
     exit 77
 fi
-if ! mount ${tmpdir}/fs2.img ${tmpdir}/mnt2 -o loop; then
+if ! mount -t $fs ${tmpdir}/fs2.img ${tmpdir}/mnt2 -o loop; then
     umount ${tmpdir}/mnt1
     exit 77
 fi

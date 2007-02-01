@@ -27,13 +27,8 @@
 #include <syscall.h>
 #include <malloc.h>
 
-
 #include "tlp-test.h"
 #include "modules/tlp-test.h"
-
-#ifdef __NR_gettid
-_syscall0(pid_t, gettid);
-#endif
 
 void dump_env(char *env, unsigned int size)
 {
@@ -61,7 +56,7 @@ int main(int argc, char *argv[])
     unsigned long tty;
 
 
-#ifndef __NR_gettid
+#ifndef SYS_gettid
     exit(77);
 #endif
 
@@ -97,10 +92,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-#ifdef __NR_gettid
-    if ( gettid() != thread.tid )
+#ifdef SYS_gettid
+    if ( syscall(SYS_gettid) != thread.tid )
     {
-        fprintf(stderr,"TID mismatch! %d != %d\n",gettid(), thread.tid);
+        fprintf(stderr,"TID mismatch! %d != %d\n", syscall(SYS_gettid), thread.tid);
         close(fd);
         return 1;
     }

@@ -23,21 +23,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mount.h>
-#include <linux/unistd.h>
-#include <linux/types.h>
-#include <linux/sysctl.h>
+#include <sys/sysctl.h>
 
 #include "tlp-test.h"
 #include "modules/tlp-test.h"
 
-_syscall1(int, _sysctl, struct __sysctl_args *, args);
-
-int sysctl(int *name, int nlen, void *oldval, size_t *oldlenp,
-           void *newval, size_t newlen)
-{
-        struct __sysctl_args args={name,nlen,oldval,oldlenp,newval,newlen};
-        return _sysctl(&args);
-}
 #define SIZE(x) sizeof(x)/sizeof(x[0])
 #define NAMESZ 16
 

@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
     if ( creat(filename, O_CREAT | O_TRUNC) < 0 )
     {
         fprintf(stderr, "Failed to create file (%d)!\n", errno);
-        return 6;
+        return 10+errno;
     }
 
     return 0;

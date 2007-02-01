@@ -104,9 +104,12 @@ int main(int argc, char *argv[])
 
     if ( WEXITSTATUS(status) )
     {
-        fprintf(stderr, "Child failed!\n");
-        vc_exit(talpa);
-        return -1;
+        if ( WEXITSTATUS(status) != (10+ENODATA) )
+        {
+            fprintf(stderr, "Child failed!\n");
+            vc_exit(talpa);
+            return -1;
+        }
     }
 
     vc_exit(talpa);
