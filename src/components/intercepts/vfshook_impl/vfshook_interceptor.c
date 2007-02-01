@@ -1668,9 +1668,11 @@ static void walkMountTree(void)
 
     read_lock(&inittask->fs->lock);
     spin_lock(&dcache_lock);
+    talpa_vfsmount_lock();
     /* Find system root */
     for (rootmnt = inittask->fs->rootmnt; rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
     rootmnt = mntget(rootmnt);
+    talpa_vfsmount_unlock();
     spin_unlock(&dcache_lock);
     read_unlock(&inittask->fs->lock);
 
@@ -1682,6 +1684,7 @@ static void walkMountTree(void)
         processMount(mnt, mnt->mnt_flags, false);
 
         spin_lock(&dcache_lock);
+        talpa_vfsmount_lock();
 
         /* Go down the tree for a child if there is one */
         if ( !list_empty(&mnt->mnt_mounts) )
@@ -1708,6 +1711,7 @@ static void walkMountTree(void)
             if ( nextmnt == nextmnt->mnt_parent )
             {
                 mntput(mnt);
+                talpa_vfsmount_unlock();
                 spin_unlock(&dcache_lock);
                 break;
             }
@@ -1719,6 +1723,7 @@ static void walkMountTree(void)
         mntget(nextmnt);
         mntput(mnt);
         mnt = nextmnt;
+        talpa_vfsmount_unlock();
         spin_unlock(&dcache_lock);
     } while (mnt);
 
