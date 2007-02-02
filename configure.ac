@@ -280,13 +280,13 @@ AC_ARG_ENABLE(syscallhook,
               [ auto_syscallhook=yes])
 
 AC_ARG_ENABLE(same-file,
-              [  --enable-same-file             should file being intercepted be directly used for stream interface operations or a new copy opened [[disabled]]],
+              [  --disable-same-file            should file being intercepted be directly used for stream interface operations or a new copy opened [[enabled]]],
               [ if test $enableval = "yes"; then
                     AC_SUBST(samefile, "-DTALPA_SAME_FILE")
                 else
                     AC_SUBST(samefile, "")
                 fi ],
-              [ AC_SUBST(samefile, "") ])
+              [ AC_SUBST(samefile, "-DTALPA_SAME_FILE") ])
 
 CFLAGS=
 
