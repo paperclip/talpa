@@ -682,20 +682,32 @@ if test $((kern_version_code)) -ge 132608; then
         ${EGREP} EXPORT_SYMBOL\\\(do_execve\\\)\; $kerneldir/fs/exec.c >/dev/null 2>&1
         if test $? -ne 0; then
             AC_SUBST(execve,"")
-            AC_MSG_RESULT([not available])
-        else
-            AC_MSG_RESULT([available])
         fi
     elif test -f $sourcedir/fs/exec.c; then
         ${EGREP} EXPORT_SYMBOL\\\(do_execve\\\)\; $sourcedir/fs/exec.c >/dev/null 2>&1
         if test $? -ne 0; then
             AC_SUBST(execve,"")
-            AC_MSG_RESULT([not available])
-        else
-            AC_MSG_RESULT([available])
         fi
     else
         AC_SUBST(execve,"")
+    fi
+
+    # Attempt to fetch do_execve address if not exported
+    if test "$execve" == ""; then
+        do_execve_addr=`${EGREP} " do_execve" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$do_execve_addr" != ""; then
+            AC_SUBST(execve, "-DTALPA_EXECVE_SUPPORT -DTALPA_HIDDEN_EXECVE -DTALPA_HIDDEN_EXECVE_ADDRESS=0x$do_execve_addr")
+        fi
+    fi
+
+    # Finally output result of do_execve search
+    if test "$execve" != ""; then
+        if test "$do_execve_addr" == ""; then
+            AC_MSG_RESULT([available])
+        else
+            AC_MSG_RESULT([available (0x$do_execve_addr)])
+        fi
+    else
         AC_MSG_RESULT([not available])
     fi
 

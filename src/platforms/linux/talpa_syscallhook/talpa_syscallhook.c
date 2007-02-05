@@ -85,7 +85,7 @@ const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
   #define MODULE_LICENSE(x) const char module_license[] = x
 #endif
 
-#if defined TALPA_EXECVE_SUPPORT && defined CONFIG_IA32_EMULATION
+#ifdef CONFIG_X86_64
   #undef TALPA_EXECVE_SUPPORT
 #endif
 
@@ -300,11 +300,64 @@ out:
 
 /* This is a original sys_execve with talpa code injected */
 #ifdef TALPA_EXECVE_SUPPORT
+  #ifdef CONFIG_X86_64
+static asmlinkage long talpa_execve(char *name, char **argv, char **envp, struct pt_regs regs)
+{
+    long error;
+    char * filename;
+    struct talpa_syscall_operations* ops;
+    #ifdef TALPA_HIDDEN_EXECVE
+    long (*talpa_do_execve)(char *filename, char **argv, char **envp, struct pt_regs * regs) = (long (*)(char *filename, char **argv, char **envp, struct pt_regs * regs))TALPA_HIDDEN_EXECVE_ADDRESS;
+    #else
+    long (*talpa_do_execve)(char *filename, char **argv, char **envp, struct pt_regs * regs) = &do_execve;
+    #endif
+
+    atomic_inc(&usecnt);
+    ops = interceptor;
+
+    filename = getname(name);
+    error = PTR_ERR(filename);
+    if (IS_ERR(filename))
+        goto out;
+
+    if ( likely( ops != NULL ) )
+    {
+        error = ops->execve_pre(filename);
+        if ( unlikely( error < 0 ))
+        {
+            goto out2;
+        }
+    }
+
+    error = talpa_do_execve(filename, argv, envp, &regs);
+    if (error == 0)
+    {
+        task_lock(current);
+        current->ptrace &= ~PT_DTRACE;
+        task_unlock(current);
+    }
+
+out2:
+    putname(filename);
+out:
+    if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
+    {
+        wake_up(&unregister_wait);
+    }
+
+    return error;
+}
+  #elif defined CONFIG_X86
 static asmlinkage int talpa_execve(struct pt_regs regs)
 {
     int error;
     char * filename;
     struct talpa_syscall_operations* ops;
+    #ifdef TALPA_HIDDEN_EXECVE
+    int (*talpa_do_execve)(char *filename, char **argv, char **envp, struct pt_regs * regs) = (int (*)(char *filename, char **argv, char **envp, struct pt_regs * regs))TALPA_HIDDEN_EXECVE_ADDRESS;
+    #else
+    int (*talpa_do_execve)(char *filename, char **argv, char **envp, struct pt_regs * regs) = &do_execve;
+    #endif
 
     atomic_inc(&usecnt);
     ops = interceptor;
@@ -323,9 +376,18 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
         }
     }
 
-    error = do_execve(filename, (char **) regs.ecx, (char **) regs.edx, &regs);
+    error = talpa_do_execve(filename, (char **) regs.ecx, (char **) regs.edx, &regs);
     if (error == 0)
+    {
+        task_lock(current);
         current->ptrace &= ~PT_DTRACE;
+        task_unlock(current);
+        #ifdef TIF_IRET
+        /* Make sure we don't return using sysenter.. */
+        set_thread_flag(TIF_IRET);
+        #endif
+    }
+
 out2:
     putname(filename);
 out:
@@ -336,8 +398,11 @@ out:
 
     return error;
 }
+  #else
+    #warning "execve is not implemented on this architecture!"
+  #endif
 #else
-  #warning "execve is not implemented on this kernel/platform!"
+  #warning "execve is not implemented on this kernel!"
 #endif
 
 static asmlinkage long talpa_mount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
