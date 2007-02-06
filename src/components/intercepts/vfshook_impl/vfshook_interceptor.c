@@ -1956,16 +1956,17 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
         strcpy(object->mConfigData.value, CFG_VALUE_DISABLED);
     }
 
-    object->mLinuxFilesystemFactory = NULL;
-    object->mLinuxSystemRoot = NULL;
     object->mInitialized = false;
-
-    purgePatches(object);
 
     talpa_mutex_unlock(&object->mSemaphore);
 
-    /* Now we must wait for all callers to leave the hooks */
+    purgePatches(object);
+
+    /* Now we must wait for all callers to leave our hooks */
     wait_event(object->mUnload, atomic_read(&object->mUseCnt) == 0);
+
+    object->mLinuxFilesystemFactory = NULL;
+    object->mLinuxSystemRoot = NULL;
 
     /* Free the configuration list objects */
     talpa_list_for_each_entry_safe(obj, tmp, &object->mNoScanFilesystems, head)
