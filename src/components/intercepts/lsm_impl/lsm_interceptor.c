@@ -26,7 +26,6 @@
 #include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
-#include <linux/namespace.h>
 #include <linux/unistd.h>
 #include <linux/binfmts.h>
 #include <linux/namei.h>
