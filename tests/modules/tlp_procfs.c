@@ -99,7 +99,7 @@ ProcfsTest* newProcfsTest(void)
     ProcfsTest* object;
 
 
-    object = kmalloc(sizeof(template_ProcfsTest), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_ProcfsTest), GFP_KERNEL);
     if (object != 0)
     {
         memcpy(object, &template_ProcfsTest, sizeof(template_ProcfsTest));

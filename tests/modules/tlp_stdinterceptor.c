@@ -132,7 +132,7 @@ TestFilter* newTestFilter(EInterceptAction action)
     TestFilter* object;
 
 
-    object = kmalloc(sizeof(template_TestFilter), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_TestFilter), GFP_KERNEL);
     if (object != 0)
     {
         memcpy(object, &template_TestFilter, sizeof(template_TestFilter));
