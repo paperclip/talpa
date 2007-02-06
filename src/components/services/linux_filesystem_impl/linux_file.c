@@ -94,7 +94,7 @@ LinuxFile* newLinuxFile(void)
     LinuxFile* object;
 
 
-    object = kmalloc(sizeof(template_LinuxFile), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxFile), GFP_KERNEL);
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFile, sizeof(template_LinuxFile));
@@ -124,7 +124,7 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
         return NULL;
     }
 
-    object = kmalloc(sizeof(template_LinuxFile), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxFile), GFP_KERNEL);
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFile, sizeof(template_LinuxFile));

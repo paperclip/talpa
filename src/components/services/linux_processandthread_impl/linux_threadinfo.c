@@ -86,7 +86,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
     LinuxThreadInfo* object;
 
 
-    object = kmalloc(sizeof(template_LinuxThreadInfo), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxThreadInfo), GFP_KERNEL);
     if ( likely(object != NULL) )
     {
         struct task_struct* proc;

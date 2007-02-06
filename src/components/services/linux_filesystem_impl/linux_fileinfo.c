@@ -101,7 +101,7 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
     LinuxFileInfo* object;
 
 
-    object = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
     if ( likely(object != NULL) )
     {
         struct nameidata nd;
@@ -158,7 +158,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
     LinuxFileInfo* object;
 
 
-    object = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
     if ( likely(object != NULL) )
     {
         struct file *file;
@@ -231,7 +231,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
         return NULL;
     }
 
-    fi = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
+    fi = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
     if ( unlikely(fi == NULL) )
     {
         err("Not enought memory for a file info object!");
@@ -283,7 +283,7 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
         return NULL;
     }
 
-    fi = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
+    fi = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
     if ( unlikely(fi == NULL) )
     {
         err("Not enought memory for a file info object!");
@@ -344,7 +344,7 @@ LinuxFileInfo* newLinuxFileInfoFromInode(EFilesystemOperation operation, void* i
         return NULL;
     }
 
-    fi = kmalloc(sizeof(template_LinuxFileInfo), SLAB_KERNEL);
+    fi = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
     if ( unlikely(fi == NULL) )
     {
         err("Not enought memory for a file info object!");

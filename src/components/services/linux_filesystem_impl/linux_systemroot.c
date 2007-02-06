@@ -65,7 +65,7 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
     LinuxSystemRoot* object;
 
 
-    object = kmalloc(sizeof(template_LinuxSystemRoot), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxSystemRoot), GFP_KERNEL);
     if ( object )
     {
         struct task_struct* inittask;

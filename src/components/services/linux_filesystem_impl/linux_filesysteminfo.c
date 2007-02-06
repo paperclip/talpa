@@ -136,7 +136,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
     struct nameidata nd;
 
 
-    object = kmalloc(sizeof(template_LinuxFilesystemInfo), SLAB_KERNEL);
+    object = kmalloc(sizeof(template_LinuxFilesystemInfo), GFP_KERNEL);
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFilesystemInfo, sizeof(template_LinuxFilesystemInfo));
