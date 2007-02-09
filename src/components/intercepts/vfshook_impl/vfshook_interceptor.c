@@ -305,16 +305,7 @@ static int talpaRelease(struct inode *inode, struct file *file)
             {
                 IFile *pFile = NULL;
 
-                #ifdef TALPA_SAME_FILE
-                pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, file);
-                #endif
-                GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, pFile);
-                #ifdef TALPA_SAME_FILE
-                if ( likely(pFile != NULL) )
-                {
-                    pFile->delete(pFile);
-                }
-                #endif
+                GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
                 pFInfo->delete(pFInfo);
             }
             if ( patch->release )
