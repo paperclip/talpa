@@ -548,9 +548,9 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     rootdir = threadInfo->rootDir(threadInfo);
 
     len = sizeof(struct TalpaPacket_VettingDetails);
+    len += sizeof(struct TalpaPacketFragment_FileDetails);
     if ( likely(filename != NULL) )
     {
-        len += sizeof(struct TalpaPacketFragment_FileDetails);
         len += filename_len + 1;
     }
     if ( likely(rootdir != NULL) )
@@ -588,13 +588,15 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     packet->fsuid = userInfo->fsuid(userInfo);
     packet->gid = userInfo->gid(userInfo);
     packet->egid = userInfo->egid(userInfo);
-    if ( likely(filename != NULL) )
     {
         struct TalpaPacketFragment_FileDetails* file = (struct TalpaPacketFragment_FileDetails *)(((char *)packet) + sizeof(struct TalpaPacket_VettingDetails));
         file->operation = this->mFOPLookup[operation];
         file->flags = info->flags(info);
         file->mode = info->mode(info);
-        strcpy(((char *)file) + sizeof(struct TalpaPacketFragment_FileDetails), filename);
+        if ( likely(filename != NULL) )
+        {
+            strcpy(((char *)file) + sizeof(struct TalpaPacketFragment_FileDetails), filename);
+        }
     }
 
     /* Fill in the rest... */
