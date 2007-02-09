@@ -303,8 +303,6 @@ static int talpaRelease(struct inode *inode, struct file *file)
             current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
             {
-                IFile *pFile = NULL;
-
                 GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
                 pFInfo->delete(pFInfo);
             }
