@@ -602,8 +602,11 @@ static int fillDentry(void * __buf, const char * name, int namlen, off_t offset,
     struct dentryContext *dc = (struct dentryContext *)__buf;
 
 
-    /* Skip current and parent directory inodes */
-    if ( ((namlen == 1) && !strncmp(name, ".", 1)) || ((namlen == 2) && !strncmp(name, "..", 2)) )
+    /* Skip current and parent directory inodes.
+       Also skip zero-length names which smbfs can provide in some cases. */
+    else if ( (namlen == 0) || (*name == 0) ||
+              ((namlen == 1) && !strncmp(name, ".", 1)) ||
+              ((namlen == 2) && !strncmp(name, "..", 2)) )
     {
         return 0;
     }
