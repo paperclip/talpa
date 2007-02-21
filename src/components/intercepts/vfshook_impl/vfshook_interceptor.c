@@ -604,9 +604,9 @@ static int fillDentry(void * __buf, const char * name, int namlen, off_t offset,
 
     /* Skip current and parent directory inodes.
        Also skip zero-length names which smbfs can provide in some cases. */
-    else if ( (namlen == 0) || (*name == 0) ||
-              ((namlen == 1) && !strncmp(name, ".", 1)) ||
-              ((namlen == 2) && !strncmp(name, "..", 2)) )
+    if ( (namlen == 0) || (*name == 0) ||
+        ((namlen == 1) && !strncmp(name, ".", 1)) ||
+        ((namlen == 2) && !strncmp(name, "..", 2)) )
     {
         return 0;
     }
@@ -746,6 +746,7 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
 {
     struct openDirectory* tmp;
     struct openDirectory* dir = NULL;
+    int ret = -ENOMEM;
 
 
     talpa_list_for_each_entry(tmp, &dirs->list, head)
@@ -793,13 +794,17 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
 
                     return dir->dir;
                 }
+                else
+                {
+                    ret = PTR_ERR(dir->dir);
+                }
                 talpa_free(dir->name);
             }
             talpa_free(dir);
         }
     }
 
-    return NULL;
+    return ERR_PTR(ret);
 }
 
 static struct dentry *scanDirectory(const char* dirname, char* rootbuf, size_t rootsize, char* buf, size_t bufsize, bool* overflow)
