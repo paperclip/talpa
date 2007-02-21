@@ -797,6 +797,7 @@ static struct file* openDirectory(struct directories* dirs, unsigned int depth, 
                 else
                 {
                     ret = PTR_ERR(dir->dir);
+                    dbg("open directory for %s failed (%d)", dir->name, ret);
                 }
                 talpa_free(dir->name);
             }
