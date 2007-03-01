@@ -68,6 +68,7 @@ static void freeObject(VFSHookObject* obj);
 static void deleteObject(void *self, VFSHookObject* obj);
 static void constructSpecialSet(void* self);
 static void doActionString(void* self, talpa_list_head* list, char** set, const char* value);
+static void destroyStringSet(void *self, char **set);
 
 static long talpaDummyOpen(unsigned int fd);
 static void talpaDummyClose(unsigned int fd);
@@ -87,6 +88,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
 #define CFG_OPS             "ops"
 #define CFG_FS              "fs-ignore"
 #define CFG_NOSCAN          "no-scan"
+#define CFG_PATCHLIST       "fs-list"
 #define CFG_VALUE_ENABLED   "enabled"
 #define CFG_VALUE_DISABLED  "disabled"
 #define CFG_ACTION_ENABLE   "enable"
@@ -141,12 +143,14 @@ static VFSHookInterceptor GL_object =
             {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, VFSHOOK_OPSCFGDATASIZE, true, false },
             {GL_object.mSkipListConfigData.name, GL_object.mSkipListConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
             {GL_object.mNoScanConfigData.name, GL_object.mNoScanConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
+            {GL_object.mPatchConfigData.name, GL_object.mPatchConfigData.value, VFSHOOK_FSCFGDATASIZE, false, false },
             {NULL, NULL, 0, false, false }
         },
         { CFG_STATUS, CFG_VALUE_DISABLED },
         { CFG_OPS, CFG_VALUE_DUMMY },
         { CFG_FS, CFG_VALUE_DUMMY },
         { CFG_NOSCAN, CFG_VALUE_DUMMY },
+        { CFG_PATCHLIST, CFG_VALUE_DUMMY },
         NULL,
         NULL,
         {
@@ -159,6 +163,7 @@ static VFSHookInterceptor GL_object =
             .umount_pre = talpaPreUmount,
             .umount_post = talpaPostUmount,
         },
+        NULL,
         NULL,
         NULL,
     };
@@ -1316,6 +1321,8 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
                 dbg("usecnt for %s stayed %d", fsname, atomic_read(&patch->usecnt));
             }
         }
+        /* Free list showed to userspace so it will be regenerated on next read */
+        destroyStringSet(&GL_object, &GL_object.mPatchListSet);
     }
     else
     {
@@ -1546,6 +1553,8 @@ static void talpaPreUmount(char* name, int flags)
                 {
                     talpa_rcu_write_unlock(&GL_object.mPatchLock);
                 }
+                /* Free list showed to userspace so it will be regenerated on next read */
+                destroyStringSet(&GL_object, &GL_object.mPatchListSet);
             }
             else
             {
@@ -1838,6 +1847,8 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nfsd", false);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "sysfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "debugfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "securityfs", false);
 #else
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "usbdevfs", false);
 #endif
@@ -1925,14 +1936,21 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     object->mLinuxSystemRoot = NULL;
 
     /* Free the configuration list objects */
+    talpa_list_for_each_entry_safe(obj, tmp, &object->mSkipFilesystems, head)
+    {
+        talpa_list_del(&obj->head);
+        freeObject(obj);
+    }
     talpa_list_for_each_entry_safe(obj, tmp, &object->mNoScanFilesystems, head)
     {
         talpa_list_del(&obj->head);
         freeObject(obj);
     }
 
+    /* Free string sets representing configuration data */
     kfree(object->mSkipFilesystemsSet);
     kfree(object->mNoScanFilesystemsSet);
+    kfree(object->mPatchListSet);
 
     return;
 }
@@ -2040,6 +2058,94 @@ try_alloc:
     *set = newset;
 
     talpa_rcu_read_unlock(&this->mListLock);
+
+    return;
+}
+
+static void constructPatchListSet(void* self)
+{
+    unsigned int len;
+    unsigned int alloc_len = 0;
+    struct patchedFilesystem* patch;
+    char* newset = NULL;
+    char* out;
+    char fss;
+    int ret;
+
+
+    /* We are doing the allocation in at least 2-passes.
+     * That is because we want to allocate enough storage outside of
+     * the lock holding section. */
+try_alloc:
+    /* We do not allocate anything in first pass. */
+    if ( alloc_len )
+    {
+        newset = kmalloc(alloc_len, GFP_KERNEL);
+        if ( !newset )
+        {
+            err("Failed to create string set!");
+            return;
+        }
+    }
+
+    len = 0;
+    talpa_rcu_read_lock(&this->mPatchLock);
+    talpa_list_for_each_entry_rcu(patch, &this->mPatches, head)
+    {
+        /* Output line format: fsname refcnt usecnt f|i|s */
+        len += strlen(patch->fstype->name) + 1 + 10 + 1 + 1 + 1;
+    }
+
+    /* We will reallocate if the size has increased or this is a second pass (first allocation)/ */
+    if ( (len + 1) > alloc_len )
+    {
+        talpa_rcu_read_unlock(&this->mPatchLock);
+        alloc_len = len + 1;
+        kfree(newset);
+        goto try_alloc;
+    }
+
+    out = newset;
+    kfree(this->mPatchListSet);
+    talpa_list_for_each_entry_rcu(patch, &this->mPatches, head)
+    {
+        if ( patch->f_ops )
+        {
+            fss = 'F';
+        }
+        else if ( patch->sf_ops )
+        {
+            fss = 'S';
+        }
+        else if ( patch->i_ops )
+        {
+            fss = 'I';
+        }
+        else
+        {
+            fss = '?';
+        }
+        if ( atomic_read(&patch->usecnt) > 0xffffffff )
+        {
+            ret = sprintf(out, "%s x %c\n", patch->fstype->name, fss);
+        }
+        else
+        {
+            ret = sprintf(out, "%s %u %c\n", patch->fstype->name, atomic_read(&patch->usecnt), fss);
+        }
+        if ( ret > 0 )
+        {
+            out += ret;
+        }
+    }
+    if ( out > newset )
+    {
+        out--;
+    }
+    *out = 0;
+    this->mPatchListSet = newset;
+
+    talpa_rcu_read_unlock(&this->mPatchLock);
 
     return;
 }
@@ -2320,6 +2426,14 @@ static const char* config(const void* self, const char* name)
                 constructStringSet(this, &this->mNoScanFilesystems, &this->mNoScanFilesystemsSet);
             }
             retstring = this->mNoScanFilesystemsSet;
+        }
+        else if ( !strcmp(cfgElement->name, CFG_PATCHLIST) )
+        {
+            if ( !this->mPatchListSet )
+            {
+                constructPatchListSet(this);
+            }
+            retstring = this->mPatchListSet;
         }
 
         talpa_mutex_unlock(&this->mSemaphore);
