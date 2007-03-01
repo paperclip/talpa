@@ -635,7 +635,7 @@ static int fillDentry(void * __buf, const char * name, int namlen, off_t offset,
     }
     strncat(dc->dirent, name, namlen);
 
-    return -1;
+    return -EBFONT;
 }
 
 static void stripLastPathElement(char* path)
@@ -878,7 +878,7 @@ rescan:
         *overflow |= dc->overflow;
 
         /* Back-out if at end-of-directory or if error occured */
-        if ( (err < 0) || !dc->fill )
+        if ( ((err < 0) && (err != -EBFONT)) || !dc->fill )
         {
             if ( !strcmp(dirname, dc->root) )
             {
