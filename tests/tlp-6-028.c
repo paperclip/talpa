@@ -52,6 +52,17 @@ int main(int argc, char *argv[])
     to.flags = O_WRONLY | O_TRUNC | O_CREAT;
     to.mode = 0;
 
+    ret = open(to.filename, to.flags, to.mode);
+
+    if ( ret < 0 )
+    {
+        fprintf(stderr,"Create error!\n");
+        close(fd);
+        return 1;
+    }
+
+    close(ret);
+
     ret = ioctl(fd,TALPA_TEST_FILE_OPEN, &to);
 
     if ( ret < 0 )

@@ -38,9 +38,9 @@
 * Forward declare implementation methods.
 */
 static void    get          (void* self);
-static int     open         (void* self, const char* filename, unsigned int flags, unsigned int mode);
+static int     open         (void* self, const char* filename, unsigned int flags);
+static int     openDentry   (void* self, void* object1, void* object2, unsigned int flags);
 static int     openExec     (void* self, const char* filename);
-static int     openInternal (void* self, void* dentry, unsigned int flags);
 static bool    isOpen       (const void* self);
 static bool    isWritable   (const void* self);
 static int     close        (void* self);
@@ -61,8 +61,8 @@ static LinuxFile template_LinuxFile =
         {
             get,
             open,
+            openDentry,
             openExec,
-            openInternal,
             isOpen,
             isWritable,
             close,
@@ -77,9 +77,8 @@ static LinuxFile template_LinuxFile =
         },
         deleteLinuxFile,
         ATOMIC_INIT(1),
-        Regular,
+        Dentry,
         false,
-        NULL,
         NULL,
         0
     };
@@ -140,7 +139,6 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
         }
 
         object->mFile = fobject;
-        object->mFiles = current->files;
 
         offset = seek(object, 0, 1);
         if ( unlikely(offset < 0) )
@@ -175,42 +173,6 @@ static void get(void* self)
     return;
 }
 
-static int open(void* self, const char* filename, unsigned int flags, unsigned int mode)
-{
-    struct file* file;
-
-
-    if ( unlikely(this->mFile != NULL) )
-    {
-        return -EBUSY;
-    }
-
-    file = filp_open(filename, flags, mode);
-
-    if ( unlikely(IS_ERR(file)) )
-    {
-        return PTR_ERR(file);
-    }
-
-    if ( !verifyFile(file) )
-    {
-        filp_close(file, current->files);
-        return -EBADF;
-    }
-
-    if ( flags & (O_WRONLY | O_RDWR) )
-    {
-        this->mWritable = true;
-    }
-
-    this->mOpenType = Regular;
-    this->mFile = file;
-    this->mFiles = current->files;
-    this->mOffset = 0;
-
-    return 0;
-}
-
 static int openExec(void* self, const char* filename)
 {
     struct file* file;
@@ -230,48 +192,74 @@ static int openExec(void* self, const char* filename)
 
     this->mOpenType = Exec;
     this->mFile = file;
-    this->mFiles = current->files;
     this->mOffset = 0;
 
     return 0;
 }
 
-static int openInternal(void* self, void* dentry, unsigned int flags)
+static int openDentry(void* self, void* object1, void* object2, unsigned int flags)
 {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)) || (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,7))
-    return -ENOSYS;
-#else
-    int ret;
     struct file* file;
 
-    file = get_empty_filp();
 
-    if ( !file )
+    if ( unlikely(this->mFile != NULL) )
     {
-        return -EMFILE;
+        return -EBUSY;
     }
 
-    ret = open_private_file(file, (struct dentry *)dentry, flags);
-
-    if ( ret )
+    if ( unlikely((object1 == NULL) || (object2 == NULL)) )
     {
-        put_filp(file);
+        return -EINVAL;
     }
-    else
-    {
-        if ( flags & (O_WRONLY | O_RDWR) )
-        {
-            this->mWritable = true;
-        }
 
-        this->mOpenType = Internal;
-        this->mFile = file;
-        this->mFiles = NULL;
-        this->mOffset = 0;
+    file = dentry_open((struct dentry *)object1, (struct vfsmount *)object2, flags);
+
+    if ( unlikely(IS_ERR(file)) )
+    {
+        return PTR_ERR(file);
     }
+
+    if ( !verifyFile(file) )
+    {
+        fput(file);
+        return -EBADF;
+    }
+
+    if ( flags & (O_WRONLY | O_RDWR) )
+    {
+        this->mWritable = true;
+    }
+
+    this->mOpenType = Dentry;
+    this->mFile = file;
+    this->mOffset = 0;
 
     return 0;
-#endif
+}
+
+static int open(void* self, const char* filename, unsigned int flags)
+{
+    int ret;
+    struct nameidata nd;
+
+
+    if ( unlikely(this->mFile != NULL) )
+    {
+        return -EBUSY;
+    }
+
+    ret = talpa_path_lookup(filename, TALPA_LOOKUP, &nd);
+
+    if ( unlikely(ret != 0) )
+    {
+        return ret;
+    }
+
+    ret = openDentry(self, dget(nd.dentry), mntget(nd.mnt), flags);
+
+    path_release(&nd);
+
+    return ret;
 }
 
 static bool isOpen(const void* self)
@@ -299,28 +287,18 @@ static int close(void* self)
         return -EBADF;
     }
 
-    switch ( this->mOpenType )
+    if ( this->mOpenType == Exec )
     {
-        case Exec:
-            allow_write_access(this->mFile);
-            /* Intentional fall-through! */
-        case Regular:
-            retval = filp_close(this->mFile, this->mFiles);
-            break;
-        case Cloned:
-            retval = seek(this, this->mOffset, 0);
-            atomic_dec(&this->mFile->f_count);
-            break;
-        case Internal:
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8))
-            close_private_file(this->mFile);
-            put_filp(this->mFile);
-#endif
-            break;
+        allow_write_access(this->mFile);
+    }
+    else if ( this->mOpenType == Cloned )
+    {
+        retval = seek(this, this->mOffset, 0);
     }
 
+    fput(this->mFile);
+
     this->mFile = NULL;
-    this->mFiles = NULL;
     this->mOffset = 0;
 
     return retval;

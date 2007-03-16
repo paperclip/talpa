@@ -398,7 +398,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                 if ( filename )
                 {
                     details->file->close(details->file->object);
-                    if ( details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE, 0) >= 0 )
+                    if ( details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE) >= 0 )
                     {
                         res = details->file->seek(details->file->object, offset, 0);
                         if ( res != offset )
@@ -675,7 +675,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
             }
             else
             {
-                ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE, 0);
+                ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE);
                 /* We cannot distinguish between open and exec with vfs interceptor
                 so it is possible that this failed because of the lack of read permission.
                 Try to with open_exec as a last resort. */

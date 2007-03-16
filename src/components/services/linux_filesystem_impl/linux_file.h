@@ -30,10 +30,9 @@
 
 typedef enum
 {
-    Regular = 0,
+    Dentry = 0,
     Exec,
-    Cloned,
-    Internal
+    Cloned
 } EOpenType;
 
 typedef struct tag_LinuxFile
@@ -44,7 +43,6 @@ typedef struct tag_LinuxFile
     EOpenType               mOpenType;
     bool                    mWritable;
     struct file*            mFile;
-    struct files_struct*    mFiles;
     loff_t                  mOffset;
 } LinuxFile;
 
