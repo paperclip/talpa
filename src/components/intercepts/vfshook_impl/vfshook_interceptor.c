@@ -945,43 +945,91 @@ static struct dentry *findRegular(struct vfsmount* root)
     struct vfsmount *mntroot;
     char *path, *name;
     size_t path_size = 0;
-    bool overflow = false;
+    bool overflow;
     char *rootbuf, *buf;
     size_t root_size = 0;
+#if defined __GFP_NOWARN && defined __GFP_NORETRY
+    unsigned int max_order = 3;
+#else
+    unsigned int max_order = 0;
+#endif
+    unsigned int mnt_order, dir_order;
 
 
-    path = talpa_alloc_path(&path_size);
-    if ( !path )
-    {
-        return NULL;
-    }
-
+    /* Allocate storage and build mount point path */
     droot = dget(root->mnt_root);
     mntroot = mntget(root);
-    name = d_path(root->mnt_root, root, path, path_size);
+    for (mnt_order = 0; mnt_order <= max_order; mnt_order++)
+    {
+        path = talpa_alloc_path_order(mnt_order, &path_size);
+        /* Fail immediately if allocation failed since chances are low
+           the higher order one will succeed. */
+        if ( !path )
+        {
+            dbg("failed to allocate order %u", mnt_order);
+            goto exit1;
+        }
+        name = d_path(root->mnt_root, root, path, path_size);
+        if ( IS_ERR(name) )
+        {
+            talpa_free_path_order(path, mnt_order);
+            if ( PTR_ERR(name) == -EOVERFLOW )
+            {
+                /* Try with a larger buffer if there was not enough room for a path */
+                dbg("order %u is insufficient", mnt_order);
+            }
+            else
+            {
+                /* Unexpected failure */
+                dbg("unexpected failure %d", PTR_ERR(name));
+                goto exit1;
+            }
+        }
+        else
+        {
+            /* Success */
+            dbg("mount point path %s (%u)", name, mnt_order);
+            break;
+        }
+    }
+
+    /* Failed to build mount point path? */
     if ( IS_ERR(name) )
     {
-        mntput(mntroot);
-        dput(droot);
-        talpa_free_path(path);
-        return NULL;
+        dbg("max order of %u was insufficient (%u)", max_order, PTR_ERR(name));
+        goto exit1;
     }
-    rootbuf = talpa_alloc_path(&root_size);
-    buf = talpa_alloc_path(&path_size);
-    if ( rootbuf && buf )
+
+    /* Now scan the mount point path */
+    for (dir_order = 0; dir_order <= max_order; dir_order++)
     {
+        rootbuf = talpa_alloc_path_order(dir_order, &root_size);
+        buf = talpa_alloc_path_order(dir_order, &path_size);
+        if ( !rootbuf || !buf )
+        {
+            dbg("failed to allocate order %u", dir_order);
+            break;
+        }
+        overflow = false;
         reg = scanDirectory(name, rootbuf, root_size, buf, path_size, &overflow);
+        if ( !reg && overflow )
+        {
+            /* Try with a larger buffer */
+            dbg("order %u is insufficient", dir_order);
+            talpa_free_path_order(rootbuf, dir_order);
+            talpa_free_path_order(buf, dir_order);
+            continue;
+        }
+        dbg("found regular dentry 0x%p", reg);
+        break;
     }
-    talpa_free_path(rootbuf);
-    talpa_free_path(buf);
+
+    talpa_free_path_order(rootbuf, dir_order);
+    talpa_free_path_order(buf, dir_order);
+    talpa_free_path_order(path, mnt_order);
+exit1:
     mntput(mntroot);
     dput(droot);
-    talpa_free_path(path);
-
-    if ( !reg && overflow )
-    {
-        dbg("Detected path deeper than buffers can hold! (%lu/%lu)", root_size, path_size);
-    }
 
     return reg;
 }
