@@ -27,29 +27,30 @@
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 
+#include "platform/compiler.h"
 
-#if __GNUC__ == 2 && __GNUC_MINOR__ < 96
-#define __builtin_expect(x, expected_value) (x)
-#endif
-
-#ifndef likely
-#define likely(x)       __builtin_expect(!!(x), 1)
-#endif
-
-#ifndef unlikely
-#define unlikely(x)     __builtin_expect(!!(x), 0)
-#endif
 
 static inline void *talpa_alloc(size_t bytes)
 {
-    return kmalloc(bytes, GFP_KERNEL);
+    unsigned int mask = GFP_KERNEL;
+
+
+#ifdef __GFP_NOWARN
+    mask |= __GFP_NOWARN;
+#endif
+
+#ifdef __GFP_NORETRY
+    mask |= __GFP_NORETRY;
+#endif
+
+    return kmalloc(bytes, mask);
 }
 
 static inline void *talpa_zalloc(size_t bytes)
 {
     void *ptr;
 
-    ptr =  kmalloc(bytes, GFP_KERNEL);
+    ptr =  talpa_alloc(bytes);
 
     if ( likely( ptr != NULL ) )
     {
@@ -71,33 +72,50 @@ static inline void *talpa_large_alloc(size_t bytes)
 
 static inline void talpa_large_free(void *ptr)
 {
+    if ( unlikely(ptr == NULL) )
+    {
+        return;
+    }
+
     vfree(ptr);
+}
+
+static inline char *talpa_alloc_path_order(unsigned int order, size_t *size)
+{
+    unsigned int mask = GFP_KERNEL;
+
+
+#ifdef __GFP_NOWARN
+    mask |= __GFP_NOWARN;
+#endif
+
+#ifdef __GFP_NORETRY
+    mask |= __GFP_NORETRY;
+#endif
+
+    *size = PAGE_SIZE<<order;
+
+    return (char *)__get_free_pages(mask, order);
+}
+
+static inline void talpa_free_path_order(char *buf, unsigned int order)
+{
+    if ( unlikely(buf == NULL) )
+    {
+        return;
+    }
+
+    free_pages((unsigned long)buf, order);
 }
 
 static inline char *talpa_alloc_path(size_t *size)
 {
-    unsigned int order = 4;
-    char *buf;
-    size_t bufsize;
-
-    do
-    {
-        bufsize = PAGE_SIZE << order;
-        buf = kmalloc(bufsize, GFP_KERNEL);
-        order--;
-    } while ( !buf && (order > 0) );
-
-    if ( buf && size )
-    {
-        *size = bufsize;
-    }
-
-    return buf;
+    return talpa_alloc_path_order(0, size);
 }
 
 static inline void talpa_free_path(char *buf)
 {
-    kfree(buf);
+    talpa_free_path_order(buf, 0);
 }
 
 #endif
