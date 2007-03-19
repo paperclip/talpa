@@ -81,6 +81,10 @@ const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
   #define unlikely(x)     __builtin_expect(!!(x), 0)
 #endif
 
+#ifndef prevent_tail_call
+# define prevent_tail_call(ret) do { } while (0)
+#endif
+
 #ifndef MODULE_LICENSE
   #define MODULE_LICENSE(x) const char module_license[] = x
 #endif
@@ -241,6 +245,7 @@ out:
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(fd);
     return fd;
 }
 
@@ -266,6 +271,7 @@ static asmlinkage long talpa_close(unsigned int fd)
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(err);
     return err;
 }
 
@@ -295,6 +301,7 @@ out:
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(err);
     return err;
 }
 
@@ -345,6 +352,7 @@ out:
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(error);
     return error;
 }
   #elif defined CONFIG_X86
@@ -396,6 +404,7 @@ out:
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(error);
     return error;
 }
   #else
@@ -436,6 +445,7 @@ out:
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(err);
     return err;
 }
 
@@ -471,6 +481,7 @@ static asmlinkage long talpa_umount(char* name)
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(err);
     return err;
 }
 #endif
@@ -502,6 +513,7 @@ static asmlinkage long talpa_umount2(char* name, int flags)
         wake_up(&unregister_wait);
     }
 
+    prevent_tail_call(err);
     return err;
 }
 
