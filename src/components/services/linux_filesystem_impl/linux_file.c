@@ -212,7 +212,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
         return -EINVAL;
     }
 
-    file = dentry_open((struct dentry *)object1, (struct vfsmount *)object2, flags);
+    file = dentry_open(dget((struct dentry *)object1), mntget((struct vfsmount *)object2), flags);
 
     if ( unlikely(IS_ERR(file)) )
     {

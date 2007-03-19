@@ -48,6 +48,7 @@ static uint32_t              deviceMajor        (const void* self);
 static uint32_t              deviceMinor        (const void* self);
 static const char*           deviceName         (const void* self);
 static const char*           fsType             (const void* self);
+static bool                  fsObjects          (const void* self, void** obj1, void** obj2);
 static void deleteLinuxFileInfo(struct tag_LinuxFileInfo* object);
 
 
@@ -70,6 +71,7 @@ static LinuxFileInfo template_LinuxFileInfo =
             deviceMinor,
             deviceName,
             fsType,
+            fsObjects,
             NULL,
             (void (*)(const void*))deleteLinuxFileInfo
         },
@@ -81,6 +83,7 @@ static LinuxFileInfo template_LinuxFileInfo =
         0,
         0,
         0,
+        NULL,
         NULL,
         NULL,
         0,
@@ -123,9 +126,10 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
                 object->mFilename = talpa_d_path(nd.dentry, nd.mnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
                 object->mOperation = operation;
                 object->mFlags = flags;
+                object->mDentry = nd.dentry;
+                object->mVFSMount = nd.mnt;
                 object->mMode = nd.dentry->d_inode->i_mode;
                 object->mIno = nd.dentry->d_inode->i_ino;
-                object->mVFSMount = mntget(nd.mnt);
                 object->mWriteCount = (atomic_read(&nd.dentry->d_inode->i_writecount)<=0)?0:atomic_read(&nd.dentry->d_inode->i_writecount);
                 object->mDevice = kdev_t_to_nr(inode_dev(nd.dentry->d_inode));
                 object->mDeviceMajor = MAJOR(inode_dev(nd.dentry->d_inode));
@@ -184,7 +188,8 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
             object->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
             object->mOperation = operation;
             object->mFlags = file->f_flags;
-            object->mVFSMount = mntget(file->f_vfsmnt);
+            object->mDentry = file->f_dentry;
+            object->mVFSMount = file->f_vfsmnt;
 
             if ( likely(file->f_dentry && file->f_dentry->d_inode) )
             {
@@ -259,7 +264,8 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     fi->mMode = inode->i_mode;
     fi->mIno = inode->i_ino;
     fi->mInode = inode;
-    fi->mVFSMount = mntget(file->f_vfsmnt);
+    fi->mDentry = file->f_dentry;
+    fi->mVFSMount = file->f_vfsmnt;
     fi->mDevice = kdev_t_to_nr(inode_dev(inode));
     fi->mDeviceMajor = MAJOR(inode_dev(inode));
     fi->mDeviceMinor = MINOR(inode_dev(inode));
@@ -310,7 +316,8 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     fi->mFilename = talpa_d_path(dentry, vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
     fi->mOperation = operation;
     fi->mFlags = flags;
-    fi->mVFSMount = mntget(vfsmnt);
+    fi->mDentry = dentry;
+    fi->mVFSMount = vfsmnt;
 
     if ( unlikely( mode > 0 ) )
     {
@@ -371,11 +378,6 @@ static void deleteLinuxFileInfo(struct tag_LinuxFileInfo* object)
 {
     if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( likely(object->mVFSMount != 0) )
-        {
-            mntput(object->mVFSMount);
-        }
-
         talpa_free_path(object->mPath);
         kfree(object->mDeviceName);
         kfree(object->mFSType);
@@ -492,6 +494,19 @@ static const char* fsType(const void* self)
     }
 
     return this->mFSType;
+}
+
+static bool fsObjects(const void* self, void** obj1, void** obj2)
+{
+    if ( this->mDentry && this->mVFSMount )
+    {
+        *obj1 = this->mDentry;
+        *obj2 = this->mVFSMount;
+
+        return true;
+    }
+
+    return false;
 }
 
 /*

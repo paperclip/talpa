@@ -40,6 +40,7 @@ typedef struct
     uint32_t              (*deviceMinor)        (const void* self);
     const char*           (*deviceName)         (const void* self);
     const char*           (*fsType)             (const void* self);
+    bool                  (*fsObjects)          (const void* self, void** obj1, void** obj2);
     /*
      *  Object supporting this interface instance.
      */

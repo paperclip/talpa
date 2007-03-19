@@ -390,32 +390,56 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
             }
             else if ( atomic_read(&details->reopen) )
             {
-                loff_t res;
-                loff_t offset = details->file->seek(details->file->object, 0, 1);
+                loff_t offset;
+                void* fsobj1;
+                void* fsobj2;
+                int ret = -ENODATA;
 
+
+                /* Remember the current file position and close the file */
+                offset = details->file->seek(details->file->object, 0, 1);
+                details->file->close(details->file->object);
 
                 dbg("[intercepted %u-%u-%u] requested re-open for writting (offset %ld)", processParentPID(current), current->tgid, current->pid, offset);
-                if ( filename )
+
+                /* Try opening with low-level filesystem objects first */
+                if ( details->fileInfo->fsObjects(details->fileInfo->object, &fsobj1, &fsobj2) )
                 {
-                    details->file->close(details->file->object);
-                    if ( details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE) >= 0 )
+                    ret = details->file->openDentry(details->file->object, fsobj1, fsobj2, O_RDWR | O_LARGEFILE);
+                }
+
+                /* If that failed or wasn't attempted try with opening via filename */
+                if ( ret && filename )
+                {
+                    ret = details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE);
+                    if ( ret == 0 )
                     {
+                        loff_t res;
+
+
+                        /* Restore previous offset */
                         res = details->file->seek(details->file->object, offset, 0);
                         if ( res != offset )
                         {
                             err("Failed to re-position in file!");
                             details->file->close(details->file->object);
+                            if ( res < 0 )
+                            {
+                                ret = res;
+                            }
+                            else
+                            {
+                                ret = -ESPIPE;
+                            }
                         }
                     }
-                    else
-                    {
-                        dbg("[intercepted %u-%u-%u] re-open failed", processParentPID(current), current->tgid, current->pid);
-                    }
                 }
-                else
+
+                if ( ret != 0 )
                 {
-                    dbg("[intercepted %u-%u-%u] re-open failed (no filename)", processParentPID(current), current->tgid, current->pid);
+                    dbg("[intercepted %u-%u-%u] re-open failed (%d)", processParentPID(current), current->tgid, current->pid, ret);
                 }
+
                 atomic_set(&details->reopen, 0);
                 talpa_complete(&details->reopenCompletion);
             }
@@ -650,49 +674,62 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
 
     local_filename = (char *)filename;
 
-    if ( !file->isOpen(file->object) )
+    if ( likely( !file->isOpen(file->object) ) )
     {
-        if ( unlikely( !local_filename ) )
+        void* fsobj1;
+        void* fsobj2;
+
+
+        /* If low-level filesystem objects are available open the file using them. */
+        if ( likely( (operation != EFS_Exec) && (info->fsObjects(info, &fsobj1, &fsobj2) == true) ) )
         {
-            ret = -ENODATA;
+            ret = details->file->openDentry(file->object, fsobj1, fsobj2, O_RDONLY | O_LARGEFILE);
+        }
+
+        /* If open via fs object failed or wasn't attempted try opening via filename. */
+        if ( ret != 0 )
+        {
+            if ( local_filename )
+            {
+                /* Use just the process relative part of the filename if the process is
+                    not at the system root. It was intended to call threadInfo->atSystemRoot
+                    here, but rootdir_len > 0 is currently equivalent to that. It used
+                    to be rootdir_len > 1 but userspace wants to have a special case. */
+                if ( unlikely( rootdir_len > 0 ) )
+                {
+                    local_filename += rootdir_len;
+                }
+
+                /* Open the file for the stream server. Use the appropriate method depending on operation code. */
+                if ( unlikely( operation == EFS_Exec ) )
+                {
+                    ret = details->file->openExec(file->object, local_filename);
+                }
+                else
+                {
+                    ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE);
+                    /* We cannot distinguish between open and exec with vfs interceptor
+                    so it is possible that this failed because of the lack of read permission.
+                    Try to with open_exec as a last resort. */
+                    if ( unlikely( ret == -EACCES ) )
+                    {
+                        ret = details->file->openExec(file->object, local_filename);
+                    }
+                }
+            }
+            else
+            {
+                ret = -ENODATA;
+            }
+        }
+
+        if ( unlikely( ret != 0 ) )
+        {
             goto file_open_failed;
         }
         else
         {
-            /* Use just the process relative part of the filename if the process is
-                not at the system root. It was intended to call threadInfo->atSystemRoot
-                here, but rootdir_len > 0 is currently equivalent to that. It used
-                to be rootdir_len > 1 but userspace wants to have a special case. */
-            if ( unlikely( rootdir_len > 0 ) )
-            {
-                local_filename += rootdir_len;
-            }
-
-            /* Open the file for the stream server. Use the appropriate method depending on operation code. */
-            if ( unlikely( operation == EFS_Exec ) )
-            {
-                ret = details->file->openExec(file->object, local_filename);
-            }
-            else
-            {
-                ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE);
-                /* We cannot distinguish between open and exec with vfs interceptor
-                so it is possible that this failed because of the lack of read permission.
-                Try to with open_exec as a last resort. */
-                if ( unlikely( ret == -EACCES ) )
-                {
-                    ret = details->file->openExec(file->object, local_filename);
-                }
-            }
-
-            if ( unlikely( ret < 0 ) )
-            {
-                goto file_open_failed;
-            }
-            else
-            {
-                dbg("[intercepted %u-%u-%u] Opened readonly", processParentPID(current), current->tgid, current->pid);
-            }
+            dbg("[intercepted %u-%u-%u] Opened readonly", processParentPID(current), current->tgid, current->pid);
         }
     }
     else

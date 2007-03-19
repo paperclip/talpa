@@ -40,6 +40,7 @@ typedef struct tag_LinuxFileInfo
     unsigned long               mIno;
     unsigned int                mWriteCount;
     struct inode*               mInode;
+    struct dentry*              mDentry;
     struct vfsmount*            mVFSMount;
     uint64_t                    mDevice;
     uint32_t                    mDeviceMajor;
