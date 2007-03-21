@@ -566,9 +566,6 @@ static int ddvcIoctl(struct inode* inode, struct file* file, unsigned int cmd, u
         case TLPVCIOC_GETBUFFERSIZE:
             ret = state->maxinsize;
             break;
-        case TLPVCIOC_GETSTREAMSIZE:
-            ret = sizeof(struct TalpaPacket_StreamData) + client->streamSize;
-            break;
     }
 
     if ( response )
