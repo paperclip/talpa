@@ -41,6 +41,7 @@
 
 #define TALPA_SUBSYS "vcdevice"
 #include "common/talpa.h"
+#include "platform/alloc.h"
 #include "device_driver_vetting_client.h"
 
 /*
@@ -323,7 +324,7 @@ static int ddvcOpen(struct inode* inode, struct file* file)
     }
 
     client = (VettingClient *)file->private_data;
-    state = kmalloc(sizeof(struct DDVC_State), GFP_KERNEL);
+    state = talpa_alloc(sizeof(struct DDVC_State));
 
     if ( !state )
     {
@@ -339,7 +340,7 @@ static int ddvcOpen(struct inode* inode, struct file* file)
 
     while ( maxdatasize >= mindatasize )
     {
-        state->packet = kmalloc(maxdatasize, GFP_KERNEL);
+        state->packet = talpa_alloc(maxdatasize);
         if ( state->packet )
         {
             break;
@@ -350,7 +351,7 @@ static int ddvcOpen(struct inode* inode, struct file* file)
     /* Account for the posibility that max packet size is very small to begin with */
     if ( !state->packet )
     {
-        state->packet = kmalloc(maxdatasize, GFP_KERNEL);
+        state->packet = talpa_alloc(maxdatasize);
     }
 
     state->mininsize = server->queryMinPacketSize(server->object);
@@ -359,7 +360,7 @@ static int ddvcOpen(struct inode* inode, struct file* file)
     if ( !state->packet )
     {
         err("Cannot allocate internal receive packet!");
-        kfree(state);
+        talpa_free(state);
         server->destroyClient(server->object, client);
         return -ENOMEM;
     }
@@ -390,8 +391,8 @@ static int ddvcClose(struct inode* inode, struct file* file)
     state = (struct DDVC_State *)client->private;
 
     server->destroyClient(server->object, client);
-    kfree(state->packet);
-    kfree(state);
+    talpa_free(state->packet);
+    talpa_free(state);
 
     return 0;
 }
