@@ -104,7 +104,7 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
     LinuxFileInfo* object;
 
 
-    object = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxFileInfo));
     if ( likely(object != NULL) )
     {
         struct nameidata nd;
@@ -138,7 +138,7 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
             }
             else
             {
-                kfree(object);
+                talpa_free(object);
                 warn("Not getting a single free page!");
                 path_release(&nd);
 
@@ -149,7 +149,7 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
         }
         else
         {
-            kfree(object);
+            talpa_free(object);
 
             return NULL;
         }
@@ -162,7 +162,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
     LinuxFileInfo* object;
 
 
-    object = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxFileInfo));
     if ( likely(object != NULL) )
     {
         struct file *file;
@@ -175,7 +175,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
         object->mPath = talpa_alloc_path(&path_size);
         if ( unlikely(!object->mPath) )
         {
-            kfree(object);
+            talpa_free(object);
             warn("Not getting a single free page!");
 
             return NULL;
@@ -210,7 +210,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
         else
         {
             talpa_free_path(object->mPath);
-            kfree(object);
+            talpa_free(object);
 //             dbg("File structure for %d gone in %s[%u]!",fd,current->comm,current->pid);
 
             return NULL;
@@ -236,7 +236,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
         return NULL;
     }
 
-    fi = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
+    fi = talpa_alloc(sizeof(template_LinuxFileInfo));
     if ( unlikely(fi == NULL) )
     {
         err("Not enought memory for a file info object!");
@@ -249,7 +249,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     fi->mPath = talpa_alloc_path(&path_size);
     if ( unlikely(!fi->mPath) )
     {
-        kfree(fi);
+        talpa_free(fi);
         warn("Not getting a single free page!");
 
         return NULL;
@@ -289,7 +289,7 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
         return NULL;
     }
 
-    fi = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
+    fi = talpa_alloc(sizeof(template_LinuxFileInfo));
     if ( unlikely(fi == NULL) )
     {
         err("Not enought memory for a file info object!");
@@ -302,7 +302,7 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     fi->mPath = talpa_alloc_path(&path_size);
     if ( unlikely(!fi->mPath) )
     {
-        kfree(fi);
+        talpa_free(fi);
         warn("Not getting a single free page!");
 
         return NULL;
@@ -351,7 +351,7 @@ LinuxFileInfo* newLinuxFileInfoFromInode(EFilesystemOperation operation, void* i
         return NULL;
     }
 
-    fi = kmalloc(sizeof(template_LinuxFileInfo), GFP_KERNEL);
+    fi = talpa_alloc(sizeof(template_LinuxFileInfo));
     if ( unlikely(fi == NULL) )
     {
         err("Not enought memory for a file info object!");
@@ -379,9 +379,9 @@ static void deleteLinuxFileInfo(struct tag_LinuxFileInfo* object)
     if ( atomic_dec_and_test(&object->mRefCnt) )
     {
         talpa_free_path(object->mPath);
-        kfree(object->mDeviceName);
-        kfree(object->mFSType);
-        kfree(object);
+        talpa_free(object->mDeviceName);
+        talpa_free(object->mFSType);
+        talpa_free(object);
     }
     return;
 }
@@ -477,7 +477,7 @@ static const char* fsType(const void* self)
     {
         if ( likely((this->mDeviceName == NULL) && (mnt->mnt_devname != NULL)) )
         {
-            this->mDeviceName = kmalloc(strlen(mnt->mnt_devname) + 1, GFP_KERNEL);
+            this->mDeviceName = talpa_alloc(strlen(mnt->mnt_devname) + 1);
             if ( likely(this->mDeviceName != NULL) )
             {
                 strcpy(this->mDeviceName, mnt->mnt_devname);
@@ -485,7 +485,7 @@ static const char* fsType(const void* self)
         }
         if ( likely(mnt->mnt_sb->s_type->name != NULL) )
         {
-            this->mFSType = kmalloc(strlen(mnt->mnt_sb->s_type->name) + 1, GFP_KERNEL);
+            this->mFSType = talpa_alloc(strlen(mnt->mnt_sb->s_type->name) + 1);
             if ( likely(this->mFSType != NULL) )
             {
                 strcpy(this->mFSType, mnt->mnt_sb->s_type->name);

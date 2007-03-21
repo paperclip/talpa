@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 
 #include "common/talpa.h"
+#include "platforms/linux/alloc.h"
 #include "linux_personality.h"
 
 /*
@@ -69,7 +70,7 @@ LinuxPersonality* newLinuxPersonality(void)
     LinuxPersonality* object;
 
 
-    object = kmalloc(sizeof(template_LinuxPersonality), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxPersonality));
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxPersonality, sizeof(template_LinuxPersonality));
@@ -89,7 +90,7 @@ static void deleteLinuxPersonality(struct tag_LinuxPersonality* object)
 {
     if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        kfree(object);
+        talpa_free(object);
     }
     return;
 }

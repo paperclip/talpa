@@ -826,8 +826,8 @@ static struct dentry *scanDirectory(const char* dirname, char* rootbuf, size_t r
 
     initDirectories(&dirs);
     /* Allocate structures and memory */
-    dc = kmalloc(sizeof(struct dentryContext), GFP_KERNEL);
-    nd = kmalloc(sizeof(struct nameidata), GFP_KERNEL);
+    dc = talpa_alloc(sizeof(struct dentryContext));
+    nd = talpa_alloc(sizeof(struct nameidata));
 
     if ( !dc || !nd )
     {
@@ -930,8 +930,8 @@ rescan:
     } while ( !reg ); /* !reg = search finished, we have a regular file */
 
 out:
-    kfree(nd);
-    kfree(dc);
+    talpa_free(nd);
+    talpa_free(dc);
     cleanupDirectories(&dirs);
 
     return reg;
@@ -1294,7 +1294,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
 
     /* Allocate patchedFilesystem structure because we
        can't do it while holding a lock. */
-    newpatch = kmalloc(sizeof(struct patchedFilesystem), GFP_KERNEL);
+    newpatch = talpa_alloc(sizeof(struct patchedFilesystem));
 
     /* We do not want to search for files on some filesystems on mount. */
     if ( fromMount && onNoScanList(fsname) )
@@ -1327,7 +1327,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     /* If we found the patch, free the newly allocated one */
     if ( patch )
     {
-        kfree(newpatch);
+        talpa_free(newpatch);
     }
     /* Othrewise set the patch to be the newpatch */
     else if ( newpatch )
@@ -1377,7 +1377,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         /* Free newly allocated patch if patching failed */
         if ( patch == newpatch )
         {
-            kfree(newpatch);
+            talpa_free(newpatch);
         }
     }
 
@@ -1595,7 +1595,7 @@ static void talpaPreUmount(char* name, int flags)
                         talpa_rcu_synchronize();
                         dbg("PreUmount: refcnt for %s = %d after sync", patch->fstype->name, atomic_read(&patch->refcnt));
                     } while ( atomic_read(&patch->refcnt) > 0 );
-                    kfree(patch);
+                    talpa_free(patch);
                 }
                 else
                 {
@@ -1853,7 +1853,7 @@ nextpatch:
             talpa_rcu_synchronize();
             dbg("purgePatches: refcnt for %s = %d after sync", p->fstype->name, atomic_read(&p->refcnt));
         } while ( atomic_read(&p->refcnt) > 0 );
-        kfree(p);
+        talpa_free(p);
         goto nextpatch;
     }
     talpa_rcu_write_unlock(&this->mPatchLock);
@@ -1996,9 +1996,9 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     }
 
     /* Free string sets representing configuration data */
-    kfree(object->mSkipFilesystemsSet);
-    kfree(object->mNoScanFilesystemsSet);
-    kfree(object->mPatchListSet);
+    talpa_free(object->mSkipFilesystemsSet);
+    talpa_free(object->mNoScanFilesystemsSet);
+    talpa_free(object->mPatchListSet);
 
     return;
 }
@@ -2011,17 +2011,17 @@ static VFSHookObject* newObject(void *self, const char* string, bool protected)
 {
     VFSHookObject* obj = NULL;
 
-    obj = kmalloc(sizeof(VFSHookObject), GFP_KERNEL);
+    obj = talpa_alloc(sizeof(VFSHookObject));
 
     if ( obj )
     {
         TALPA_INIT_LIST_HEAD(&obj->head);
         obj->len = strlen(string);
-        obj->value = kmalloc(obj->len + 1, GFP_KERNEL);
+        obj->value = talpa_alloc(obj->len + 1);
         obj->protected = protected;
         if ( !obj->value )
         {
-            kfree(obj);
+            talpa_free(obj);
             return NULL;
         }
         strcpy(obj->value, string);
@@ -2032,8 +2032,8 @@ static VFSHookObject* newObject(void *self, const char* string, bool protected)
 
 static void freeObject(VFSHookObject* obj)
 {
-    kfree(obj->value);
-    kfree(obj);
+    talpa_free(obj->value);
+    talpa_free(obj);
 
     return;
 }
@@ -2062,7 +2062,7 @@ try_alloc:
     /* We do not allocate anything in first pass. */
     if ( alloc_len )
     {
-        newset = kmalloc(alloc_len, GFP_KERNEL);
+        newset = talpa_alloc(alloc_len);
         if ( !newset )
         {
             err("Failed to create string set!");
@@ -2082,12 +2082,12 @@ try_alloc:
     {
         talpa_rcu_read_unlock(&this->mListLock);
         alloc_len = len + 1;
-        kfree(newset);
+        talpa_free(newset);
         goto try_alloc;
     }
 
     out = newset;
-    kfree(*set);
+    talpa_free(*set);
     talpa_list_for_each_entry_rcu(obj, list, head)
     {
         if ( obj->protected )
@@ -2128,7 +2128,7 @@ try_alloc:
     /* We do not allocate anything in first pass. */
     if ( alloc_len )
     {
-        newset = kmalloc(alloc_len, GFP_KERNEL);
+        newset = talpa_alloc(alloc_len);
         if ( !newset )
         {
             err("Failed to create string set!");
@@ -2149,12 +2149,12 @@ try_alloc:
     {
         talpa_rcu_read_unlock(&this->mPatchLock);
         alloc_len = len + 1;
-        kfree(newset);
+        talpa_free(newset);
         goto try_alloc;
     }
 
     out = newset;
-    kfree(this->mPatchListSet);
+    talpa_free(this->mPatchListSet);
     talpa_list_for_each_entry_rcu(patch, &this->mPatches, head)
     {
         if ( patch->f_ops )
@@ -2200,7 +2200,7 @@ try_alloc:
 
 static void destroyStringSet(void *self, char **set)
 {
-    kfree(*set);
+    talpa_free(*set);
     *set = NULL;
     return;
 }

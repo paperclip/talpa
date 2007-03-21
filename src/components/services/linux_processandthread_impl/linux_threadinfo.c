@@ -29,6 +29,7 @@
 #include "common/talpa.h"
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/alloc.h"
 
 #include "linux_threadinfo.h"
 
@@ -86,7 +87,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
     LinuxThreadInfo* object;
 
 
-    object = kmalloc(sizeof(template_LinuxThreadInfo), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxThreadInfo));
     if ( likely(object != NULL) )
     {
         struct task_struct* proc;
@@ -128,7 +129,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
         if ( likely(mm != NULL) )
         {
             object->mEnvSize = mm->env_end - mm->env_start;
-            object->mEnv = kmalloc(object->mEnvSize, GFP_KERNEL);
+            object->mEnv = talpa_alloc(object->mEnvSize);
             if ( likely(object->mEnv != NULL) )
             {
                 /* This should be safe since we are accessing our memory
@@ -158,15 +159,11 @@ static void deleteLinuxThreadInfo(struct tag_LinuxThreadInfo* object)
 {
     if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        if ( likely(object->mEnv != NULL) )
-        {
-            kfree(object->mEnv);
-        }
+        talpa_free(object->mEnv);
         talpa_free_path(object->mPath);
         dput(object->mRootDentry);
         mntput(object->mRootMount);
-
-        kfree(object);
+        talpa_free(object);
     }
     return;
 }

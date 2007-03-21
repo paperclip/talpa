@@ -28,6 +28,7 @@
 
 #include "common/talpa.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/alloc.h"
 #include "linux_systemroot.h"
 
 
@@ -65,7 +66,7 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
     LinuxSystemRoot* object;
 
 
-    object = kmalloc(sizeof(template_LinuxSystemRoot), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxSystemRoot));
     if ( object )
     {
         struct task_struct* inittask;
@@ -116,7 +117,7 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
                 dput(object->mDentry);
             }
 
-            kfree(object);
+            talpa_free(object);
 
             return NULL;
         }
@@ -130,7 +131,7 @@ static void deleteLinuxSystemRoot(struct tag_LinuxSystemRoot* object)
     dput(object->mDentry);
     mntput(object->mMnt);
 
-    kfree(object);
+    talpa_free(object);
     return;
 }
 

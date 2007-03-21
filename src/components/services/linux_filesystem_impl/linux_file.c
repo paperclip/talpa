@@ -31,7 +31,7 @@
 
 #include "common/talpa.h"
 #include "linux_file.h"
-
+#include "platforms/linux/alloc.h"
 
 
 /*
@@ -93,7 +93,7 @@ LinuxFile* newLinuxFile(void)
     LinuxFile* object;
 
 
-    object = kmalloc(sizeof(template_LinuxFile), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxFile));
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFile, sizeof(template_LinuxFile));
@@ -123,7 +123,7 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
         return NULL;
     }
 
-    object = kmalloc(sizeof(template_LinuxFile), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxFile));
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFile, sizeof(template_LinuxFile));
@@ -143,7 +143,7 @@ LinuxFile* cloneLinuxFile(struct file* fobject)
         offset = seek(object, 0, 1);
         if ( unlikely(offset < 0) )
         {
-            kfree(object);
+            talpa_free(object);
             return NULL;
         }
 
@@ -157,7 +157,7 @@ static void deleteLinuxFile(struct tag_LinuxFile* object)
     if ( atomic_dec_and_test(&object->mRefCnt) )
     {
         close(object);
-        kfree(object);
+        talpa_free(object);
     }
 
     return;

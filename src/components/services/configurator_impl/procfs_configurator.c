@@ -31,6 +31,7 @@
 #include "common/talpa.h"
 #include "common/list.h"
 #include "configurator/pod_configuration_element.h"
+#include "platforms/linux/alloc.h"
 
 #include "procfs_configurator.h"
 
@@ -118,8 +119,8 @@ static void deleteProcfsConfigurator(struct tag_ProcfsConfigurator* object)
         item = list_entry(posptr, ConfiguredItem, list);
         list_del(posptr);
         unregister_sysctl_table(item->exposedConfig);
-        kfree(item->config);
-        kfree(item);
+        talpa_free(item->config);
+        talpa_free(item);
     }
 
     talpa_mutex_unlock(&object->mSemaphore);
@@ -162,7 +163,7 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
         dbg("no elements");
         return -ENODATA;
     }
-    element = kmalloc(sizeof(ctl_table) * (6 + count + 1), GFP_KERNEL);
+    element = talpa_alloc(sizeof(ctl_table) * (6 + count + 1));
     if ( !element )
     {
         return -ENOMEM;
@@ -233,7 +234,7 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
         elementSubItem->extra1       = (void*)item;
     }
 
-    configItem = kmalloc(sizeof(ConfiguredItem), GFP_KERNEL);
+    configItem = talpa_alloc(sizeof(ConfiguredItem));
     if ( !configItem )
     {
         retCode = -ENOMEM;
@@ -258,9 +259,9 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
     return 0;
 
 free_configitem:
-    kfree(configItem);
+    talpa_free(configItem);
 free_element:
-    kfree(element);
+    talpa_free(element);
     return retCode;
 }
 
@@ -276,8 +277,8 @@ static void detach(void* self, const IConfigurable* item)
         {
             unregister_sysctl_table(posptr->exposedConfig);
             list_del(&posptr->list);
-            kfree(posptr->config);
-            kfree(posptr);
+            talpa_free(posptr->config);
+            talpa_free(posptr);
             break;
         }
     }
@@ -347,7 +348,7 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
         {
             len = table->maxlen;
         }
-        cfgValue = kmalloc(len + 1, GFP_KERNEL);
+        cfgValue = talpa_alloc(len + 1);
         if ( !cfgValue )
         {
             return -ENOMEM;
@@ -362,7 +363,7 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
         }
         cfgValue[len] = 0;
         ((IConfigurable*)table->extra1)->set(((IConfigurable*)table->extra1)->object, table->procname, cfgValue);
-        kfree(cfgValue);
+        talpa_free(cfgValue);
     }
     return 1;
 }
@@ -406,7 +407,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
         {
             len = table->maxlen;
         }
-        cfgValue = kmalloc(len + 1, GFP_KERNEL);
+        cfgValue = talpa_alloc(len + 1);
         if ( !cfgValue )
         {
             return -ENOMEM;
@@ -423,7 +424,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
 
         PPOS += *lenp;
         ((IConfigurable*)table->extra1)->set(((IConfigurable*)table->extra1)->object, table->procname, cfgValue);
-        kfree(cfgValue);
+        talpa_free(cfgValue);
 
         return 0;
     }

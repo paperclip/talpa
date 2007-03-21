@@ -98,7 +98,7 @@ static char* absolutePath(struct nameidata* nd)
 
     if ( !IS_ERR(apath) )
     {
-        absolute = kmalloc(strlen(apath) + 1, GFP_KERNEL);
+        absolute = talpa_alloc(strlen(apath) + 1);
         if ( absolute )
         {
             strcpy(absolute, apath);
@@ -117,7 +117,7 @@ static char* copyString(const char* string)
     if ( string )
     {
         int len = strlen(string) + 1;
-        copy = kmalloc(len, GFP_KERNEL);
+        copy = talpa_alloc(len);
         if ( copy )
         {
             memcpy(copy, string, len);
@@ -136,7 +136,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
     struct nameidata nd;
 
 
-    object = kmalloc(sizeof(template_LinuxFilesystemInfo), GFP_KERNEL);
+    object = talpa_alloc(sizeof(template_LinuxFilesystemInfo));
     if ( likely(object != NULL) )
     {
         memcpy(object, &template_LinuxFilesystemInfo, sizeof(template_LinuxFilesystemInfo));
@@ -275,10 +275,10 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
     error2:
     path_release(&nd);
     error:
-    kfree(object->mDeviceName);
-    kfree(object->mMountPoint);
-    kfree(object->mType);
-    kfree(object);
+    talpa_free(object->mDeviceName);
+    talpa_free(object->mMountPoint);
+    talpa_free(object->mType);
+    talpa_free(object);
 
     return NULL;
 }
@@ -287,10 +287,10 @@ static void deleteLinuxFilesystemInfo(struct tag_LinuxFilesystemInfo* object)
 {
     if ( atomic_dec_and_test(&object->mRefCnt) )
     {
-        kfree(object->mDeviceName);
-        kfree(object->mMountPoint);
-        kfree(object->mType);
-        kfree(object);
+        talpa_free(object->mDeviceName);
+        talpa_free(object->mMountPoint);
+        talpa_free(object->mType);
+        talpa_free(object);
     }
     return;
 }

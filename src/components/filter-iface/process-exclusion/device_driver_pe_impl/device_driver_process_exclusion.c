@@ -41,6 +41,7 @@
 
 #define TALPA_SUBSYS "pedevice"
 #include "common/talpa.h"
+#include "platforms/linux/alloc.h"
 #include "app_ctrl/icore_app_ctrl.h"
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "device_driver_process_exclusion.h"
@@ -215,7 +216,7 @@ static void deleteDeviceDriverProcessExclusion(struct tag_DeviceDriverProcessExc
     talpa_list_for_each_entry_safe(ctx, tmp, &GL_object.mContextList, head)
     {
         dbg("freeing context 0x%p", ctx);
-        kfree(ctx);
+        talpa_free(ctx);
     }
     up_write(&GL_object.mSem);
 
@@ -232,7 +233,7 @@ static int ddpeOpen(struct inode* inode, struct file* file)
     struct DDPEOpenContext* ctx;
 
 
-    ctx = kmalloc(sizeof(struct DDPEOpenContext), GFP_KERNEL);
+    ctx = talpa_alloc(sizeof(struct DDPEOpenContext));
     if ( !ctx )
     {
         return -ENOMEM;
@@ -244,7 +245,7 @@ static int ddpeOpen(struct inode* inode, struct file* file)
     if ( !procexcl )
     {
         up_write(&GL_object.mSem);
-        kfree(ctx);
+        talpa_free(ctx);
         return -ENODEV;
     }
 
@@ -258,7 +259,7 @@ static int ddpeOpen(struct inode* inode, struct file* file)
     if ( !ctx->excluded )
     {
         up_write(&GL_object.mSem);
-        kfree(ctx);
+        talpa_free(ctx);
         return -ENOMEM;
     }
 
@@ -292,7 +293,7 @@ static int ddpeClose(struct inode* inode, struct file* file)
         procexcl = GL_object.mProcExcl;
         procexcl->deregisterProcess(procexcl->object, ctx->excluded);
         talpa_list_del(&ctx->head);
-        kfree(ctx);
+        talpa_free(ctx);
     }
     up_write(&GL_object.mSem);
 
@@ -392,7 +393,7 @@ static bool attach(void* self)
                     dbg("replaying previous disconnected close for 0x%p (0x%p)", ctx, ctx->excluded);
                     this->mProcExcl->deregisterProcess(this->mProcExcl->object, ctx->excluded);
                     talpa_list_del(&ctx->head);
-                    kfree(ctx);
+                    talpa_free(ctx);
                     continue;
                 }
 
