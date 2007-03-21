@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#define TALPA_PROTOCOL_VERSION 3
+#define TALPA_PROTOCOL_VERSION 4
 
 typedef unsigned long VettingClientID;
 
@@ -260,7 +260,10 @@ struct TalpaPacket_StreamTruncate
 #define TLPVCIOC_REGISTER       _IOW ( 0xff,     0,      struct TalpaPacket_Register )
 #define TLPVCIOC_DEREGISTER     _IOW ( 0xff,     1,      struct TalpaPacket_Deregister )
 #define TLPVCIOC_SETWAITTIMEOUT _IOW ( 0xff,     2,      struct TalpaPacket_SetWaitTimeout )
+/* Maximum packet size client can send */
 #define TLPVCIOC_GETBUFFERSIZE  _IO  ( 0xff,     3 )
+/* Maximum stream packet size client can receive */
+#define TLPVCIOC_GETSTREAMSIZE  _IO  ( 0xff,     4 )
 
 #endif
 
