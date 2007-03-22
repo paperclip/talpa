@@ -354,7 +354,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         /* Woken up because intercept is complete? */
         if ( likely(!ret) )
         {
-            if ( atomic_read(&details->complete) > 0 )
+            if ( likely(atomic_read(&details->complete) > 0) )
             {
 #ifdef DEBUG
                 switch ( details->report->recommendedAction(details->report->object) )
