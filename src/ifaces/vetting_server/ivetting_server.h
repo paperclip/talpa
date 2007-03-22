@@ -60,7 +60,7 @@ typedef struct
     wait_queue_head_t                   interceptedWaitQueue;
     uint32_t                            vettingID;
     atomic_t                            complete;
-    bool                                restartWait;
+    unsigned long                       lastActivity;
     bool                                extendedInfoRequested;
     bool                                responseRequired;
 

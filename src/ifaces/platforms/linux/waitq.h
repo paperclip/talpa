@@ -26,6 +26,20 @@
 #include <linux/wait.h>
 #include <asm/atomic.h>
 
+
+#define time_diff(start, end) \
+({ \
+    unsigned long diff; \
+\
+    if ( end >= start ) { \
+        diff = end - start; \
+    } else { \
+        diff = end + (~0UL - start); \
+    } \
+\
+    diff; \
+})
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 
 #define __talpa_wait_event_timeout(wq, condition, timeout, ret) \
@@ -45,7 +59,7 @@ do { \
         } \
         start = jiffies; \
         schedule_timeout(sleep); \
-        elapsed = jiffies - start; \
+        elapsed = time_diff(start, jiffies); \
         if ( elapsed >= sleep ) { \
             break; \
         } else { \
@@ -82,7 +96,7 @@ do { \
         if (!signal_pending(current)) {             \
             start = jiffies; \
             schedule_timeout(sleep);                    \
-            elapsed = jiffies - start; \
+            elapsed = time_diff(start, jiffies); \
             if ( elapsed >= sleep ) { \
                 break; \
             } else { \
@@ -123,7 +137,7 @@ do { \
         } \
         start = jiffies; \
         schedule_timeout(sleep); \
-        elapsed = jiffies - start; \
+        elapsed = time_diff(start, jiffies); \
         if ( elapsed >= sleep ) { \
             break; \
         } else { \
@@ -157,7 +171,7 @@ do { \
         if (!signal_pending(current)) {             \
             start = jiffies; \
             schedule_timeout(sleep);                    \
-            elapsed = jiffies - start; \
+            elapsed = time_diff(start, jiffies); \
             if ( elapsed >= sleep ) { \
                 break; \
             } else { \

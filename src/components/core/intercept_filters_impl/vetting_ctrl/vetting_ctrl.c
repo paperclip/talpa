@@ -347,18 +347,14 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
 
         talpa_quirk_vc_pre_sleep(&status, atomic_read(timeout));
 
-        ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, details->restartWait || atomic_read(&details->complete) || atomic_read(&details->reopen), msecs_to_jiffies(atomic_read(timeout)));
+        ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, atomic_read(&details->complete) || atomic_read(&details->reopen), msecs_to_jiffies(atomic_read(timeout)));
 
         talpa_quirk_vc_post_sleep(&status);
 
         /* Woken up because intercept is complete? */
         if ( likely(!ret) )
         {
-            if ( likely( details->restartWait ) )
-            {
-                details->restartWait = false;
-            }
-            else if ( atomic_read(&details->complete) > 0 )
+            if ( atomic_read(&details->complete) > 0 )
             {
 #ifdef DEBUG
                 switch ( details->report->recommendedAction(details->report->object) )
@@ -450,11 +446,15 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
             talpa_list_head* posptr;
 
 
-            /* Go back to sleep if we have timeouted while external
-               filesystem operation is in progress. */
-            if ( details->externalOperation && (ret == -ETIME) )
+            if ( ret == -ETIME )
             {
-                continue;
+                /* Go back to sleep if we have timeouted while external
+                   filesystem operation is in progress. Or if there was some
+                   activity in the meantime. */
+                if ( details->externalOperation || (time_diff(details->lastActivity, jiffies) < msecs_to_jiffies(atomic_read(timeout))) )
+                {
+                    continue;
+                }
             }
 
             /* Unlink the details if they are still on the list */
@@ -630,7 +630,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
     details->externalOperation = false;
-    details->restartWait = false;
+    details->lastActivity = jiffies;
     details->report = report;
     details->userInfo = (IPersonality *)userInfo;
     details->threadInfo = (IThreadInfo *)threadInfo;
@@ -931,7 +931,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
     details->externalOperation = false;
-    details->restartWait = false;
+    details->lastActivity = jiffies;
     details->report = report;
     details->userInfo = (IPersonality *)userInfo;
     details->threadInfo = (IThreadInfo *)threadInfo;
@@ -1654,8 +1654,7 @@ static struct TalpaProtocolHeader* processPacket(void* self, VettingClient* clie
     /* Reset the vetting timeout if vetting is in progress. */
     if ( atomic_read(&client->vetting) && client->vettingDetails )
     {
-        client->vettingDetails->restartWait = true;
-        wake_up(&client->vettingDetails->interceptedWaitQueue);
+        client->vettingDetails->lastActivity = jiffies;
     }
 
     return response;
