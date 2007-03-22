@@ -44,8 +44,19 @@ int main(int argc, char *argv[])
     }
 
     strcpy(to.filename,"/tmp/talpa-file-object-test-file");
-    to.flags = O_WRONLY | O_TRUNC | O_CREAT;
+    to.flags = O_WRONLY;
     to.mode = 0;
+
+    ret = open(to.filename, to.flags | O_TRUNC | O_CREAT, to.mode);
+
+    if ( ret < 0 )
+    {
+        fprintf(stderr,"Create error!\n");
+        close(fd);
+        return 1;
+    }
+
+    close(ret);
 
     ret = ioctl(fd,TALPA_TEST_FILE_OPEN, &to);
 
