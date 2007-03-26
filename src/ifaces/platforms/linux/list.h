@@ -157,7 +157,7 @@ typedef  unsigned int talpa_rcu_head;
 #define TALPA_RCU_INIT              (0)
 #define talpa_rcu_init(x)           do { } while(0)
 #define talpa_rcu_call(head, func)  func(head)
-#define talpa_rcu_synchronize()
+#define talpa_rcu_synchronize       schedule
 
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) */
 
