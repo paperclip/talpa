@@ -4,7 +4,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
                 @talpaversion@ @debug@ @assert@ @dpath@ \
                 @inodeallocsem@ @tasknewtty@ @rcubackport@ @mutexbackport@ @inodemutex@ @signalbackport@ @jiffiesbackport@ \
                 @lsm265@ @lsm266@ @lsm2610@ @lsmkeys@ @hidden@ @execve@ @xhack@ @rodata@ \
-                @kfuncchpgattraddr@ @notasklistlock@ @vfsmntlock@ @samefile@
+                @kfuncchpgattraddr@ @notasklistlock@ @vfsmntlock@ @samefile@ @filldirbackport@
 
 obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o
 

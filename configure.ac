@@ -179,6 +179,15 @@ AC_ARG_ENABLE(backported-jiffies,
                 ],
                 [   auto_jiffiesbackport=yes])
 
+AC_ARG_ENABLE(backported-filldir,
+                [  --enable-backported-filldir    More recent filldir_t callbacks pass u64 for inode number [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(filldirbackport,"-DTALPA_HAS_BACKPORTED_FILLDIR")
+                    fi
+                    auto_filldirbackport=no
+                ],
+                [   auto_filldirbackport=yes])
+
 AC_ARG_ENABLE(no-tasklist-lock,
                 [  --enable-no-tasklist-lock      Starting with vanilla 2.6.18 tasklist_lock is no longer exported [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -811,6 +820,21 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    # Autodetect if filldir_t was backported
+    if test $((kern_version_code)) -lt 132627; then
+        if test "$auto_filldirbackport" = "yes"; then
+            TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, , ,[quiet])
+            AC_MSG_CHECKING([for backported filldir])
+            ${EGREP} "filldir_t.*u64" $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(filldirbackport,"-DTALPA_HAS_BACKPORTED_FILLDIR")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
+        fi
+    fi
+
     # Check whether to build syscallhook dependent modules
     AC_MSG_CHECKING([for system call table hooking support])
     if test "$auto_syscallhook" = "yes"; then
@@ -1003,8 +1027,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@filldirbackport@/${filldirbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@filldirbackport@/${filldirbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
