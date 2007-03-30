@@ -340,7 +340,9 @@ static asmlinkage long talpa_execve(char *name, char **argv, char **envp, struct
     if (error == 0)
     {
         task_lock(current);
+        #ifdef PT_DTRACE
         current->ptrace &= ~PT_DTRACE;
+        #endif
         task_unlock(current);
     }
 
@@ -388,7 +390,9 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
     if (error == 0)
     {
         task_lock(current);
+        #ifdef PT_DTRACE
         current->ptrace &= ~PT_DTRACE;
+        #endif
         task_unlock(current);
         #ifdef TIF_IRET
         /* Make sure we don't return using sysenter.. */
