@@ -596,7 +596,7 @@ struct dentryContext
 };
 
 /* Callback we supply to vfs_readdir in order to get dentry info */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19) || TALPA_HAS_BACKPORTED_FILLDIR
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19) || defined TALPA_HAS_BACKPORTED_FILLDIR
 static int fillDentry(void * __buf, const char * name, int namlen, loff_t offset, u64 ino, unsigned int d_type)
 #elif LINUX_VERSION_CODE > KERNEL_VERSION(2,4,8)
 static int fillDentry(void * __buf, const char * name, int namlen, loff_t offset, ino_t ino, unsigned int d_type)
