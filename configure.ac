@@ -868,8 +868,17 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$kern_arch" = "x86_64" -a "$syscallhook" = "yes" -a "$rodata" != ""; then
             # Test for blacklisted kernels - known to crash if rodata is used
             AC_MSG_CHECKING([for blacklisted kernels])
+            blacklisted=""
             # Stock SUSE 10.1 x86_64
             if test "$kern_uts_release" = "2.6.16.13-4-default" -o "$kern_uts_release" = "2.6.16.13-4-smp"; then
+                blacklisted="1"
+            fi
+            # All of RHEL 5
+            if echo "$kern_uts_release" | ${EGREP} -q "\.el5$"; then
+                blacklisted="1"
+            fi
+            # Result
+            if test "$blacklisted" != ""; then
                 AC_MSG_ERROR([known bad])
             else
                 AC_MSG_RESULT([all fine])
