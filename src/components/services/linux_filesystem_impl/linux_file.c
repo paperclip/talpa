@@ -517,39 +517,31 @@ static int truncate(void* self, loff_t length)
 
     error = locks_verify_truncate(inode, file, length);
     if (!error) {
-        struct iattr newattrs;
-
         /* Not pretty: "inode->i_size" shouldn't really be signed. But it is. */
         if (length < 0)
             error = -EINVAL;
         else {
-            newattrs.ia_size = length;
-            newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
-            newattrs.ia_file = file;
-            newattrs.ia_valid |= ATTR_FILE;
-#endif
-#if defined TALPA_INODE_USES_MUTEXES
-            mutex_lock(&inode->i_mutex);
+#if defined TALPA_DOTRUNCATE_1
+            typedef int (*dotruncatefunc)(struct dentry *dentry, loff_t length);
+#elif defined TALPA_DOTRUNCATE_2
+            typedef int (*dotruncatefunc)(struct dentry *dentry, loff_t length, struct file *filp);
+#elif defined TALPA_DOTRUNCATE_3
+            typedef int (*dotruncatefunc)(struct dentry *dentry, loff_t length, unsigned int time_attrs, struct file *filp);
+#elif defined TALPA_DOTRUNCATE_RH4
+            typedef int (*dotruncatefunc)(struct dentry *dentry, loff_t length, unsigned int time_attrs);
 #else
-            down(&inode->i_sem);
+  #error "Truncate type not defined!"
 #endif
-/* inode->i_alloc_sem appears starting with 2.4.22 */
-#if     (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22)) \
-    ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11) ) \
-    ||  defined TALPA_HAS_INODE_ALLOC_SEM
-            down_write(&inode->i_alloc_sem);
-#endif
-            error = notify_change(dentry, &newattrs);
-#if     (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22)) \
-    ||  (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)) \
-    ||  defined TALPA_HAS_INODE_ALLOC_SEM
-            up_write(&inode->i_alloc_sem);
-#endif
-#if defined TALPA_INODE_USES_MUTEXES
-            mutex_unlock(&inode->i_mutex);
-#else
-            up(&inode->i_sem);
+            static dotruncatefunc talpa_do_truncate = (dotruncatefunc)TALPA_DOTRUNCATE_ADDR;
+
+#if defined TALPA_DOTRUNCATE_1
+            error = talpa_do_truncate(dentry, length);
+#elif defined TALPA_DOTRUNCATE_2
+            error = talpa_do_truncate(dentry, length, NULL);
+#elif defined TALPA_DOTRUNCATE_3
+            error = talpa_do_truncate(dentry, length, 0, NULL);
+#elif defined TALPA_DOTRUNCATE_RH4
+            error = talpa_do_truncate(dentry, length, 0);
 #endif
         }
     }

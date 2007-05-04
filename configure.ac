@@ -116,15 +116,6 @@ AC_ARG_ENABLE(path-lookup,
                 ],
                 [   auto_pathlookup=yes])
 
-AC_ARG_ENABLE(inode-alloc-sem,
-                [  --enable-inode-alloc-sem       kernels >= 2.4.22 and >= 2.6.6 have this field as some patched ones [[autodetected]]],
-                [   if test "$enableval" = "yes"; then
-                        AC_SUBST(inodeallocsem,"-DTALPA_HAS_INODE_ALLOC_SEM")
-                    fi
-                    auto_inode=no
-                ],
-                [   auto_inode=yes])
-
 AC_ARG_ENABLE(task-new-tty,
                 [  --enable-task-new-tty          SuSE Enterprise Server 9 2.6.5 kernel has a task_struct from later kernels [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
@@ -527,36 +518,62 @@ if test ! -f "$system_map"; then
     system_map=""
 fi
 
-# Check for i_alloc_sem only for kernels older than
-# 2.4.22 for 2.4 series, and older than 2.6.6 for 2.6
-if test "$auto_inode" = "yes"; then
-    if test $((kern_version_code)) -lt 132608; then
-        # 2.4 kernels
-        if test $((kern_version_code)) -lt 132118; then
-            auto_inode=yes
-        else
-            auto_inode=no
-        fi
-    else
-        # 2.6 kernels
-        if test $((kern_version_code)) -lt 132614; then
-            auto_inode=yes
-        else
-            auto_inode=no
-        fi
-    fi
+# Check for do_truncate address
+AC_MSG_CHECKING([for do_truncate address])
+tmp=`${EGREP} " do_truncate" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+if test "$tmp" != ""; then
+    AC_MSG_RESULT([0x$tmp])
+    AC_SUBST(dotruncateaddr, "-DTALPA_DOTRUNCATE_ADDR=0x$tmp")
+else
+    AC_MSG_ERROR([not found])
 fi
 
-if test "$auto_inode" = "yes"; then
-    TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
-    AC_MSG_CHECKING([for i_alloc_sem inode struct member])
-    ${EGREP} i_alloc_sem\; $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
-    if test $? -eq 0; then
-        AC_MSG_RESULT([detected])
-        AC_SUBST(inodeallocsem,"-DTALPA_HAS_INODE_ALLOC_SEM")
-    else
-        AC_MSG_RESULT([not detected])
-    fi
+# Check for do_truncate type
+TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
+TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
+AC_MSG_CHECKING([for do_truncate type])
+${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncate1.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    tmp1="y"
+fi
+${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncate2.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    tmp2="y"
+fi
+${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncate3.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    tmp3="y"
+fi
+${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncaterh4.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    tmp4="y"
+fi
+let tmp0=0
+if test "$tmp1" = "y"; then
+    let tmp0=($tmp0)+1
+    AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_1")
+    AC_MSG_RESULT([type 1])
+fi
+if test "$tmp2" = "y"; then
+    let tmp0=($tmp0)+1
+    AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_2")
+    AC_MSG_RESULT([type 2])
+fi
+if test "$tmp3" = "y"; then
+    let tmp0=($tmp0)+1
+    AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_3")
+    AC_MSG_RESULT([type 3])
+fi
+if test "$tmp4" = "y"; then
+    let tmp0=($tmp0)+1
+    AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_RH4")
+    AC_MSG_RESULT([type rh4])
+fi
+if test $tmp0 -gt 1 ; then
+    AC_MSG_ERROR([ambigous])
+fi
+if test "$dotruncatetype" = ""; then
+    AC_MSG_ERROR([unknown])
 fi
 
 # Check for snprintf only for kernels older than 2.4.10
@@ -1036,8 +1053,8 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@filldirbackport@/${filldirbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
-    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@inodeallocsem@/${inodeallocsem}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@filldirbackport@/${filldirbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@dotruncatetype@/${dotruncatetype}/; s/@dotruncateaddr@/${dotruncateaddr}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@filldirbackport@/${filldirbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    ${SED} -e "s/@talpaversion@/${talpaversion}/; s/@debug@/${debug}/; s/@assert@/${assert}/; s/@dpath@/${dpath}/; s/@newparent@/${newparent}/; s/@dotruncatetype@/${dotruncatetype}/; s/@dotruncateaddr@/${dotruncateaddr}/; s/@tasknewtty@/${tasknewtty}/; s/@rcubackport@/${rcubackport}/; s/@mutexbackport@/${mutexbackport}/; s/@inodemutex@/${inodemutex}/; s/@signalbackport@/${signalbackport}/; s/@jiffiesbackport@/${jiffiesbackport}/; s/@filldirbackport@/${filldirbackport}/; s/@buildlsm@/${lsm}/; s/@lsm265@/${lsm265}/; s/@lsm266@/${lsm266}/; s/@lsm2610@/${lsm2610}/; s/@lsmkeys@/${lsmkeys}/; s/@hidden@/${hidden}/; s/@execve@/${execve}/; s/@xhack@/${xhack}/; s/@hrtimers@/${hrtimers}/; s/@buildstacker@/${buildstacker}/; s/@syscallhook@/${syscallhook}/; s/@rodata@/${rodata}/; s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; s/@notasklistlock@/${notasklistlock}/; s/@vfsmntlock@/${vfsmntlock}/; s/@samefile@/${samefile}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
