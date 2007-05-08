@@ -1,3 +1,4 @@
+#include "linux/autoconf.h"
 #include "linux/sched.h"
 
 

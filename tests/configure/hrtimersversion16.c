@@ -2,6 +2,7 @@
 #define KBUILD_BASENAME "#lsmkeystest"
 #endif
 
+#include <linux/autoconf.h>
 #include <linux/hrtimer.h>
 
 int main()

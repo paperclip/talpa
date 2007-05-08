@@ -7,7 +7,7 @@
 
 int main()
 {
-    ktime_t t1, t2;
+    enum hrtimer_mode mode = HRTIMER_MODE_ABS;
 
-    return hrtimer_forward(NULL, t1, t2);
+    return 0;
 }

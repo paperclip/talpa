@@ -1,3 +1,4 @@
+#include "linux/autoconf.h"
 #include "linux/security.h"
 
 int sb_copy_data(const char *fstype, void *orig, void *copy)
@@ -8,8 +9,8 @@ int sb_copy_data(const char *fstype, void *orig, void *copy)
 int main()
 {
   struct security_operations ops;
-  
+
   ops.sb_copy_data = sb_copy_data;
-  
+
   return 0;
 }

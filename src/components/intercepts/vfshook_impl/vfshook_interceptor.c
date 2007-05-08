@@ -452,7 +452,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     patch->sf_ops = NULL;
                     patch->ioctl = NULL;
                 }
-                patch->i_ops = dentry->d_inode->i_op;
+                patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 dbg("  storing original inode operations [0x%p]", patch->i_ops);
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
@@ -561,7 +561,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                     patch->sf_ops = NULL;
                     patch->ioctl = NULL;
                 }
-                patch->i_ops = dentry->d_inode->i_op;
+                patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 dbg("  storing original inode operations [0x%p]", patch->i_ops);
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                 patch->open = patch->f_ops->open;
@@ -1057,7 +1057,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     /* If we have a regular file prepare for file_operations patching */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
-        patch->i_ops = dentry->d_inode->i_op;
+        patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         dbg("  storing original inode operations [0x%p]", patch->i_ops);
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
         patch->open = patch->f_ops->open;
@@ -1080,7 +1080,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             dbg("  root dentry [0x%p]", dentry);
         }
 
-        patch->i_ops = dentry->d_inode->i_op;
+        patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         patch->lookup = patch->i_ops->lookup;
         patch->create = patch->i_ops->create;
         dbg("  storing original inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);

@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "linux/autoconf.h"
 #ifdef SEPARATE_UTS_RELEASE
 #include "linux/utsrelease.h"
 #else

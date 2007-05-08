@@ -34,6 +34,13 @@
 #include "platform/log.h"
 #include "platform/glue.h"
 
+#ifdef TALPA_HAS_HRTIMERS
+  #ifdef TALPA_HAS_HRTIMERS_V21
+    #define TALPA_HRTIMER_REL HRTIMER_MODE_REL
+  #else
+    #define TALPA_HRTIMER_REL HRTIMER_REL
+  #endif
+#endif
 
 #ifdef TALPA_HAS_XHACK
 static inline void talpa_quirk_vc_sleep_init(bool* status)
@@ -87,7 +94,7 @@ static inline void talpa_quirk_vc_post_sleep(bool* status)
     if ( unlikely( *status == true ) )
     {
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_HRTIMERS
-        hrtimer_start(&current->signal->real_timer, current->signal->it_real_incr, HRTIMER_REL);
+        hrtimer_start(&current->signal->real_timer, current->signal->it_real_incr, TALPA_HRTIMER_REL);
   #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)) || defined TALPA_HAS_BACKPORTED_SIGNAL
         mod_timer(&current->signal->real_timer, jiffies + current->signal->it_real_incr);
 

@@ -246,7 +246,11 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
     element[4].ctl_name         = this->mElementId++;
     configItem->item            = (void*)item;
     configItem->config          = element;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
+    configItem->exposedConfig   = register_sysctl_table(configItem->config);
+#else
     configItem->exposedConfig   = register_sysctl_table(configItem->config, 0);
+#endif
     if ( !configItem->exposedConfig )
     {
         talpa_mutex_unlock(&this->mSemaphore);
