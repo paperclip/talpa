@@ -433,7 +433,7 @@ static ssize_t ddvcRead(struct file* file, char* buf, size_t len, loff_t* ppos)
         else if ( ret == -ERESTARTSYS )
         {
             dbg("signal received");
-            return -EINTR;
+            return -ERESTARTSYS;
         }
         else
         {

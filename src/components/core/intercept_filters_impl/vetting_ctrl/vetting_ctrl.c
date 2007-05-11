@@ -478,7 +478,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
             {
                 dbg("[intercepted %u-%u-%u] interrupted", processParentPID(current), current->tgid, current->pid);
                 details->report->setRecommendedAction(details->report->object, EIA_Error);
-                details->report->setErrorCode(details->report->object, EINTR);
+                details->report->setErrorCode(details->report->object, ERESTARTSYS);
             }
             break;
         }
