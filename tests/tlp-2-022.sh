@@ -15,15 +15,14 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-denysyslog.${ko}
+tlp_insmod modules/tlp-denysyslog.${ko}
 
-talpaproc=/proc/sys/talpa/
 testproc=intercept-filters/DenySyslog/
 testvar=status
 
-procpath=${talpaproc}${testproc}${testvar}
+procpath=${talpafs}/${testproc}/${testvar}
 read <${procpath} status1
 echo garbage >${procpath}
 read <${procpath} status2

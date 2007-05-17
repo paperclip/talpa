@@ -15,10 +15,10 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-exclusion.${ko}
-echo -n "+smbfs" >/proc/sys/talpa/intercept-filters/FilesystemExclusionProcessor/mount-fstypes
+tlp_insmod modules/tlp-exclusion.${ko}
+echo -n "+smbfs" >${talpafs}/intercept-filters/FilesystemExclusionProcessor/mount-fstypes
 ./tlp-3-010 smbfs 3
 
 exit $?

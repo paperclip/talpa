@@ -23,7 +23,19 @@ talpa_linux_o_SOURCES    =  $(talpaLinuxSOURCES)
 talpa_linux_o_CFLAGS     =   $(modules_CFLAGS)
 talpa_linux_o_LINK       =   $(MODULELINKCMD)
 
-TALPAMODULESRC += $(talpa_linux_o_SOURCES)
+TALPAMODULESRC += $(talpa_linux_o_SOURCES) $(talpaSecurityFSConfiguratorSOURCES) $(talpaProcFSConfiguratorSOURCES) $(talpaDualFSConfiguratorSources)
+
+if BUILDSECURITYFS
+talpa_linux_o_SOURCES += $(talpaSecurityFSConfiguratorSOURCES)
+else !BUILDSECURITYFS
+talpa_linux_o_SOURCES += $(talpaProcFSConfiguratorSOURCES)
+endif !BUILDSECURITYFS
+
+if BUILDDUALFS
+talpa_linux_o_SOURCES += $(talpaDualFSConfiguratorSOURCES)
+talpa_linux_o_SOURCES += $(talpaProcFSConfiguratorSOURCES)
+endif BUILDDUALFS
+
 #
 # End of talpa-linux/Makefile.am
 #

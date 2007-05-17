@@ -15,11 +15,11 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/talpa-init.sh
+. ${srcdir}/talpa-init.sh
 
 tmpdir=/tmp/tlp-test
 
-echo ${tmpdir}/mnt >/proc/sys/talpa/intercept-filters/FilesystemInclusionProcessor/include-path
+echo ${tmpdir}/mnt >${talpafs}/intercept-filters/FilesystemInclusionProcessor/include-path
 
 mkdir -p ${tmpdir}/mnt
 dd if=/dev/zero of=${tmpdir}/fs.img bs=1M count=4 >/dev/null 2>&1

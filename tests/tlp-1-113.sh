@@ -15,7 +15,7 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
 tmpdir='/tmp/tlp-test'
 
@@ -33,7 +33,7 @@ mount ${tmpdir}/fs.img ${tmpdir}/mnt -o loop
 ./tlp-1-113 ${tmpdir}/mnt testfile 64 128
 rc=$?
 
-${srcdir}/talpa-init.sh
+. ${srcdir}/talpa-init.sh
 
 if test $rc -eq 0; then
     ./tlp-1-113 ${tmpdir}/mnt testfile 512 128

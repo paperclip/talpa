@@ -28,6 +28,11 @@ AM_INIT_AUTOMAKE([dist-zip dist-bzip2 dist-shar])
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
+#
+# Programs.
+#
+AC_PROG_CC
+AC_CHECK_TOOL(MODULELINKER, ld, :)
 AC_PROG_EGREP
 AC_PATH_PROG(CUT, cut)
 AC_PATH_PROG(SED, sed)
@@ -151,6 +156,15 @@ AC_ARG_ENABLE(inode_mutexes,
                     auto_inodemutex=no
                 ],
                 [   auto_inodemutex=yes])
+
+AC_ARG_ENABLE(inode_iprivate,
+                [  --enable-inode_iprivate        RedHat Enterprise 5 kernels have this field backported [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(inodeiprivate,"-DTALPA_INODE_I_PRIVATE")
+                    fi
+                    auto_inodeiprivate=no
+                ],
+                [   auto_inodeiprivate=yes])
 
 AC_ARG_ENABLE(backported-signal,
                 [  --enable-backported-signal     Fedora FC4 2.6.11 has the task_struct->signal backported from vanilla 2.6.12 [[autodetected]]],
@@ -288,13 +302,25 @@ AC_ARG_ENABLE(same-file,
                 fi ],
               [ AC_SUBST(samefile, "") ])
 
-CFLAGS=
+AC_ARG_ENABLE(securityfs,
+                [  --enable-securityfs            use securityfs for the configuration system [[autodetected]]],
+                [   auto_securityfs=no
+                    if test "$enableval" = "yes"; then
+                        AC_SUBST(securityfs, "-DTALPA_HAS_SECURITYFS")
+                        AC_SUBST(buildsecurityfs, "yes")
+                        AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
+                    else
+                        AC_SUBST(buildsecurityfs, "no")
+                        AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
+                    fi ],
+                [   auto_securityfs=yes])
 
-#
-# Programs.
-#
-AC_PROG_CC
-AC_CHECK_TOOL(MODULELINKER, ld, :)
+AC_ARG_WITH(legacy-configurator,
+                [  --without-legacy-configurator        keep procfs configuration system when securityfs is in use [[enabled]]],
+                [ wantdualfs="$withval" ],
+                [ wantdualfs="yes"])
+
+CFLAGS=
 
 #
 # Should we build?
@@ -472,10 +498,7 @@ AC_MSG_RESULT([${kern_uts_release}])
 ${RM} -f tests/configure/kernrelease
 
 AM_CONDITIONAL(KBUILD26, test $((kern_version_code)) -ge 132608)
-# Test whether kbuild uses M= or SUBDIRS=, 2.6.8 was the first kernel to use M=
-AM_CONDITIONAL(KBUILDUSEM, test $((kern_version_code)) -ge 132616)
 # Set these to true for time being
-AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
 AM_CONDITIONAL(TESTXWORKAROUND, test 1 -eq 1)
 
 # Select interceptor to use for testing
@@ -668,6 +691,8 @@ if test $((kern_version_code)) -ge 132608; then
     AC_MSG_RESULT([2.6 build system detected])
     AC_SUBST(ko,ko)
     AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\\\"${PACKAGE_VERSION}\\\\\"")
+    # Test whether kbuild uses M= or SUBDIRS=, 2.6.8 was the first kernel to use M=
+    AM_CONDITIONAL(KBUILDUSEM, test $((kern_version_code)) -ge 132616)
 
     AC_SUBST(hidden,"-DTALPA_HIDDEN_SYSCALLS")
     if find_syscall_table "$system_map"; then
@@ -787,7 +812,7 @@ if test $((kern_version_code)) -ge 132608; then
     # Autodetect if struct inode uses mutexes
     if test $((kern_version_code)) -lt 132624 -a "$mutexbackport" != ""; then
         if test "$auto_inodemutex" = "yes"; then
-            TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
+            TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
             AC_MSG_CHECKING([for i_mutex inode struct member])
             ${EGREP} i_mutex\; $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
             if test $? -eq 0; then
@@ -801,6 +826,21 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$mutexbackport" != ""; then
             # Kernels starting with 2.6.16 use them
             AC_SUBST(inodemutex,"-DTALPA_INODE_USES_MUTEXES")
+        fi
+    fi
+
+    # Autodetect if struct inode has i_private field
+    if test $((kern_version_code)) -lt 132627; then
+        if test "$auto_inodeiprivate" = "yes"; then
+            TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
+            AC_MSG_CHECKING([for i_private inode struct member])
+            ${EGREP} i_private\; $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
+            if test $? -eq 0; then
+                AC_MSG_RESULT([detected])
+                AC_SUBST(inodeiprivate,"-DTALPA_INODE_I_PRIVATE")
+            else
+                AC_MSG_RESULT([not detected])
+            fi
         fi
     fi
 
@@ -1057,36 +1097,46 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
-                s/@debug@/${debug}/; \
-                s/@assert@/${assert}/; \
-                s/@dpath@/${dpath}/; \
-                s/@newparent@/${newparent}/; \
-                s/@dotruncatetype@/${dotruncatetype}/; \
-                s/@dotruncateaddr@/${dotruncateaddr}/; \
-                s/@tasknewtty@/${tasknewtty}/; \
-                s/@rcubackport@/${rcubackport}/; \
-                s/@mutexbackport@/${mutexbackport}/; \
-                s/@inodemutex@/${inodemutex}/; \
-                s/@signalbackport@/${signalbackport}/; \
-                s/@jiffiesbackport@/${jiffiesbackport}/; \
-                s/@filldirbackport@/${filldirbackport}/; \
-                s/@buildlsm@/${lsm}/; \
-                s/@lsm265@/${lsm265}/; \
-                s/@lsm266@/${lsm266}/; \
-                s/@lsm2610@/${lsm2610}/; \
-                s/@lsmkeys@/${lsmkeys}/; \
-                s/@hidden@/${hidden}/; \
-                s/@execve@/${execve}/; \
-                s/@xhack@/${xhack}/; \
-                s/@hrtimers@/${hrtimers}/; \
-                s/@buildstacker@/${buildstacker}/; \
-                s/@syscallhook@/${syscallhook}/; \
-                s/@rodata@/${rodata}/; \
-                s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
-                s/@notasklistlock@/${notasklistlock}/; \
-                s/@vfsmntlock@/${vfsmntlock}/; \
-                s/@samefile@/${samefile}/" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+    # Check whether to use securityfs
+    AC_MSG_CHECKING([for securityfs support])
+    if test "$auto_securityfs" = "yes"; then
+        TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath, , , [quiet])
+        ${EGREP} securityfs_remove $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1
+        if test $? -eq 0; then
+            AC_MSG_RESULT([present])
+            AC_SUBST(buildsecurityfs, "yes")
+            AC_SUBST(securityfs, "-DTALPA_HAS_SECURITYFS")
+            AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
+        else
+            AC_MSG_RESULT([not present])
+            AC_SUBST(buildsecurityfs, "no")
+            AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
+        fi
+    else
+        if test "$buildsecurityfs" = "yes"; then
+            AC_MSG_RESULT([forced])
+        else
+            AC_MSG_RESULT([disabled])
+        fi
+    fi
+
+    # Check whether to use dualfs
+    if test "$wantdualfs" = "yes"; then
+        AC_MSG_CHECKING([for legacy configuration support])
+        if test "$buildsecurityfs" != "yes"; then
+            AC_SUBST(builddualfs, "no")
+        else
+            AC_SUBST(builddualfs, "yes")
+        fi
+        if test "$builddualfs" = "yes"; then
+            AC_SUBST(dualfs, "-DTALPA_HAS_DUALFS")
+            AM_CONDITIONAL(BUILDDUALFS, test 1 -eq 1)
+            AC_MSG_RESULT([included])
+        else
+            AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
+            AC_MSG_RESULT([no])
+        fi
+    fi
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
@@ -1099,6 +1149,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@rcubackport@/${rcubackport}/; \
                 s/@mutexbackport@/${mutexbackport}/; \
                 s/@inodemutex@/${inodemutex}/; \
+                s/@inodeiprivate@/${inodeiprivate}/; \
                 s/@signalbackport@/${signalbackport}/; \
                 s/@jiffiesbackport@/${jiffiesbackport}/; \
                 s/@filldirbackport@/${filldirbackport}/; \
@@ -1117,11 +1168,51 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
-                s/@samefile@/${samefile}/" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+                s/@samefile@/${samefile}/; \
+                s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
+                s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
+
+    ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
+                s/@debug@/${debug}/; \
+                s/@assert@/${assert}/; \
+                s/@dpath@/${dpath}/; \
+                s/@newparent@/${newparent}/; \
+                s/@dotruncatetype@/${dotruncatetype}/; \
+                s/@dotruncateaddr@/${dotruncateaddr}/; \
+                s/@tasknewtty@/${tasknewtty}/; \
+                s/@rcubackport@/${rcubackport}/; \
+                s/@mutexbackport@/${mutexbackport}/; \
+                s/@inodemutex@/${inodemutex}/; \
+                s/@inodeiprivate@/${inodeiprivate}/; \
+                s/@signalbackport@/${signalbackport}/; \
+                s/@jiffiesbackport@/${jiffiesbackport}/; \
+                s/@filldirbackport@/${filldirbackport}/; \
+                s/@buildlsm@/${lsm}/; \
+                s/@lsm265@/${lsm265}/; \
+                s/@lsm266@/${lsm266}/; \
+                s/@lsm2610@/${lsm2610}/; \
+                s/@lsmkeys@/${lsmkeys}/; \
+                s/@hidden@/${hidden}/; \
+                s/@execve@/${execve}/; \
+                s/@xhack@/${xhack}/; \
+                s/@hrtimers@/${hrtimers}/; \
+                s/@buildstacker@/${buildstacker}/; \
+                s/@syscallhook@/${syscallhook}/; \
+                s/@rodata@/${rodata}/; \
+                s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
+                s/@notasklistlock@/${notasklistlock}/; \
+                s/@vfsmntlock@/${vfsmntlock}/; \
+                s/@samefile@/${samefile}/; \
+                s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
+                s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
     AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\"${PACKAGE_VERSION}\\\"")
+    AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
+    AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
+    AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
+    AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
 
     # Check for hidden syscall table
     if test "$auto_hidden" = "yes"; then
@@ -1203,6 +1294,8 @@ else
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
     AM_CONDITIONAL(BUILDSTACKER, test 1 -eq 1)
+    AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
+    AM_CONDITIONAL(BUILDDUALFS, test 1 -eq 1)
     ## Defined to be true so that tests are included in source tar file
     AM_CONDITIONAL(TESTXWORKAROUND, test 1 -eq 1)
 fi

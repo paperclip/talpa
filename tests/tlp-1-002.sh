@@ -17,9 +17,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-fileinfo.${ko}
+tlp_insmod modules/tlp-fileinfo.${ko}
 ./tlp-1-002
 
 exit $?

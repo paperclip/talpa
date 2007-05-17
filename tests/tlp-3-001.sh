@@ -17,11 +17,11 @@
 
 . ${srcdir}/functions.sh
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
 get_mount_fs /
 
-insmod modules/tlp-exclusion.${ko}
+tlp_insmod modules/tlp-exclusion.${ko}
 ./tlp-3-001 /bin ${_mount_fs} 3
 
 exit $?

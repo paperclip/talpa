@@ -15,10 +15,12 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
+. ${srcdir}/functions.sh
+
 sync
 
-if test -f /proc/sys/talpa/interceptors/${interceptor_name}/status; then
-    echo disable >/proc/sys/talpa/interceptors/${interceptor_name}/status 2>/dev/null
+if test -f ${talpafs}/interceptors/${interceptor_name}/status; then
+    echo disable >${talpafs}/interceptors/${interceptor_name}/status 2>/dev/null
     sync
 fi
 
@@ -37,6 +39,8 @@ rmmod tlp-fileinfo 2>/dev/null
 rmmod tlp-filesysteminfo 2>/dev/null
 rmmod tlp-syslog 2>/dev/null
 rmmod tlp-procfs 2>/dev/null
+rmmod tlp-securityfs 2>/dev/null
+rmmod tlp-dualfs 2>/dev/null
 rmmod tlp-stdinterceptor 2>/dev/null
 rmmod tlp-inclusion 2>/dev/null
 rmmod tlp-opexcl 2>/dev/null
@@ -51,4 +55,3 @@ rmmod tlp-file 2>/dev/null
 
 rm -rf /tmp/tlp-test 2>/dev/null
 
-exit 0

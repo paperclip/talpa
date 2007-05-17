@@ -15,11 +15,11 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/talpa-init.sh
+. ${srcdir}/talpa-init.sh
 
-echo disable >/proc/sys/talpa/intercept-filters/Cache/status
+echo disable >${talpafs}/intercept-filters/Cache/status
 ./tlp-7-003 /tmp/tlp-test/test-script4.sh /tmp/tlp-test/test-script4.sh
 res=$?
-echo enable >/proc/sys/talpa/intercept-filters/Cache/status
+echo enable >${talpafs}/intercept-filters/Cache/status
 
 exit $res

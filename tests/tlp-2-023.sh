@@ -15,9 +15,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-denysyslog.${ko}
+tlp_insmod modules/tlp-denysyslog.${ko}
 
 ./tlp-2-023 "Standard interceptor processor failure while opening /bin/bash on behalf of process tlp-2-023[" 1 1
 ./tlp-2-023 "Unexpected pass through action request while opening /bin/bash on behalf of process tlp-2-023[" 1 2

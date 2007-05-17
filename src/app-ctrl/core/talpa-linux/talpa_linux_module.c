@@ -34,7 +34,13 @@
 
 #define TALPA_SUBSYS "linux"
 #include "common/talpa.h"
-#include "components/services/configurator_impl/procfs_configurator.h"
+#if defined TALPA_HAS_DUALFS
+  #include "components/services/configurator_impl/dualfs_configurator.h"
+#elif defined TALPA_HAS_SECURITYFS
+  #include "components/services/configurator_impl/securityfs_configurator.h"
+#else
+  #include "components/services/configurator_impl/procfs_configurator.h"
+#endif
 #include "components/services/linux_filesystem_impl/linux_systemroot.h"
 #include "components/services/linux_filesystem_impl/linux_filesystem_factoryimpl.h"
 #include "components/services/linux_personality_impl/linux_personality_factoryimpl.h"
@@ -52,7 +58,14 @@ static IPersonalityFactory*         personalityFactory(void);
 static IThreadAndProcessFactory*    threadandprocessFactory(void);
 
 
+#if defined TALPA_HAS_DUALFS
+static int noprocfs;
+static DualfsConfigurator* mConfig;
+#elif defined TALPA_HAS_SECURITYFS
+static SecurityfsConfigurator* mConfig;
+#else
 static ProcfsConfigurator* mConfig;
+#endif
 static LinuxSystemRoot* mSystemRoot;
 
 /*
@@ -111,7 +124,13 @@ static int __init talpa_linux_init(void)
      * Create the procfs configurator.
      */
 
+#if defined TALPA_HAS_DUALFS
+    mConfig = newDualfsConfigurator(noprocfs);
+#elif defined TALPA_HAS_SECURITYFS
+    mConfig = newSecurityfsConfigurator();
+#else
     mConfig = newProcfsConfigurator();
+#endif
 
     if ( !mConfig )
     {
@@ -169,6 +188,14 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(TALPA_VERSION);
 #endif
 
+#if defined TALPA_HAS_DUALFS
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+module_param(noprocfs, int, 0400);
+  #else
+MODULE_PARM(noprocfs, "i");
+  #endif
+MODULE_PARM_DESC(noprocfs, "Do not register procfs configurator");
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 EXPORT_SYMBOL(TALPA_Portability);

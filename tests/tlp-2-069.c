@@ -87,12 +87,12 @@ int main(int argc, char *argv[])
         {
             if ( errno == EINTR )
             {
-                return 0;
+                return -3;
             }
-            return -3;
+            return 0;
         }
 
-        return -4;
+        return 0;
     }
     else if ( rc < 0 )
     {
@@ -114,7 +114,10 @@ int main(int argc, char *argv[])
             wait(NULL);
             return -1;
         }
-        fprintf(stderr, "Unexpected interception!\n");
+    }
+    else
+    {
+        fprintf(stderr, "No interception!\n");
         vc_exit(talpa);
         wait(NULL);
         return -1;

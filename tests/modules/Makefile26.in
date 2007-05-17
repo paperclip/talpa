@@ -8,6 +8,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@rcubackport@ \
 		@mutexbackport@ \
 		@inodemutex@ \
+		@inodeiprivate@ \
 		@signalbackport@ \
                 @jiffiesbackport@ \
 		@lsm265@ \
@@ -22,13 +23,14 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
                 @kfuncchpgattraddr@ \
 		@notasklistlock@ \
 		@vfsmntlock@ \
-		@samefile@
+		@samefile@ \
+		@securityfs@ \
+		@dualfs@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \
             tlp-filesysteminfo.o \
             tlp-syslog.o \
-            tlp-procfs.o \
             tlp-stdinterceptor.o \
             tlp-inclusion.o \
             tlp-opexcl.o \
@@ -41,6 +43,15 @@ obj-m :=    tlp-personality.o \
             tlp-degrmode.o \
             tlp-file.o
 
+ifeq "@buildsecurityfs@" "yes"
+	obj-m += tlp-securityfs.o
+endif
+
+ifeq "@builddualfs@" "yes"
+	obj-m += tlp-dualfs.o
+	obj-m += tlp-procfs.o
+endif
+
 include $(src)/common.mk
 
 tlp-personality-objs := $(tlpPersonalityOBJS)
@@ -48,6 +59,8 @@ tlp-fileinfo-objs := $(tlpFileInfoOBJS)
 tlp-filesysteminfo-objs := $(tlpFilesystemInfoOBJS)
 tlp-syslog-objs := $(tlpSyslogOBJS)
 tlp-procfs-objs := $(tlpProcfsOBJS)
+tlp-securityfs-objs := $(tlpSecurityfsOBJS)
+tlp-dualfs-objs := $(tlpDualfsOBJS)
 tlp-stdinterceptor-objs := $(tlpStdInterceptorOBJS)
 tlp-inclusion-objs := $(tlpInclusionOBJS)
 tlp-opexcl-objs := $(tlpOpExclOBJS)

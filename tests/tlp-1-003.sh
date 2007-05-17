@@ -15,9 +15,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-filesysteminfo.${ko}
+tlp_insmod modules/tlp-filesysteminfo.${ko}
 ./tlp-1-003 /dev/hda /mnt ext2 4
 if test $? -eq 77; then
     ./tlp-1-003 /dev/sda /mnt ext2 4

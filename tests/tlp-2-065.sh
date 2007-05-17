@@ -15,8 +15,8 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/talpa-init.sh
-echo 1000 >/proc/sys/talpa/intercept-filters/VettingController/timeout-ms
+. ${srcdir}/talpa-init.sh
+echo 1000 >${talpafs}/intercept-filters/VettingController/timeout-ms
 ./tlp-2-065 0 /tmp/tlp-test/file
 
 exit $?

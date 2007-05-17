@@ -15,8 +15,8 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/talpa-init.sh
-echo +path:/tmp/tlp-test/:1 >/proc/sys/talpa/intercept-filters/VettingController/routing
+. ${srcdir}/talpa-init.sh
+echo +path:/tmp/tlp-test/:1 >${talpafs}/intercept-filters/VettingController/routing
 ./tlp-2-063 1 /tmp/tlp-test/file
 
 exit $?

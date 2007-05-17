@@ -15,9 +15,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-denysyslog.${ko}
+tlp_insmod modules/tlp-denysyslog.${ko}
 
 ./tlp-2-024 "Standard interceptor processor failure while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 1
 ./tlp-2-024 "Unexpected pass through action request while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 2

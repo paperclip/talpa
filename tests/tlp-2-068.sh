@@ -17,7 +17,7 @@
 
 . ${srcdir}/functions.sh
 
-${srcdir}/talpa-init.sh
+. ${srcdir}/talpa-init.sh
 ./tlp-2-068 0 /tmp/tlp-test/file
 res=$?
 

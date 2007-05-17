@@ -34,6 +34,18 @@ tlpProcfsSOURCES    =  tlp_procfs.c \
 
 tlpProcfsOBJS       =  $(tlpProcfsSOURCES:.c=.o)
 
+tlpSecurityfsSOURCES    =  tlp_securityfs.c \
+                          src/components/services/configurator_impl/securityfs_configurator.c
+
+tlpSecurityfsOBJS       =  $(tlpSecurityfsSOURCES:.c=.o)
+
+tlpDualfsSOURCES    =  tlp_dualfs.c \
+                       src/components/services/configurator_impl/dualfs_configurator.c \
+                       src/components/services/configurator_impl/procfs_configurator.c \
+                       src/components/services/configurator_impl/securityfs_configurator.c
+
+tlpDualfsOBJS       =  $(tlpDualfsSOURCES:.c=.o)
+
 tlpStdInterceptorSOURCES    =  tlp_stdinterceptor.c \
                              src/platforms/linux/glue.c \
                              src/components/services/linux_filesystem_impl/linux_file.c \

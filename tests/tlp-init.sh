@@ -17,6 +17,11 @@
 
 mknod /dev/talpa-test c 60 0 2>/dev/null
 chmod a+rw /dev/talpa-test
+if [ -d /sys/kernel/security ]; then
+    if grep -q securityfs /proc/filesystems; then
+        mount none -t securityfs /sys/kernel/security
+    fi
+fi
 
 echo "************************************************"
 echo "***                                          ***"
@@ -25,4 +30,3 @@ echo "***      (and watch the talpa output)        ***"
 echo "***                                          ***"
 echo "************************************************"
 
-exit 0

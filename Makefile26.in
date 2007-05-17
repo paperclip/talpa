@@ -10,6 +10,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@rcubackport@ \
 		@mutexbackport@ \
 		@inodemutex@ \
+		@inodeiprivate@ \
 		@signalbackport@ \
 		@jiffiesbackport@ \
                 @lsm265@ \
@@ -25,7 +26,9 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@notasklistlock@ \
 		@vfsmntlock@ \
 		@samefile@ \
-		@filldirbackport@
+		@filldirbackport@ \
+		@securityfs@ \
+		@dualfs@
 
 obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o
 
@@ -42,6 +45,17 @@ endif
 
 include $(src)/src/app-ctrl/core/talpa-linux/common.mk
 talpa_linux-objs := $(talpaLinuxOBJS)
+
+ifeq "@buildsecurityfs@" "yes"
+	talpa_linux-objs += $(talpaSecurityFSConfiguratorOBJS)
+else
+	talpa_linux-objs += $(talpaProcFSConfiguratorOBJS)
+endif
+
+ifeq "@builddualfs@" "yes"
+	talpa_linux-objs += $(talpaDualFSConfiguratorOBJS)
+	talpa_linux-objs += $(talpaProcFSConfiguratorOBJS)
+endif
 
 include $(src)/src/app-ctrl/core/talpa-core/common.mk
 talpa_core-objs :=  $(talpaCoreOBJS)

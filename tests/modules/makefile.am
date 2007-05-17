@@ -62,6 +62,18 @@ CHECKMODULES := \
            tlp-degrmode.ko \
            tlp-file.ko
 
+if BUILDSECURITYFS
+CHECKMODULES += tlp-securityfs.ko
+endif
+
+if BUILDDUALFS
+CHECKMODULES += tlp-dualfs.ko
+endif
+
+## Not handled by automake (2.6 only)
+CHECKMODULESRC += tlp_securityfs.c tlp_dualfs.c 
+EXTRA_DIST += $(CHECKMODULESRC)
+
 modulesdir     = $(libdir)/modules
 check_SCRIPTS  = $(CHECKMODULES)
 
@@ -127,6 +139,16 @@ tlp_procfs_o_SOURCES    =  $(tlpProcfsSOURCES)
 
 tlp_procfs_o_CFLAGS     =   $(modules_CFLAGS)
 tlp_procfs_o_LINK       =   $(MODULELINKCMD)
+
+#tlp_securityfs_o_SOURCES    =  $(tlpSecurityfsSOURCES)
+
+#tlp_securityfs_o_CFLAGS     =   $(modules_CFLAGS)
+#tlp_securityfs_o_LINK       =   $(MODULELINKCMD)
+
+#tlp_dualfs_o_SOURCES    =  $(tlpDualfsSOURCES)
+
+#tlp_dualfs_o_CFLAGS     =   $(modules_CFLAGS)
+#tlp_dualfs_o_LINK       =   $(MODULELINKCMD)
 
 tlp_stdinterceptor_o_SOURCES    =  $(tlpStdInterceptorSOURCES)
 

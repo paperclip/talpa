@@ -15,13 +15,11 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-. ${srcdir}/functions.sh
-
-${srcdir}/talpa-init.sh
+. ${srcdir}/talpa-init.sh
 get_mount_fs /tmp
-echo /tmp/tlp-test/ >/proc/sys/talpa/intercept-filters/FilesystemInclusionProcessor/include-path
-echo -${_mount_fs} >/proc/sys/talpa/intercept-filters/FilesystemExclusionProcessor/fstypes
-echo +fs:${_mount_fs}:1 >/proc/sys/talpa/intercept-filters/VettingController/routing
+echo /tmp/tlp-test/ >${talpafs}/intercept-filters/FilesystemInclusionProcessor/include-path
+echo -${_mount_fs} >${talpafs}/intercept-filters/FilesystemExclusionProcessor/fstypes
+echo +fs:${_mount_fs}:1 >${talpafs}/intercept-filters/VettingController/routing
 ./tlp-2-063 1 /tmp/tlp-test/file
 res=$?
 

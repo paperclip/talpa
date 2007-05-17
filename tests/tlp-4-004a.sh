@@ -15,8 +15,10 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-if test -f /proc/sys/talpa/interceptors/${interceptor_name}/status; then
-    echo disable >/proc/sys/talpa/interceptors/${interceptor_name}/status 2>/dev/null
+. ${srcdir}/functions.sh
+
+if test -f ${talpafs}/interceptors/${interceptor_name}/status; then
+    echo disable >${talpafs}/interceptors/${interceptor_name}/status 2>/dev/null
     sync
 fi
 

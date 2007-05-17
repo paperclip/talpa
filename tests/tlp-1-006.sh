@@ -15,22 +15,47 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-${srcdir}/tlp-cleanup.sh
+. ${srcdir}/tlp-cleanup.sh
 
-insmod modules/tlp-procfs.${ko}
+inc=1
+rc=1
 
-talpaproc=/proc/sys/talpa/
-testproc=intercept-processors/ProcfsTest/
-testvar=status
-testval=enable
-testres=enabled
+function testone
+{
+    if [ "$1" = "yes" ]; then
+        . ${srcdir}/tlp-cleanup.sh
 
-procpath=${talpaproc}${testproc}${testvar}
+        tlp_insmod modules/tlp-${2}.${ko}
 
-echo ${testval} >${procpath}
-read <${procpath} status
-if test "$status" != "$testres"; then
-    exit 1
-fi
+        testproc=intercept-processors/${3}/
+        testvar=status
+        testval=enable
+        testres=enabled
 
-exit 0
+        testpath=${talpafs}/${testproc}/${testvar}
+
+        echo ${testval} >${testpath}
+        read <${testpath} status
+        if test "$status" != "$testres"; then
+            exit $inc
+        fi
+
+        let inc=($inc)+1
+        rc=0
+    fi
+}
+
+tlp_insmod ../talpa_linux.${ko} || exit 1
+tlp_insmod ../talpa_core.${ko} || exit 1
+rmmod talpa_core >/dev/null 2>&1
+rmmod talpa_linux >/dev/null 2>&1
+
+procfs=$talpaprocfs
+securityfs=$talpasecurityfs
+dualfs=$talpadualfs
+
+testone $procfs procfs ProcfsTest
+testone $securityfs securityfs SecurityfsTest
+testone $dualfs dualfs DualfsTest
+
+exit $rc
