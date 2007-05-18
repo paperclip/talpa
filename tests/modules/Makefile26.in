@@ -45,6 +45,8 @@ obj-m :=    tlp-personality.o \
 
 ifeq "@buildsecurityfs@" "yes"
 	obj-m += tlp-securityfs.o
+else
+	obj-m += tlp-procfs.o
 endif
 
 ifeq "@builddualfs@" "yes"
