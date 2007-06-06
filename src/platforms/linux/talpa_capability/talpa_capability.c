@@ -109,7 +109,7 @@ static int talpa_inode_permission(struct inode *inode, int mask, struct nameidat
     return ret;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14) || defined TALPA_HAS_2614_LSM
 static int talpa_inode_init_security(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len)
 {
     struct talpa_capability_interceptor* i;
@@ -276,7 +276,7 @@ struct security_operations talpa_capability_ops = {
 
 /* Talpa part */
     .inode_permission =         talpa_inode_permission,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14) || defined TALPA_HAS_2614_LSM
     .inode_init_security =      talpa_inode_init_security,
 #else
     .inode_post_create =        talpa_inode_post_create,

@@ -14,6 +14,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@lsm265@ \
 		@lsm266@ \
 		@lsm2610@ \
+		@lsm2614@ \
 		@lsmkeys@ \
 		@hidden@ \
 		@execve@ \

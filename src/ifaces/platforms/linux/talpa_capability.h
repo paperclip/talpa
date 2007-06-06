@@ -26,7 +26,7 @@
 struct talpa_capability_interceptor
 {
     int (*inode_permission)(struct inode *inode, int mask, struct nameidata *nd);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14) || defined TALPA_HAS_2614_LSM
     int (*inode_init_security)(struct inode *inode, struct inode *dir, char **name, void **value, size_t *len);
 #else
     void (*inode_post_create)(struct inode *dir, struct dentry *dentry, int mode);

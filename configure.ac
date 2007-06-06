@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.38)
+AC_INIT(talpa, 0.9.39)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2006 Sophos PLC)
 
@@ -221,6 +221,15 @@ AC_ARG_ENABLE(lsm-keys,
                     auto_lsmkeys=no
                 ],
                 [   auto_lsmkeys=yes])
+
+AC_ARG_ENABLE(lsm-2614,
+                [  --enable-lsm-2614              for example Turbolinux Server 10 x64 2.6.13 kernels have LSM backported from 2.6.14 [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(lsm2614,"-DTALPA_HAS_2614_LSM")
+                    fi
+                    auto_lsm2614=no
+                ],
+                [   auto_lsm2614=yes])
 
 AC_ARG_ENABLE(lsm-2610,
                 [  --enable-lsm-2610              for example RHAS 4.0 2.6.9 kernel has LSM backported from 2.6.10 [[autodetected]]],
@@ -797,7 +806,7 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$auto_mutexbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/mutex.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
             AC_MSG_CHECKING([for backported mutexes])
-            if test $? -eq 0 -a -f "$TALPA_HEADER_LOCATION/linux/mutex.h"; then
+            if grep -q "struct mutex" "$TALPA_HEADER_LOCATION/linux/mutex.h" 2>/dev/null; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
             else
@@ -1019,6 +1028,20 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
 
+        if test $((kern_version_code)) -le 132621; then
+            # Autodetect if LSM from 2.6.14 is backported to the earlier version
+            if test "$auto_lsm2614" = "yes"; then
+                AC_MSG_CHECKING([for 2.6.14 LSM])
+                ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/lsm2614.c -o /dev/null 1>/dev/null 2>&1
+                if test $? -eq 0; then
+                    AC_MSG_RESULT([detected])
+                    AC_SUBST(lsm2614,"-DTALPA_HAS_2614_LSM")
+                else
+                    AC_MSG_RESULT([not detected])
+                fi
+            fi
+        fi
+
         if test $((kern_version_code)) -le 132617; then
             # Autodetect if LSM from 2.6.10 is backported to 2.6.9
             if test "$auto_lsm2610" = "yes"; then
@@ -1157,6 +1180,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@lsm265@/${lsm265}/; \
                 s/@lsm266@/${lsm266}/; \
                 s/@lsm2610@/${lsm2610}/; \
+                s/@lsm2614@/${lsm2614}/; \
                 s/@lsmkeys@/${lsmkeys}/; \
                 s/@hidden@/${hidden}/; \
                 s/@execve@/${execve}/; \
@@ -1191,6 +1215,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@lsm265@/${lsm265}/; \
                 s/@lsm266@/${lsm266}/; \
                 s/@lsm2610@/${lsm2610}/; \
+                s/@lsm2614@/${lsm2614}/; \
                 s/@lsmkeys@/${lsmkeys}/; \
                 s/@hidden@/${hidden}/; \
                 s/@execve@/${execve}/; \
