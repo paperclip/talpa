@@ -1,6 +1,6 @@
 #include "linux/security.h"
 
-static inline int security_inode_init_security (struct inode *inode,
+static inline int inode_init_security (struct inode *inode,
                                                 struct inode *dir,
                                                 char **name,
                                                 void **value,
