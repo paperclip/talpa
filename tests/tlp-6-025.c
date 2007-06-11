@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 
     strcpy(to.filename,"/bin/bash");
     to.flags = O_RDONLY;
-    to.mode = 0;
+    to.mode = S_IRUSR | S_IWUSR;
 
     ret = ioctl(fd,TALPA_TEST_FILE_OPEN, &to);
 

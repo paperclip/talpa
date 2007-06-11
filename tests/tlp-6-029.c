@@ -42,29 +42,30 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    strcpy(to.filename,"/bin/bash");
-    to.flags = O_RDONLY;
-    to.mode = S_IRUSR | S_IWUSR;
+    strcpy(to.filename,"/tmp/talpa-file-object-test-file");
+    to.flags = O_RDWR;
+    to.mode = S_IRUSR;
 
-    ret = ioctl(fd,TALPA_TEST_FILE_OPEN, &to);
+    ret = open(to.filename, to.flags | O_TRUNC | O_CREAT, to.mode);
 
     if ( ret < 0 )
     {
-        fprintf(stderr,"Open error!\n");
+        fprintf(stderr,"Create error!\n");
         close(fd);
         return 1;
     }
 
-    ret = ioctl(fd,TALPA_TEST_FILE_ISOPEN);
+    close(ret);
 
-    if ( ret <= 0 )
+    ret = ioctl(fd,TALPA_TEST_FILE_OPEN, &to);
+
+    if ( ret >= 0 )
     {
-        fprintf(stderr,"isOpen error!\n");
+        fprintf(stderr,"Open sucess!\n");
+        ioctl(fd,TALPA_TEST_FILE_CLOSE);
         close(fd);
         return 1;
     }
-
-    close(fd);
 
     return 0;
 }

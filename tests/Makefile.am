@@ -105,6 +105,7 @@ check_PROGRAMS =    tlp-1-001 \
                     tlp-6-026 \
                     tlp-6-027 \
                     tlp-6-028 \
+                    tlp-6-029 \
                     tlp-7-001 \
                     tlp-7-003 \
                     tlp-7-005 \
@@ -201,6 +202,7 @@ tlp_6_025_SOURCES = tlp-6-025.c
 tlp_6_026_SOURCES = tlp-6-026.c
 tlp_6_027_SOURCES = tlp-6-027.c
 tlp_6_028_SOURCES = tlp-6-028.c
+tlp_6_029_SOURCES = tlp-6-029.c
 tlp_7_001_SOURCES = tlp-7-001.c ../clients/vc-lib.c
 tlp_7_003_SOURCES = tlp-7-003.c ../clients/vc-lib.c
 tlp_7_005_SOURCES = tlp-7-005.c ../clients/vc-lib.c
@@ -321,6 +323,7 @@ TESTS +=                  tlp-3-001.sh \
                           tlp-6-026.sh \
                           tlp-6-027.sh \
                           tlp-6-028.sh \
+                          tlp-6-029.sh \
                           tlp-7-001.sh \
                           tlp-7-002.sh \
                           tlp-7-003.sh \

@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 
     strcpy(to.filename,"/tmp/talpa-file-object-test-file");
     to.flags = O_WRONLY;
-    to.mode = 0;
+    to.mode = S_IRUSR | S_IWUSR;
 
     ret = open(to.filename, to.flags | O_TRUNC | O_CREAT, to.mode);
 

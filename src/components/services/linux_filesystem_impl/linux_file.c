@@ -197,9 +197,19 @@ static int openExec(void* self, const char* filename)
     return 0;
 }
 
+#ifndef ACC_MODE
+  #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
+#endif
+
 static int openDentry(void* self, void* object1, void* object2, unsigned int flags)
 {
-    struct file* file;
+    struct file *file;
+    struct dentry *dentry = (struct dentry *)object1;
+    struct inode *inode;
+    struct vfsmount *mnt = (struct vfsmount *)object2;
+    int error;
+    int namei_flags;
+    int acc_mode;
 
 
     if ( unlikely(this->mFile != NULL) )
@@ -207,13 +217,62 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
         return -EBUSY;
     }
 
-    if ( unlikely((object1 == NULL) || (object2 == NULL)) )
+    if ( unlikely((dentry == NULL) || (mnt == NULL)) )
     {
         return -EINVAL;
     }
 
-    file = dentry_open(dget((struct dentry *)object1), mntget((struct vfsmount *)object2), flags);
+    namei_flags = flags;
+    if ( (namei_flags+1) & O_ACCMODE )
+    {
+        namei_flags++;
+    }
 
+    acc_mode = ACC_MODE(namei_flags);
+
+    if ( namei_flags & O_TRUNC )
+    {
+        acc_mode |= MAY_WRITE;
+    }
+#ifdef MAY_APPEND
+    if ( namei_flags & O_APPEND )
+    {
+        acc_mode |= MAY_APPEND;
+    }
+#endif
+    if ( acc_mode & MAY_WRITE )
+    {
+        this->mWritable = true;
+    }
+
+    if ( !dentry->d_inode )
+    {
+        return -ENOENT;
+    }
+
+    inode = dentry->d_inode;
+
+    if ( S_ISLNK(inode->i_mode) )
+    {
+        return -ELOOP;
+    }
+
+    if ( S_ISDIR(inode->i_mode) && (namei_flags & FMODE_WRITE) )
+    {
+        return -EISDIR;
+    }
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+    error = permission(inode, acc_mode, NULL);
+#else
+    error = permission(inode, acc_mode);
+#endif
+    if ( unlikely( error != 0 ) )
+    {
+        return error;
+    }
+
+    file = dentry_open(dget(dentry), mntget(mnt), flags);
     if ( unlikely(IS_ERR(file)) )
     {
         return PTR_ERR(file);
@@ -223,11 +282,6 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
     {
         fput(file);
         return -EBADF;
-    }
-
-    if ( flags & (O_WRONLY | O_RDWR) )
-    {
-        this->mWritable = true;
     }
 
     this->mOpenType = Dentry;
@@ -300,6 +354,7 @@ static int close(void* self)
 
     this->mFile = NULL;
     this->mOffset = 0;
+    this->mWritable = false;
 
     return retval;
 }
