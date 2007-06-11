@@ -17,10 +17,12 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-rm -f /tmp/talpa-file-object-test-file 2>/dev/null
-
-tlp_insmod modules/tlp-file.${ko}
-
-su -c ./tlp-6-029 nobody
-
-exit $?
+if su -c /bin/true nobody; then
+    rm -f /tmp/talpa-file-object-test-file 2>/dev/null
+    tlp_insmod modules/tlp-file.${ko}
+    chmod 777 ./tlp-6-029
+    su -c ./tlp-6-029 nobody
+    exit $?
+else
+    exit 77
+fi
