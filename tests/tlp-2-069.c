@@ -40,12 +40,13 @@ void sigalarm(int sig)
 int main(int argc, char *argv[])
 {
     unsigned int group;
-    const unsigned int tout = 2;
+    const unsigned int tout = 100;
     char file[100];
     int talpa;
     int rc;
     struct TalpaPacket_VettingDetails* details;
     int status;
+    int interceptions = 0;
 
 
     if ( argc > 1 )
@@ -59,7 +60,7 @@ int main(int argc, char *argv[])
         strcpy(file, "/test/file");
     }
 
-    if ( (talpa = vc_init(group, tout*1000)) < 0 )
+    if ( (talpa = vc_init(group, tout)) < 0 )
     {
         fprintf(stderr, "Failed to initialize!\n");
         return -1;
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
 
     /* Sleep for two seconds to allow for timer to interrupt the opener */
     sleep(2);
-
+vet:
     details = vc_get(talpa);
 
     if ( details )
@@ -114,8 +115,10 @@ int main(int argc, char *argv[])
             wait(NULL);
             return -1;
         }
+        interceptions++;
+        goto vet;
     }
-    else
+    else if ( !interceptions )
     {
         fprintf(stderr, "No interception!\n");
         vc_exit(talpa);
