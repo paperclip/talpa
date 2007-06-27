@@ -25,14 +25,10 @@ src/platforms/linux/glue.c: link-sources
 src/components/services/linux_personality_impl/linux_personality.c: link-sources
 
 link-sources:
-	@if test ! -L src; then \
-		rm -f src; \
-		ln -s @abs_top_srcdir@/src src; \
-	fi; \
-	if test ! -L include; then \
-		rm -f include; \
-		ln -s @abs_top_srcdir@/include include; \
-	fi
+	@if test ! -d src -a -L src; then rm -f src; fi
+	@if test ! -d src; then ln -s @abs_top_srcdir@/src src; fi
+	@if test ! -d include -a -L include; then rm -f include; fi
+	@if test ! -d include; then ln -s @abs_top_srcdir@/include include; fi
 
 EXTRA_DIST = tlp-test.h Makefile26.in
 

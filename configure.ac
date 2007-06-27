@@ -543,11 +543,15 @@ case $testinterceptor in
 esac
 
 # Try to find the System.map file
+AC_MSG_CHECKING([for System.map])
 if test "$auto_system_map" = "yes"; then
     system_map="/boot/System.map-${kern_uts_release}"
 fi
 if test ! -f "$system_map"; then
     system_map=""
+    AC_MSG_ERROR([not found])
+else
+    AC_MSG_RESULT([$system_map])
 fi
 
 # Check for do_truncate address
