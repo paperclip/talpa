@@ -39,7 +39,7 @@
  * Forward declare implementation methods.
  */
 static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file);
-static int examineInode(const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode);
+static int examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode);
 static int runAllowChain(const void* self, const IFileInfo* info);
 static int examineFilesystemInfo(const void* self, const IFilesystemInfo* info);
 static void addEvaluationFilter(void* self, IInterceptFilter* filter);
@@ -266,10 +266,11 @@ static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file)
     return 0;
 }
 
-static int examineInode(const void* self, const EFilesystemOperation op, const uint32_t device, const uint32_t inode)
+static int examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode)
 {
     FilterEntry*        posptr;
     EInterceptAction    action;
+    talpa_list_head*    actionList;
     int                 retCode = 0;
 
 
@@ -285,7 +286,7 @@ static int examineInode(const void* self, const EFilesystemOperation op, const u
             continue;
         }
 
-        action = posptr->filter->examineInode(posptr->filter->object, op, device, inode);
+        action = posptr->filter->examineInode(posptr->filter->object, op, writable, device, inode);
 
         if ( action == EIA_Next )
         {
@@ -296,6 +297,31 @@ static int examineInode(const void* self, const EFilesystemOperation op, const u
             goto start_eval;
         }
         break;
+    }
+
+    /*
+     * OK. Lets look at our verdict - if next assume allow.
+     */
+    if ( (action == EIA_Next) || (action == EIA_Allow) )
+    {
+        actionList = &this->mAllowActions;
+    }
+    else
+    {
+        actionList = &this->mDenyActions;
+    }
+
+    talpa_list_for_each_entry(posptr, actionList, list)
+    {
+        if ( unlikely( !posptr->filter->examineInode || !posptr->filter->isEnabled(posptr->filter->object) ) )
+        {
+            continue;
+        }
+
+        if ( posptr->filter->examineInode(posptr->filter->object, op, writable, device, inode) == EIA_Error )
+        {
+            break;
+        }
     }
 
     switch ( action )

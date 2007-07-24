@@ -29,6 +29,7 @@
  * Forward declare implementation methods.
  */
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode);
 static void examineFilesystem(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info);
 
 static bool enable(void* self);
@@ -44,7 +45,7 @@ static CacheAllow template_CacheAllow =
     {
         {
             examineFile,
-            NULL,
+            examineInode,
             examineFilesystem,
             enable,
             disable,
@@ -103,6 +104,17 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     }
 
     return;
+}
+
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode)
+{
+    /* If the file is writable on open we will try to delete it from the cache. */
+    if ( writable && (op == EFS_Open) )
+    {
+        this->mCache->clear(this->mCache->object, device, inode);
+    }
+
+    return EIA_Next;
 }
 
 static void examineFilesystem(const void* self, IEvaluationReport* report,

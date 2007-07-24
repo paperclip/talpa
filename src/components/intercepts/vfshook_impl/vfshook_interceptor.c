@@ -233,7 +233,7 @@ static int talpaOpen(struct inode *inode, struct file *file)
         if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
         {
             /* First check with the examineInode method */
-            ret = GL_object.mTargetProcessor->examineInode(GL_object.mTargetProcessor, EFS_Open, kdev_t_to_nr(inode_dev(inode)), inode->i_ino);
+            ret = GL_object.mTargetProcessor->examineInode(GL_object.mTargetProcessor, EFS_Open, atomic_read(&inode->i_writecount)>0?true:false, kdev_t_to_nr(inode_dev(inode)), inode->i_ino);
 
             if ( ret == -EAGAIN )
             {

@@ -138,7 +138,7 @@ static inline int examineFile(const void* self, EFilesystemOperation op, struct 
     }
 
     /* First check with the examineInode method */
-    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, kdev_t_to_nr(inode_dev(file->f_dentry->d_inode)), file->f_dentry->d_inode->i_ino);
+    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, atomic_read(&file->f_dentry->d_inode->i_writecount)>0?true:false, kdev_t_to_nr(inode_dev(file->f_dentry->d_inode)), file->f_dentry->d_inode->i_ino);
 
     if ( likely ( decision == 0 ) )
     {
@@ -186,7 +186,7 @@ static inline int examineDirectoryEntry(const void* self, EFilesystemOperation o
 
 
     /* First check with the examineInode method */
-    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, kdev_t_to_nr(inode_dev(dentry->d_inode)), dentry->d_inode->i_ino);
+    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, atomic_read(&dentry->d_inode->i_writecount)>0?true:false, kdev_t_to_nr(inode_dev(dentry->d_inode)), dentry->d_inode->i_ino);
 
     if ( likely ( decision == 0 ) )
     {

@@ -89,12 +89,10 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
 {
     /* If the access was denied, we will delete the file
         from our cache. But only if that is an external decision. */
-    if ( unlikely(!report->hasBeenExternallyVetted(report)) )
+    if ( likely(report->hasBeenExternallyVetted(report) == true) )
     {
-        return;
+        this->mCache->clear(this->mCache->object, info->device(info), info->inode(info));
     }
-
-    this->mCache->clear(this->mCache->object, info->device(info), info->inode(info));
 
     return;
 }
