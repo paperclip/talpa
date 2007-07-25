@@ -316,6 +316,9 @@ static int __init talpa_core_init(void)
 
     /*
      * Add filters to the intercept processor.
+     * Note: In the future we want to evalute the order of the filters. Possibly make
+     * cache happen immediately after opexcl and make IFileInfo use just-in-time
+     * creation of expensive data.
      */
     mProcessor->i_IInterceptProcessor.addEvaluationFilter(mProcessor, &mOpExcl->i_IInterceptFilter);
     mProcessor->i_IInterceptProcessor.addEvaluationFilter(mProcessor, &mInclusion->i_IInterceptFilter);

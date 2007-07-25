@@ -270,7 +270,7 @@ static int examineInode(const void* self, const EFilesystemOperation op, const b
 {
     FilterEntry*        posptr;
     EInterceptAction    action;
-    talpa_list_head*    actionList;
+    talpa_list_head*    actionList = NULL;
     int                 retCode = 0;
 
 
@@ -300,27 +300,31 @@ static int examineInode(const void* self, const EFilesystemOperation op, const b
     }
 
     /*
-     * OK. Lets look at our verdict - if next assume allow.
+     * OK. Lets look at our verdict - if next don't run allow or deny chains.
+     * That will make the interceptor run the examineFileInfo eval chain instead.
      */
-    if ( (action == EIA_Next) || (action == EIA_Allow) )
+    if ( action == EIA_Allow )
     {
         actionList = &this->mAllowActions;
     }
-    else
+    else if ( action != EIA_Next )
     {
         actionList = &this->mDenyActions;
     }
 
-    talpa_list_for_each_entry(posptr, actionList, list)
+    if ( actionList )
     {
-        if ( unlikely( !posptr->filter->examineInode || !posptr->filter->isEnabled(posptr->filter->object) ) )
+        talpa_list_for_each_entry(posptr, actionList, list)
         {
-            continue;
-        }
+            if ( unlikely( !posptr->filter->examineInode || !posptr->filter->isEnabled(posptr->filter->object) ) )
+            {
+                continue;
+            }
 
-        if ( posptr->filter->examineInode(posptr->filter->object, op, writable, device, inode) == EIA_Error )
-        {
-            break;
+            if ( posptr->filter->examineInode(posptr->filter->object, op, writable, device, inode) == EIA_Error )
+            {
+                break;
+            }
         }
     }
 
