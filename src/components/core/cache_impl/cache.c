@@ -364,8 +364,8 @@ static void add(void *self, const char* class, const uint32_t keyH, const uint32
         }
         else if ( (cache[index].device == keyH) && (cache[index].inode == keyL) )
         {
-            notice("Duplicate add attempted!");
             talpa_cache_write_unlock(&this->mCacheLock);
+            notice("Duplicate add attempted!");
             return;
         }
         index = ( index + modulo ) % entries;
