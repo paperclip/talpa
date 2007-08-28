@@ -34,7 +34,7 @@ typedef struct
 {
     talpa_list_head head;
     atomic_t        refcnt;
-    pid_t           processID;
+    void*           processID; /* Stores a pointer under Linux 2.4 and a tgid under 2.6 */
     pid_t           threadID;
     bool            active;
     void*           private;
@@ -47,7 +47,7 @@ typedef struct
 
 typedef struct
 {
-    ProcessExcluded* (*registerProcess)   (void* self, pid_t pid, pid_t tid);
+    ProcessExcluded* (*registerProcess)   (void* self, void* pid, pid_t tid);
     void             (*deregisterProcess) (void* self, ProcessExcluded* obj);
     ProcessExcluded* (*active)            (void* self, ProcessExcluded* obj);
     ProcessExcluded* (*idle)              (void* self, ProcessExcluded* obj);

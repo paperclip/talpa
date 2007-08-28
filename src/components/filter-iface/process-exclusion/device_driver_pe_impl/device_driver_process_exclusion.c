@@ -249,7 +249,11 @@ static int ddpeOpen(struct inode* inode, struct file* file)
         return -ENODEV;
     }
 
-    ctx->pid = current->tgid;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+    ctx->pid = (void *)current->files;
+#else
+    ctx->pid = (void *)current->tgid;
+#endif
     ctx->tid = current->pid;
     ctx->modified = false;
     ctx->state = false;

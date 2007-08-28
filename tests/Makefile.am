@@ -84,6 +84,7 @@ check_PROGRAMS =    tlp-1-001 \
                     tlp-4-003a \
                     tlp-4-004 \
                     tlp-4-005 \
+                    tlp-4-006 \
                     tlp-5-001 \
                     tlp-5-002 \
                     tlp-5-003 \
@@ -181,6 +182,8 @@ tlp_4_003a_SOURCES = tlp-4-003a.c ../clients/vc-lib.c
 tlp_4_004_SOURCES = tlp-4-004.c ../clients/pe-lib.c
 tlp_4_005_SOURCES = tlp-4-005.c ../clients/pe-lib.c
 tlp_4_005_LDFLAGS = -lpthread
+tlp_4_006_SOURCES = tlp-4-006.c ../clients/vc-lib.c ../clients/pe-lib.c
+tlp_4_006_LDFLAGS = -lpthread
 tlp_5_001_SOURCES = tlp-5-001.c
 tlp_5_002_SOURCES = tlp-5-002.c
 tlp_5_003_SOURCES = tlp-5-003.c
@@ -302,6 +305,7 @@ TESTS +=                  tlp-3-001.sh \
                           tlp-4-003.sh \
                           tlp-4-004.sh \
                           tlp-4-005.sh \
+                          tlp-4-006.sh \
                           tlp-5-001.sh \
                           tlp-5-002.sh \
                           tlp-5-003.sh \
