@@ -364,8 +364,14 @@ static void add(void *self, const char* class, const uint32_t keyH, const uint32
         }
         else if ( (cache[index].device == keyH) && (cache[index].inode == keyL) )
         {
+            /* Multiple concurrent scan can happen and they will be serialised
+               by the cache lock. Therefore adding the same entry for the second
+               time must be avoided. Nothing bad can happen from concurrent scans
+               except it's not the most optimal scenario. But it would be even
+               worse for performance to introduce something smarter for that
+               exceptional event. */
             talpa_cache_write_unlock(&this->mCacheLock);
-            notice("Duplicate add attempted!");
+            dbg("Duplicate add attempted!");
             return;
         }
         index = ( index + modulo ) % entries;

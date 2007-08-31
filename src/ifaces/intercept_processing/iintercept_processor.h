@@ -28,7 +28,7 @@
 typedef struct
 {
     int   (*examineFileInfo)       (const void* self, const IFileInfo* info, IFile* file);
-    int   (*examineInode)          (const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode);
+    int   (*examineInode)          (const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode);
     int   (*runAllowChain)         (const void* self, const IFileInfo* info);
     int   (*examineFilesystemInfo) (const void* self, const IFilesystemInfo* info);
     void  (*addEvaluationFilter)   (void* self, IInterceptFilter* filter);

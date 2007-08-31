@@ -422,12 +422,7 @@ static unsigned long inode(const void* self)
 
 static bool isWritable(const void* self)
 {
-    if ( this->mFlags & ( O_WRONLY | O_RDWR | O_APPEND | O_CREAT ) )
-    {
-        return true;
-    }
-
-    return false;
+    return flags_to_writable(this->mFlags);
 }
 
 static unsigned int isWritableAnywhere(const void* self)

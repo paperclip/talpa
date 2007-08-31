@@ -39,7 +39,7 @@
  * Forward declare implementation methods.
  */
 static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file);
-static int examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode);
+static int examineInode(const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode);
 static int runAllowChain(const void* self, const IFileInfo* info);
 static int examineFilesystemInfo(const void* self, const IFilesystemInfo* info);
 static void addEvaluationFilter(void* self, IInterceptFilter* filter);
@@ -266,7 +266,7 @@ static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file)
     return 0;
 }
 
-static int examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode)
+static int examineInode(const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode)
 {
     FilterEntry*        posptr;
     EInterceptAction    action;
@@ -286,7 +286,7 @@ static int examineInode(const void* self, const EFilesystemOperation op, const b
             continue;
         }
 
-        action = posptr->filter->examineInode(posptr->filter->object, op, writable, device, inode);
+        action = posptr->filter->examineInode(posptr->filter->object, op, writable, flags, device, inode);
 
         if ( action == EIA_Next )
         {
@@ -321,7 +321,7 @@ static int examineInode(const void* self, const EFilesystemOperation op, const b
                 continue;
             }
 
-            if ( posptr->filter->examineInode(posptr->filter->object, op, writable, device, inode) == EIA_Error )
+            if ( posptr->filter->examineInode(posptr->filter->object, op, writable, flags, device, inode) == EIA_Error )
             {
                 break;
             }

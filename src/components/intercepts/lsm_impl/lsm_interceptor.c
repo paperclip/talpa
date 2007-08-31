@@ -138,13 +138,9 @@ static inline int examineFile(const void* self, EFilesystemOperation op, struct 
     }
 
     /* First check with the examineInode method */
-    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, atomic_read(&file->f_dentry->d_inode->i_writecount)>0?true:false, kdev_t_to_nr(inode_dev(file->f_dentry->d_inode)), file->f_dentry->d_inode->i_ino);
+    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, flags_to_writable(file->f_flags), file->f_flags, kdev_t_to_nr(inode_dev(file->f_dentry->d_inode)), file->f_dentry->d_inode->i_ino);
 
-    if ( likely ( decision == 0 ) )
-    {
-        return 0;
-    }
-    else if ( decision != -EAGAIN )
+    if ( likely(decision != -EAGAIN) )
     {
         return decision;
     }
@@ -186,13 +182,9 @@ static inline int examineDirectoryEntry(const void* self, EFilesystemOperation o
 
 
     /* First check with the examineInode method */
-    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, atomic_read(&dentry->d_inode->i_writecount)>0?true:false, kdev_t_to_nr(inode_dev(dentry->d_inode)), dentry->d_inode->i_ino);
+    decision = this->mTargetProcessor->examineInode(this->mTargetProcessor, op, flags_to_writable(flags), flags, kdev_t_to_nr(inode_dev(dentry->d_inode)), dentry->d_inode->i_ino);
 
-    if ( likely ( decision == 0 ) )
-    {
-        return 0;
-    }
-    else if ( decision != -EAGAIN )
+    if ( likely(decision != -EAGAIN) )
     {
         return decision;
     }
@@ -279,7 +271,8 @@ static inline int talpa_inode_permission(struct inode *inode, int mask, struct n
     int flags;
     int decision;
 
-    flags = 0;
+
+    flags = O_RDONLY;
 
     /* Ignore lookups */
     if ( likely( mask == MAY_EXEC ) )
@@ -309,8 +302,15 @@ static inline int talpa_inode_permission(struct inode *inode, int mask, struct n
         return 0;
     }
 
-    if ( mask & MAY_APPEND )
+    /* On create mask == 0 */
+    if ( !mask )
     {
+        mask |= MAY_WRITE;
+        flags |= O_CREAT;
+    }
+    else if ( mask & MAY_APPEND )
+    {
+        mask |= MAY_WRITE;
         flags |= O_APPEND;
     }
 

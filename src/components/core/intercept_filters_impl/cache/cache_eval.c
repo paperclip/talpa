@@ -29,7 +29,7 @@
  * Forward declare implementation methods.
  */
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
-static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode);
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode);
 
 static bool enable(void* self);
 static void disable(void* self);
@@ -102,7 +102,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     return;
 }
 
-static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const uint32_t device, const uint32_t inode)
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode)
 {
     /* Do not check if cached on close */
     if ( unlikely( op == EFS_Close ) )

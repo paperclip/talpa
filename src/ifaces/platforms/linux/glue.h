@@ -60,7 +60,7 @@
 /* FIXME: This is not really a fixme, but a reminder that
           the avaibility of the constant below must be checked
           in new kernels.
-          Last-known-good: 2.6.21 */
+          Last-known-good: 2.6.22 */
 #define PF_TALPA_INTERNAL    0x80000000
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
@@ -217,6 +217,9 @@ static inline void talpa_vfsmount_unlock(void)
     /* Do nothing */
 }
 #endif
+
+/* various helpers */
+#define flags_to_writable(f)   ((f)&(O_WRONLY|O_RDWR|O_APPEND|O_CREAT|O_TRUNC)?true:false)
 
 #endif
 

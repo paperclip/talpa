@@ -31,6 +31,7 @@
  * Forward declare implementation methods.
  */
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode);
 static void examineFilesystem(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info);
 static bool enable(void* self);
 static void disable(void* self);
@@ -58,7 +59,7 @@ static OperationExclusionProcessor template_OperationExclusionProcessor =
     {
         {
             examineFile,
-            NULL,
+            examineInode,
             examineFilesystem,
             enable,
             disable,
@@ -156,6 +157,39 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
             break;
     }
     return;
+}
+
+static EInterceptAction examineInode(const void* self, const EFilesystemOperation op, const bool writable, const int flags, const uint32_t device, const uint32_t inode)
+{
+    switch (op)
+    {
+        case EFS_Open:
+            /*
+             * Allow if file was truncated on open, is write only
+             * or is open for exclusive creation.
+             */
+            if ( (flags & (O_WRONLY | O_TRUNC)) || ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) )
+            {
+                return EIA_Allow;
+            }
+            break;
+        case EFS_Close:
+            /*
+             * Allow if we are closing and read-only file.
+             */
+            if ( !writable )
+            {
+                return EIA_Allow;
+            }
+            break;
+        default:
+            /*
+             * Ignore the operation.
+             */
+            break;
+    }
+
+    return EIA_Next;
 }
 
 static void examineFilesystem(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info)
