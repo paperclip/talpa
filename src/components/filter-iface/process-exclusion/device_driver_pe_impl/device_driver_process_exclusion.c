@@ -249,16 +249,13 @@ static int ddpeOpen(struct inode* inode, struct file* file)
         return -ENODEV;
     }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    ctx->pid = (void *)current->files;
-#else
-    ctx->pid = (void *)current->tgid;
-#endif
+    ctx->pid = current->tgid;
     ctx->tid = current->pid;
+    ctx->files = current->files;
     ctx->modified = false;
     ctx->state = false;
     ctx->closed = false;
-    ctx->excluded = procexcl->registerProcess(procexcl->object, ctx->pid, ctx->tid);
+    ctx->excluded = procexcl->registerProcess(procexcl->object, ctx->pid, ctx->tid, ctx->files);
 
     if ( !ctx->excluded )
     {
@@ -402,7 +399,7 @@ static bool attach(void* self)
                 }
 
                 /* Re-register in case ProcessExcluder forgot about us */
-                ctx->excluded = this->mProcExcl->registerProcess(this->mProcExcl->object, ctx->pid, ctx->tid);
+                ctx->excluded = this->mProcExcl->registerProcess(this->mProcExcl->object, ctx->pid, ctx->tid, ctx->files);
 
                 if ( ctx->modified )
                 {

@@ -17,8 +17,8 @@
  *
  */
 
+#include <linux/version.h>
 #include <linux/kernel.h>
-
 #include <linux/string.h>
 
 #define TALPA_SUBSYS "procexcl"
@@ -33,7 +33,7 @@
 static void examineFile(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFileInfo* info, IFile* file);
 static void examineFilesystem(const void* self, IEvaluationReport* report, const IPersonality* userInfo, const IFilesystemInfo* info);
 
-static ProcessExcluded* registerProcess(void* self, void* pid, pid_t tid);
+static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid, void* files);
 static void deregisterProcess(void* self, ProcessExcluded* obj);
 static ProcessExcluded* active(void* self, ProcessExcluded* obj);
 static ProcessExcluded* idle(void* self, ProcessExcluded* obj);
@@ -157,16 +157,14 @@ static void deleteProcessExclusionProcessor(struct tag_ProcessExclusionProcessor
 static inline bool checkProcessExcluded(const void* self)
 {
     ProcessExcluded* excluded;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    void* pid = (void *)current->files;
-#else
-    void* pid = (void *)current->tgid;
-#endif
+    pid_t pid = current->tgid;
+    void* files = current->files;
+
 
     talpa_rcu_read_lock(&this->mExcludedLock);
     talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
     {
-        if ( excluded->processID == pid )
+        if ( (excluded->files == files) || (excluded->processID == pid) )
         {
             talpa_rcu_read_unlock(&this->mExcludedLock);
             return excluded->active;
@@ -184,7 +182,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
 {
     if ( checkProcessExcluded(this) )
     {
-        dbg("[intercepted %u-%u-%u] %s - excluded", processParentPID(current), current->tgid, (pid_t)current->pid, current->comm);
+        dbg("[intercepted %u-%u-%u] %s - excluded", processParentPID(current), current->tgid, current->pid, current->comm);
         report->setRecommendedAction(report, EIA_Allow);
     }
 
@@ -197,7 +195,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
 {
     if ( checkProcessExcluded(this) )
     {
-        dbg("[intercepted %u-%u-%u] %s - excluded", processParentPID(current), current->tgid, (pid_t)current->pid, current->comm);
+        dbg("[intercepted %u-%u-%u] %s - excluded", processParentPID(current), current->tgid, current->pid, current->comm);
         report->setRecommendedAction(report, EIA_Allow);
     }
 
@@ -207,7 +205,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
 /*
  * IProcessExcluder.
  */
-static ProcessExcluded* registerProcess(void* self, void* pid, pid_t tid)
+static ProcessExcluded* registerProcess(void* self, pid_t pid, pid_t tid, void* files)
 {
     ProcessExcluded* process;
     ProcessExcluded* excluded;
@@ -220,7 +218,7 @@ static ProcessExcluded* registerProcess(void* self, void* pid, pid_t tid)
     /* Check if we already have this process */
     talpa_list_for_each_entry_rcu(excluded, &this->mExcluded, head)
     {
-        if ( excluded->processID == pid )
+        if ( (excluded->processID == pid) || (excluded->files == files) )
         {
             /* Increment reference count if different thread from the
                same process wants to register. */
@@ -231,7 +229,7 @@ static ProcessExcluded* registerProcess(void* self, void* pid, pid_t tid)
             talpa_rcu_write_unlock(&this->mExcludedLock);
             /* Free this since we don't need it */
             talpa_free(process);
-            dbg("Process [%u/%u] re-registered", (pid_t)pid, tid);
+            dbg("Process [%u/%u] re-registered", pid, tid);
             return excluded;
         }
     }
@@ -243,9 +241,10 @@ static ProcessExcluded* registerProcess(void* self, void* pid, pid_t tid)
         atomic_set(&process->refcnt, 1);
         process->processID = pid;
         process->threadID = tid;
+        process->files = files;
         process->active = false;
         talpa_list_add_tail_rcu(&process->head, &this->mExcluded);
-        dbg("Process [%u/%u] registered", (pid_t)process->processID, process->threadID);
+        dbg("Process [%u/%u] registered", process->processID, process->threadID);
     }
     else
     {
@@ -274,7 +273,7 @@ static void deregisterProcess(void* self, ProcessExcluded* obj)
             {
                 talpa_list_del_rcu(&obj->head);
                 talpa_rcu_write_unlock(&this->mExcludedLock);
-                dbg("Process [%u/%u] deregistered", (pid_t)obj->processID, obj->threadID);
+                dbg("Process [%u/%u] deregistered", obj->processID, obj->threadID);
                 talpa_rcu_synchronize();
                 talpa_free(obj);
             }
@@ -289,7 +288,7 @@ static void deregisterProcess(void* self, ProcessExcluded* obj)
     talpa_rcu_write_unlock(&this->mExcludedLock);
 
     /* This can happen on core hot-swap */
-    dbg("Isolated process [%u/%u] deregistred", current->tgid, (pid_t)current->pid);
+    dbg("Isolated process [%u/%u] deregistred", current->tgid, current->pid);
 
     return;
 }
@@ -297,7 +296,7 @@ static void deregisterProcess(void* self, ProcessExcluded* obj)
 static ProcessExcluded* active(void* self, ProcessExcluded* obj)
 {
     obj->active = true;
-    dbg("Process [%u-%u] Active", (pid_t)obj->processID, obj->threadID);
+    dbg("Process [%u-%u] Active", obj->processID, obj->threadID);
 
     return obj;
 }
@@ -305,7 +304,7 @@ static ProcessExcluded* active(void* self, ProcessExcluded* obj)
 static ProcessExcluded* idle(void* self, ProcessExcluded* obj)
 {
     obj->active = false;
-    dbg("Process [%u-%u] Idle", (pid_t)obj->processID, obj->threadID);
+    dbg("Process [%u-%u] Idle", obj->processID, obj->threadID);
 
     return obj;
 }

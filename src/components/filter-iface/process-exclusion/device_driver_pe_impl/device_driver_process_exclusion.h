@@ -54,8 +54,9 @@ typedef struct {
 struct DDPEOpenContext
 {
     talpa_list_head     head;
-    void*               pid; /* Stores a pointer under Linux 2.4 and a tgid under 2.6 */
+    pid_t               pid;
     pid_t               tid;
+    void*               files;
     bool                modified;
     bool                state;
     bool                closed;
