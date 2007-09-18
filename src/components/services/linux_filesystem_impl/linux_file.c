@@ -309,7 +309,7 @@ static int open(void* self, const char* filename, unsigned int flags)
         return ret;
     }
 
-    ret = openDentry(self, dget(nd.dentry), mntget(nd.mnt), flags);
+    ret = openDentry(self, nd.dentry, nd.mnt, flags);
 
     path_release(&nd);
 
