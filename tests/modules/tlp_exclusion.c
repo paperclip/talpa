@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -225,7 +226,7 @@ static void __exit talpa_test_exit(void)
     exclusion->delete(exclusion);
     mSystemRoot->delete(mSystemRoot);
 
-    ret = unregister_chrdev(TALPA_MAJOR, TALPA_DEVICE);
+    ret = talpa_unregister_chrdev(TALPA_MAJOR, TALPA_DEVICE);
 
     if ( ret )
     {
