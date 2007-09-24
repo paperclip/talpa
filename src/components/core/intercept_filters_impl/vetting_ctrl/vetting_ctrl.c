@@ -408,30 +408,28 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                 if ( ret && filename )
                 {
                     ret = details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE);
-                    if ( ret == 0 )
-                    {
-                        loff_t res;
-
-
-                        /* Restore previous offset */
-                        res = details->file->seek(details->file->object, offset, 0);
-                        if ( res != offset )
-                        {
-                            err("Failed to re-position in file!");
-                            details->file->close(details->file->object);
-                            if ( res < 0 )
-                            {
-                                ret = res;
-                            }
-                            else
-                            {
-                                ret = -ESPIPE;
-                            }
-                        }
-                    }
                 }
 
-                if ( ret != 0 )
+                if ( ret == 0 )
+                {
+                    /* Restore previous offset */
+                    loff_t res = details->file->seek(details->file->object, offset, 0);
+                    if ( res != offset )
+                    {
+                        err("Failed to re-position in file!");
+                        details->file->close(details->file->object);
+                        if ( res < 0 )
+                        {
+                            ret = res;
+                        }
+                        else
+                        {
+                            ret = -ESPIPE;
+                        }
+                    }
+                    dbg("[intercepted %u-%u-%u] offset %ld restored", processParentPID(current), current->tgid, current->pid, offset);
+                }
+                else
                 {
                     dbg("[intercepted %u-%u-%u] re-open failed (%d)", processParentPID(current), current->tgid, current->pid, ret);
                 }
