@@ -396,7 +396,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                 offset = details->file->seek(details->file->object, 0, 1);
                 details->file->close(details->file->object);
 
-                dbg("[intercepted %u-%u-%u] requested re-open for writting (offset %ld)", processParentPID(current), current->tgid, current->pid, offset);
+                dbg("[intercepted %u-%u-%u] requested re-open for writting (offset was %ld)", processParentPID(current), current->tgid, current->pid, offset);
 
                 /* Try opening with low-level filesystem objects first */
                 if ( details->fileInfo->fsObjects(details->fileInfo->object, &fsobj1, &fsobj2) )
@@ -410,7 +410,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                     ret = details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE);
                 }
 
-                if ( ret == 0 )
+                if ( (ret == 0) && (offset != 0) )
                 {
                     /* Restore previous offset */
                     loff_t res = details->file->seek(details->file->object, offset, 0);
@@ -427,7 +427,10 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                             ret = -ESPIPE;
                         }
                     }
-                    dbg("[intercepted %u-%u-%u] offset %ld restored", processParentPID(current), current->tgid, current->pid, offset);
+                    else
+                    {
+                        dbg("[intercepted %u-%u-%u] offset %ld restored", processParentPID(current), current->tgid, current->pid, offset);
+                    }
                 }
                 else
                 {
