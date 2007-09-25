@@ -19,9 +19,6 @@
 #ifndef TLPTEST_H
 #define TLPTEST_H
 
-#include <linux/version.h>
-#include <linux/fs.h>
-
 
 #define TALPA_MAJOR 60
 #define TALPA_DEVICE "talpa-test"
@@ -130,18 +127,27 @@ struct talpa_cacheobj
 #define TALPA_TEST_CACHE_CONFIG         _IOW ( 0xff,    29,     char* )
 #define TALPA_TEST_CACHE_PURGE          _IO  ( 0xff,    30 )
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
+
+#ifdef __KERNEL__
+#include <linux/version.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/fs.h>
+
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 static inline int talpa_unregister_chrdev(unsigned int major, const char *name)
 {
     unregister_chrdev(major, name);
 
     return 0;
 }
-#else
+  #else
 static inline int talpa_unregister_chrdev(unsigned int major, const char *name)
 {
     return unregister_chrdev(major, name);
 }
+  #endif
 #endif
 
 #endif
