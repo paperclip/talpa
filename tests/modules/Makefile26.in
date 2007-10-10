@@ -26,7 +26,8 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@vfsmntlock@ \
 		@samefile@ \
 		@securityfs@ \
-		@dualfs@
+		@dualfs@ \
+		@vfsunlink@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \

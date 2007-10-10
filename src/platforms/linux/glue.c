@@ -45,7 +45,7 @@
  *
  * "buflen" should be positive. Caller holds the dcache_lock.
  */
-static char * __d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
+static char * __talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
             struct dentry *root, struct vfsmount *rootmnt,
             char *buffer, int buflen)
 {
@@ -119,7 +119,13 @@ char* talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dentr
     char* path;
 
     spin_lock(&dcache_lock);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && (!defined TALPA_HAS_DPATH)
+    path = __talpa_d_path(dentry, vfsmnt, root, rootmnt, buffer, buflen);
+#elif defined TALPA_DPATH_SUSE103
+    path = __d_path(dentry, vfsmnt, root, rootmnt, buffer, buflen, 0);
+#else
     path = __d_path(dentry, vfsmnt, root, rootmnt, buffer, buflen);
+#endif
     spin_unlock(&dcache_lock);
 
     if ( unlikely( IS_ERR(path) != 0 ) )

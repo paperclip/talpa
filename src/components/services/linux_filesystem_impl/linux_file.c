@@ -508,7 +508,12 @@ static int unlink(void* self)
     down(&parenti->i_sem);
 #endif
     atomic_inc(&parenti->i_count);
+#if defined TALPA_VFSUNLINK_SUSE103
+    error = vfs_unlink(parenti, filed, mntget(this->mFile->f_vfsmnt));
+    mntput(this->mFile->f_vfsmnt);
+#else
     error = vfs_unlink(parenti, filed);
+#endif
 #if defined TALPA_INODE_USES_MUTEXES
     mutex_unlock(&parenti->i_mutex);
 #else
@@ -528,7 +533,6 @@ static int truncate(void* self, loff_t length)
      */
 
     struct inode * inode;
-    struct dentry *dentry;
     struct file * file;
     int error;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,13)
@@ -549,10 +553,18 @@ static int truncate(void* self, loff_t length)
         small = 0;
 #endif
 
-    dentry = file->f_dentry;
-    inode = dentry->d_inode;
+    inode = file->f_dentry->d_inode;
+
+    error = -EISDIR;
+    if (S_ISDIR(inode->i_mode))
+        goto out;
+
     error = -EINVAL;
     if (!S_ISREG(inode->i_mode) || !(file->f_mode & FMODE_WRITE))
+        goto out;
+
+    error = -EROFS;
+    if (IS_RDONLY(inode))
         goto out;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,13)
@@ -584,19 +596,23 @@ static int truncate(void* self, loff_t length)
             typedef int (*dotruncatefunc)(struct dentry *dentry, loff_t length, unsigned int time_attrs, struct file *filp);
 #elif defined TALPA_DOTRUNCATE_RH4
             typedef int (*dotruncatefunc)(struct dentry *dentry, loff_t length, unsigned int time_attrs);
+#elif defined TALPA_DOTRUNCATE_SUSE103
+            typedef int (*dotruncatefunc)(struct dentry *dentry, struct vfsmount *mnt, loff_t length, unsigned int time_attrs, struct file *filp);
 #else
   #error "Truncate type not defined!"
 #endif
             static dotruncatefunc talpa_do_truncate = (dotruncatefunc)TALPA_DOTRUNCATE_ADDR;
 
 #if defined TALPA_DOTRUNCATE_1
-            error = talpa_do_truncate(dentry, length);
+            error = talpa_do_truncate(file->f_dentry, length);
 #elif defined TALPA_DOTRUNCATE_2
-            error = talpa_do_truncate(dentry, length, NULL);
+            error = talpa_do_truncate(file->f_dentry, length, file);
 #elif defined TALPA_DOTRUNCATE_3
-            error = talpa_do_truncate(dentry, length, 0, NULL);
+            error = talpa_do_truncate(file->f_dentry, length, 0, file);
 #elif defined TALPA_DOTRUNCATE_RH4
-            error = talpa_do_truncate(dentry, length, 0);
+            error = talpa_do_truncate(file->f_dentry, length, 0);
+#elif defined TALPA_DOTRUNCATE_SUSE103
+            error = talpa_do_truncate(file->f_dentry, file->f_vfsmnt, length, 0, file);
 #endif
         }
     }

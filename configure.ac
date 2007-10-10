@@ -605,34 +605,60 @@ if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_1")
     AC_MSG_RESULT([type 1])
-    truncatefound=yes
 fi
 ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncate2.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_2")
     AC_MSG_RESULT([type 2])
-    truncatefound=yes
 fi
 ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncate3.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_3")
     AC_MSG_RESULT([type 3])
-    truncatefound=yes
 fi
 ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncaterh4.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_RH4")
     AC_MSG_RESULT([type rh4])
-    truncatefound=yes
+fi
+${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dotruncatesuse103.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    let hitcnt=($hitcnt)+1
+    AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_SUSE103")
+    AC_MSG_RESULT([type suse103])
+fi
+if test $hitcnt -eq 0 ; then
+    AC_MSG_ERROR([unknown])
 fi
 if test $hitcnt -gt 1 ; then
     AC_MSG_ERROR([ambigous])
 fi
-if test "$dotruncatetype" = ""; then
+
+# Check for vfs_unlink type
+TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
+TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
+AC_MSG_CHECKING([for vfs_unlink type])
+let hitcnt=0
+${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/unlink.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    let hitcnt=($hitcnt)+1
+    AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_STANDARD")
+    AC_MSG_RESULT([standard])
+fi
+${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/unlinksuse103.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    let hitcnt=($hitcnt)+1
+    AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_SUSE103")
+    AC_MSG_RESULT([suse103])
+fi
+if test $hitcnt -eq 0 ; then
     AC_MSG_ERROR([unknown])
+fi
+if test $hitcnt -gt 1 ; then
+    AC_MSG_ERROR([ambigous])
 fi
 
 # Check for snprintf only for kernels older than 2.4.10
@@ -738,8 +764,16 @@ if test $((kern_version_code)) -ge 132608; then
     # Check for exported __d_path
     if test "$auto_dpath" = "yes"; then
         AC_MSG_CHECKING([for exported __d_path])
-        if test -f "$TALPA_HEADER_LOCATION/linux/dcache.h"; then
-            ${EGREP} __d_path "$TALPA_HEADER_LOCATION/linux/dcache.h" >/dev/null 2>&1
+        if test -f "$kerneldir/fs/dcache.c"; then
+            ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $kerneldir/fs/dcache.c >/dev/null 2>&1
+            if test $? -ne 0; then
+                AC_MSG_RESULT([hidden])
+            else
+                AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
+                AC_MSG_RESULT([exported])
+            fi
+        elif test -f "$sourcedir/fs/dcache.c"; then
+            ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $sourcedir/fs/dcache.c >/dev/null 2>&1
             if test $? -ne 0; then
                 AC_MSG_RESULT([hidden])
             else
@@ -748,6 +782,32 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         else
             AC_MSG_RESULT([undetectable])
+        fi
+    fi
+
+    # Id __d_path is exported determine it's prototype
+    if test "$dpath" = "-DTALPA_HAS_DPATH"; then
+        TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
+        TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
+        AC_MSG_CHECKING([for __d_path type])
+        let hitcnt=0
+        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dpath.c -o /dev/null 1>/dev/null 2>&1
+        if test $? -eq 0; then
+            let hitcnt=($hitcnt)+1
+            AC_SUBST(dpath, "$dpath -DTALPA_DPATH_STANDARD")
+            AC_MSG_RESULT([standard])
+        fi
+        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) -I$TALPA_DIR_LOCATION/asm/mach-default -c ${srcdir}/tests/configure/dpathsuse103.c -o /dev/null 1>/dev/null 2>&1
+        if test $? -eq 0; then
+            let hitcnt=($hitcnt)+1
+            AC_SUBST(dpath, "$dpath -DTALPA_DPATH_SUSE103")
+            AC_MSG_RESULT([suse103])
+        fi
+        if test $hitcnt -eq 0 ; then
+            AC_MSG_ERROR([unknown])
+        fi
+        if test $hitcnt -gt 1 ; then
+            AC_MSG_ERROR([ambigous])
         fi
     fi
 
@@ -1200,6 +1260,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@newparent@/${newparent}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
                 s/@dotruncateaddr@/${dotruncateaddr}/; \
+                s/@vfsunlink@/${vfsunlink}/; \
                 s/@tasknewtty@/${tasknewtty}/; \
                 s/@rcubackport@/${rcubackport}/; \
                 s/@mutexbackport@/${mutexbackport}/; \
@@ -1235,6 +1296,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@newparent@/${newparent}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
                 s/@dotruncateaddr@/${dotruncateaddr}/; \
+                s/@vfsunlink@/${vfsunlink}/; \
                 s/@tasknewtty@/${tasknewtty}/; \
                 s/@rcubackport@/${rcubackport}/; \
                 s/@mutexbackport@/${mutexbackport}/; \

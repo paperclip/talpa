@@ -2110,7 +2110,7 @@ try_alloc:
     return;
 }
 
-static void constructPatchListSet(void* self)
+static void constructPatchListSet(const void* self)
 {
     unsigned int len;
     unsigned int alloc_len = 0;

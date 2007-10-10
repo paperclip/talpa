@@ -79,7 +79,7 @@ static void destroyVettingDetails(VettingDetails* details);
 
 static VetCtrlConfigObject* findObject(const void* self, talpa_list_head* list, const char* value);
 static void freeObject(VetCtrlConfigObject* obj);
-static void deleteObject(void *self, VetCtrlConfigObject* obj);
+static void deleteObject(const void *self, VetCtrlConfigObject* obj);
 
 
 /*
@@ -986,7 +986,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
  * configuration list handling & objects
  */
 
-static VetCtrlConfigObject* newObject(void *self, EVetCtrlRoutingType type, const char* string, unsigned int group)
+static VetCtrlConfigObject* newObject(const void *self, EVetCtrlRoutingType type, const char* string, unsigned int group)
 {
     VetCtrlConfigObject* obj = NULL;
 
@@ -1018,7 +1018,7 @@ static void freeObject(VetCtrlConfigObject* obj)
     return;
 }
 
-static void deleteObject(void *self, VetCtrlConfigObject* obj)
+static void deleteObject(const void *self, VetCtrlConfigObject* obj)
 {
     talpa_rcu_synchronize();
     freeObject(obj);
@@ -1169,7 +1169,7 @@ static VetCtrlConfigObject* appendObject(const void* self, talpa_list_head* list
     return obj;
 }
 
-static bool removeObject(void *self, talpa_list_head* list, const char* value)
+static bool removeObject(const void *self, talpa_list_head* list, const char* value)
 {
     VetCtrlConfigObject *obj;
 

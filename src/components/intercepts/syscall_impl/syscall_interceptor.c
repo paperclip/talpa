@@ -302,7 +302,7 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
     return filename;
 }
 
-static inline int examineExecve(char *filename)
+static inline int examineExecve(const char *filename)
 {
     int    decision = 0;
     IFile* pFile    = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFile(GL_object.mLinuxFilesystemFactory);
@@ -313,6 +313,7 @@ static inline int examineExecve(char *filename)
         IFileInfo* pFInfo;
         char buf[BINPRM_BUF_SIZE + 1];
         char* real;
+        char* fname = (char *)filename;
 
 
         decision = pFile->openExec(pFile->object, filename);
@@ -325,7 +326,7 @@ static inline int examineExecve(char *filename)
             return decision;
         }
 
-        real = getRealExecutable(pFile, filename, buf);
+        real = getRealExecutable(pFile, fname, buf);
 
         if ( unlikely( IS_ERR(real) ) )
         {
@@ -507,7 +508,7 @@ static int  talpaExecveHook(const char* name)
         return 0;
     }
 
-    decision = examineExecve((char *)name);
+    decision = examineExecve(name);
 
     if ( unlikely(decision < 0) )
     {

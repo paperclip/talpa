@@ -504,7 +504,7 @@ static void deleteObject(void *self, CacheConfigObject* obj)
     return;
 }
 
-static void constructStringSet(void* self, talpa_list_head* list, char** set)
+static void constructStringSet(const void* self, talpa_list_head* list, char** set)
 {
     unsigned int len;
     unsigned int alloc_len = 0;
