@@ -761,33 +761,40 @@ if test $((kern_version_code)) -ge 132608; then
         AC_SUBST(hidden,"${hidden} ${FIND_SYSCALL_TABLE_RESULT}")
     fi
 
-    # Check for exported __d_path
+    # Check for exported __d_path and prototype availablity
     if test "$auto_dpath" = "yes"; then
-        AC_MSG_CHECKING([for exported __d_path])
-        if test -f "$kerneldir/fs/dcache.c"; then
-            ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $kerneldir/fs/dcache.c >/dev/null 2>&1
-            if test $? -ne 0; then
-                AC_MSG_RESULT([hidden])
+        TALPA_LOCATE_HEADER(linux/dcache.h, $kernelhdrspath)
+        AC_MSG_CHECKING([for __d_path prototype])
+        if ${EGREP} "extern.*__d_path" $TALPA_HEADER_LOCATION/linux/dcache.h >/dev/null 2>&1; then
+            AC_MSG_RESULT([available])
+            AC_MSG_CHECKING([for exported __d_path])
+            if test -f "$kerneldir/fs/dcache.c"; then
+                ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $kerneldir/fs/dcache.c >/dev/null 2>&1
+                if test $? -ne 0; then
+                    AC_MSG_RESULT([hidden])
+                else
+                    AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
+                    AC_MSG_RESULT([exported])
+                fi
+            elif test -f "$sourcedir/fs/dcache.c"; then
+                ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $sourcedir/fs/dcache.c >/dev/null 2>&1
+                if test $? -ne 0; then
+                    AC_MSG_RESULT([hidden])
+                else
+                    AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
+                    AC_MSG_RESULT([exported])
+                fi
             else
-                AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
-                AC_MSG_RESULT([exported])
-            fi
-        elif test -f "$sourcedir/fs/dcache.c"; then
-            ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $sourcedir/fs/dcache.c >/dev/null 2>&1
-            if test $? -ne 0; then
-                AC_MSG_RESULT([hidden])
-            else
-                AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
-                AC_MSG_RESULT([exported])
+                AC_MSG_RESULT([undetectable])
             fi
         else
-            AC_MSG_RESULT([undetectable])
+            AC_MSG_RESULT([not available])
         fi
     fi
 
-    # Id __d_path is exported determine it's prototype
+    # If __d_path is exported determine it's prototype
     if test "$dpath" = "-DTALPA_HAS_DPATH"; then
-        TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
+        TALPA_LOCATE_HEADER(linux/dcache.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
         TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
         AC_MSG_CHECKING([for __d_path type])
         let hitcnt=0
