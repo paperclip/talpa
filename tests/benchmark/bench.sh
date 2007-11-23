@@ -51,12 +51,42 @@ else
     interceptors="vfshook syscall"
 fi
 
+function find_talpa_config
+{
+    talpafs=""
+    talpafstype=""
+    talpaprocfs=""
+    talpasecurityfs=""
+    talpadualfs=""
+
+    if [ -d /sys/kernel/security/talpa ]; then
+        talpafstype=securityfs
+        talpafs=/sys/kernel/security/talpa
+        talpasecurityfs=yes
+    fi
+
+    if [ -d /proc/sys/talpa ]; then
+        talpaprocfs=yes
+        if [ "$talpafs" = "" ]; then
+            talpafs=/proc/sys/talpa
+            talpafstype=procfs
+        else
+            talpadualfs=yes
+            talpafstype=dualfs
+        fi
+    fi
+
+    export talpafs talpafstype talpaprocfs talpasecurityfs talpadualfs
+
+    return 0
+}
+
 function talpa_conf_filters()
 {
-    l=/proc/sys/talpa/intercept-filters/*
+    l=$talpafs/intercept-filters/*
 
     for i in $l; do
-        if [ $i = "/proc/sys/talpa/intercept-filters/DebugSyslog" ]; then
+        if [ $i = "$talpafs/intercept-filters/DebugSyslog" ]; then
             continue
         fi
         if [ -d $i ]; then
@@ -67,7 +97,7 @@ function talpa_conf_filters()
 
 function talpa_conf_interceptors()
 {
-    l=/proc/sys/talpa/interceptors/*
+    l=$talpafs/interceptors/*
 
     for i in $l; do
         if [ -d $i ]; then
@@ -112,6 +142,8 @@ function talpa_load_core()
     $insmod ../../talpa_core.$ko
     $insmod ../../talpa_vcdevice.$ko
     $insmod ../../talpa_pedevice.$ko
+
+    find_talpa_config
 }
 
 function open_close()
@@ -192,15 +224,15 @@ function vetting_test()
 
     vc=./vc
 
-    echo disable >/proc/sys/talpa/intercept-filters/Cache/status
+    echo disable >$talpafs/intercept-filters/Cache/status
 
     if [ $# -gt 0 ]; then
         case $1 in
             "cache")
                 extra=", cache enabled"
                 fs=`stat -f $open_file | grep "Type:" | cut -d ':' -f 4 | cut -d ' ' -f 2`
-                echo enable >/proc/sys/talpa/intercept-filters/Cache/status
-                echo "+$fs" >/proc/sys/talpa/intercept-filters/Cache/fstypes
+                echo enable >$talpafs/intercept-filters/Cache/status
+                echo "+$fs" >$talpafs/intercept-filters/Cache/fstypes
                 ;;
             "scan")
                 extra=", scanning enabled"

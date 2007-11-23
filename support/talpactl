@@ -18,8 +18,8 @@
 
 import sys, os, socket, string
 
-talpactl_version = "0.0.1"
-talparoot = "/proc/sys/talpa"
+talpactl_version = "0.0.2"
+talparoot = "/sys/kernel/security/talpa"
 verbose = False
 
 def read_module_var(module, var):
@@ -718,7 +718,9 @@ cmds = { "verbose": talpa_verbose,
 
 
 if not os.path.isdir(talparoot):
-    sys.exit("Talpa is not loaded!")
+    talparoot = "/proc/sys/talpa"
+    if not os.path.isdir(talparoot):
+        sys.exit("Talpa is not loaded!")
 
 filters = os.listdir(os.path.join(talparoot, "intercept-filters"))
 interceptors = os.listdir(os.path.join(talparoot, "interceptors"))
