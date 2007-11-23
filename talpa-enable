@@ -1,3 +1,0 @@
-#! /bin/bash
-
-echo enable >/proc/sys/talpa/interceptors/SyscallInterceptor/status

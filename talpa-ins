@@ -1,8 +1,0 @@
-#! /bin/bash
-
-sync
-insmod talpa_linux.o
-insmod talpa_core.o
-insmod talpa_vcdevice.o
-insmod talpa_thrdexcl.o
-insmod talpa_syscall.o

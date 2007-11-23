@@ -1,3 +1,0 @@
-#! /bin/bash
-
-cat /proc/sys/talpa/interceptors/SyscallInterceptor/status
