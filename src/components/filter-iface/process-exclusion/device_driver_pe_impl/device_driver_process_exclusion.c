@@ -70,7 +70,7 @@ static void deleteDeviceDriverProcessExclusion(struct tag_DeviceDriverProcessExc
  * Constants
  */
 
-#define DDPE_NAME   "process-exclusion"
+#define DDPE_NAME   "talpa-pe"
 #define DDPE_MINOR  MISC_DYNAMIC_MINOR
 
 #define CFG_DEVICE          "device"

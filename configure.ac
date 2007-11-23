@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.40)
+AC_INIT(talpa, 0.9.41)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2006 Sophos PLC)
 
@@ -1244,6 +1244,8 @@ if test $((kern_version_code)) -ge 132608; then
 
     # Check whether to use dualfs
     if test "$wantdualfs" = "yes"; then
+        AM_CONDITIONAL(BUILDPROCFS, test 1 -eq 1)
+        AC_SUBST(buildprocfs, "yes")
         AC_MSG_CHECKING([for legacy configuration support])
         if test "$buildsecurityfs" != "yes"; then
             AC_SUBST(builddualfs, "no")
@@ -1258,6 +1260,10 @@ if test $((kern_version_code)) -ge 132608; then
             AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
             AC_MSG_RESULT([no])
         fi
+    else
+        AM_CONDITIONAL(BUILDPROCFS, test 0 -eq 1)
+        AC_SUBST(buildprocfs, "no")
+        AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
     fi
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -1293,6 +1299,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
+                s/@buildprocfs@/${buildprocfs}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
@@ -1329,6 +1336,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
+                s/@buildprocfs@/${buildprocfs}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
@@ -1337,6 +1345,7 @@ else
     AC_SUBST(talpaversion, "-DTALPA_VERSION=\\\"${PACKAGE_VERSION}\\\"")
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
+    AM_CONDITIONAL(BUILDPROCFS, test 1 -eq 1)
     AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
     AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
 
@@ -1420,6 +1429,7 @@ else
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
     AM_CONDITIONAL(BUILDSTACKER, test 1 -eq 1)
+    AM_CONDITIONAL(BUILDPROCFS, test 1 -eq 1)
     AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
     AM_CONDITIONAL(BUILDDUALFS, test 1 -eq 1)
     ## Defined to be true so that tests are included in source tar file

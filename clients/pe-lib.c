@@ -29,61 +29,27 @@
 
 #include "pe.h"
 
-#define PE_DEVICE "/dev/talpa-pedevice"
+char *get_talpa_pedevice(void);
 
-static int autodetect_and_create(void)
-{
-    char line[16];
-    int rc;
-    int major, minor;
-    int fd = open("/proc/sys/talpa/filter-interfaces/DeviceDriverProcessExclusion/device", O_RDONLY);
-
-    if ( fd < 0 )
-    {
-        return -1;
-    }
-
-    rc = read(fd, line, sizeof(line));
-    close(fd);
-    rc = sscanf(line, "%d,%d", &major, &minor);
-
-    if ( rc != 2 )
-    {
-        return -1;
-    }
-
-    rc = unlink(PE_DEVICE);
-    rc = mknod(PE_DEVICE, S_IFCHR, makedev(major, minor));
-
-    if ( rc < 0 )
-    {
-        return -1;
-    }
-
-    return 0;
-}
 
 int pe_init(void)
 {
     int retried = 0;
     int rc;
     int fd;
+    char *devname;
 
 
-    retry:
-    fd = open(PE_DEVICE, O_RDWR);
+    devname = get_talpa_pedevice();
+    if ( !devname )
+    {
+        return -1;
+    }
 
+    fd = open(devname, O_RDWR);
+    free(devname);
     if ( fd < 0 )
     {
-        if ( autodetect_and_create() )
-        {
-            return -1;
-        }
-        else if ( !retried )
-        {
-            retried = 1;
-            goto retry;
-        }
         return -1;
     }
 
@@ -91,15 +57,6 @@ int pe_init(void)
     if ( rc < 0 )
     {
         close(fd);
-        if ( autodetect_and_create() )
-        {
-            return -1;
-        }
-        else if ( !retried )
-        {
-            retried = 1;
-            goto retry;
-        }
         return -1;
     }
 
@@ -107,15 +64,6 @@ int pe_init(void)
     if ( rc < 0 )
     {
         close(fd);
-        if ( autodetect_and_create() )
-        {
-            return -1;
-        }
-        else if ( !retried )
-        {
-            retried = 1;
-            goto retry;
-        }
         return -1;
     }
 

@@ -22,13 +22,13 @@ noinst_PROGRAMS =   vc vc-quiet vc-deny vc-count vc-threaded vc-poll \
                     pe pecat
 
 
-vc_SOURCES = vc.c vc.h vc-lib.c
-vc_deny_SOURCES = vc-deny.c vc.h vc-lib.c
-vc_quiet_SOURCES = vc-quiet.c vc.h vc-lib.c
-vc_count_SOURCES = vc-count.c vc.h vc-lib.c
-vc_threaded_SOURCES = vc-threaded.c vc.h vc-lib.c
+vc_SOURCES = vc.c vc.h vc-lib.c talpa.c
+vc_deny_SOURCES = vc-deny.c vc.h vc-lib.c talpa.c
+vc_quiet_SOURCES = vc-quiet.c vc.h vc-lib.c talpa.c
+vc_count_SOURCES = vc-count.c vc.h vc-lib.c talpa.c
+vc_threaded_SOURCES = vc-threaded.c vc.h vc-lib.c talpa.c
 vc_threaded_LDFLAGS = -lpthread
-vc_poll_SOURCES = vc-poll.c vc.h vc-lib.c
+vc_poll_SOURCES = vc-poll.c vc.h vc-lib.c talpa.c
 
 vc_CFLAGS = ${CLIENTFLAGS} $(AM_CFLAGS)
 vc_deny_CFLAGS = ${CLIENTFLAGS} $(AM_CFLAGS)
@@ -37,5 +37,5 @@ vc_count_CFLAGS = ${CLIENTFLAGS} $(AM_CFLAGS)
 vc_threaded_CFLAGS = -D_REENTRANT ${CLIENTFLAGS} $(AM_CFLAGS)
 vc_poll_CFLAGS = ${CLIENTFLAGS} $(AM_CFLAGS)
 
-pe_SOURCES = pe.c pe.h pe-lib.c
-pecat_SOURCES = pecat.c pe.h pe-lib.c
+pe_SOURCES = pe.c pe.h pe-lib.c talpa.c
+pecat_SOURCES = pecat.c pe.h pe-lib.c talpa.c

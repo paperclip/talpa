@@ -45,15 +45,16 @@ obj-m :=    tlp-personality.o \
             tlp-degrmode.o \
             tlp-file.o
 
+ifeq "@buildprocfs@" "yes"
+	obj-m += tlp-procfs.o
+endif
+
 ifeq "@buildsecurityfs@" "yes"
 	obj-m += tlp-securityfs.o
-else
-	obj-m += tlp-procfs.o
 endif
 
 ifeq "@builddualfs@" "yes"
 	obj-m += tlp-dualfs.o
-	obj-m += tlp-procfs.o
 endif
 
 include $(src)/common.mk

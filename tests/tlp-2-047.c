@@ -30,82 +30,26 @@
 #include "include/talpa-vettingclient.h"
 
 
-#define VC_DEVICE "/dev/talpa-vcdevice"
-
-static int autodetect_and_create(void)
-{
-    int fd;
-    char line[256];
-    char name[128];
-    int pos;
-    int rc;
-    int minor;
-
-
-    fd = open("/proc/misc", O_RDONLY);
-
-    if ( fd < 0 )
-    {
-        return -1;
-    }
-
-    read_line:
-    pos = 0;
-    do
-    {
-        rc = read(fd, &line[pos], 1);
-        if ( line[pos] == '\n' )
-        {
-            line[pos] = 0;
-            break;
-        }
-        pos++;
-    } while ( rc );
-
-    if ( rc )
-    {
-        rc = sscanf(line, "%d %s", &minor, name);
-        if ( (rc != 2) || strcmp(name, "vetting-client") )
-        {
-            goto read_line;
-        }
-
-        rc = unlink(VC_DEVICE);
-        rc = mknod(VC_DEVICE, S_IFCHR, makedev(10, minor));
-
-        if ( rc < 0 )
-        {
-            close(fd);
-            return -1;
-        }
-    }
-    else
-    {
-        close(fd);
-        return -1;
-    }
-
-    close(fd);
-
-    return 0;
-}
+char *get_talpa_vcdevice(void);
 
 int main(int argc, char *argv[])
 {
     int fd;
-    struct TalpaPacket_Register reg;
-    int rc;
+    char *devname;
     struct TalpaPacket_FAIL pkt;
     struct TalpaPacket_VettingResponse response;
+    struct TalpaPacket_Register reg;
+    int rc;
 
 
-    fd = open(VC_DEVICE,O_RDWR,0);
-
-    if ( fd < 0 )
+    devname = get_talpa_vcdevice();
+    if ( !devname )
     {
-        autodetect_and_create();
-        fd = open(VC_DEVICE,O_RDWR,0);
+        fprintf(stderr,"Failed to get talpa device!\n");
+        return 1;
     }
+
+    fd = open(devname,O_RDWR,0);
 
     if ( fd < 0 )
     {

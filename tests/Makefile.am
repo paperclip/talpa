@@ -21,11 +21,15 @@ AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir)
 check_PROGRAMS =    tlp-1-001 \
                     tlp-1-002 \
                     tlp-1-003 \
-                    tlp-1-004 \
-                    tlp-1-008 \
+                    tlp-1-004
+
+if BUILDPROCFS
+check_PROGRAMS +=   tlp-1-008 \
                     tlp-1-009 \
-                    tlp-1-010 \
-                    tlp-1-011 \
+                    tlp-1-010
+endif
+
+check_PROGRAMS +=   tlp-1-011 \
                     tlp-1-012 \
                     tlp-1-013 \
                     tlp-1-014 \
@@ -143,7 +147,7 @@ tlp_1_109_SOURCES = tlp-1-109.c
 tlp_1_110_SOURCES = tlp-1-110.c
 tlp_1_111_SOURCES = tlp-1-111.c
 tlp_1_113_SOURCES = tlp-1-113.c
-tlp_1_114_SOURCES = tlp-1-114.c ../clients/vc-lib.c
+tlp_1_114_SOURCES = tlp-1-114.c ../clients/vc-lib.c ../clients/talpa.c
 tlp_2_001_SOURCES = tlp-2-001.c
 tlp_2_002_SOURCES = tlp-2-002.c
 tlp_2_010_SOURCES = tlp-2-010.c
@@ -153,37 +157,37 @@ tlp_2_013_SOURCES = tlp-2-013.c
 tlp_2_023_SOURCES = tlp-2-023.c tlp-log-search.c
 tlp_2_024_SOURCES = tlp-2-024.c tlp-log-search.c
 tlp_2_030_SOURCES = tlp-2-030.c
-tlp_2_040_SOURCES = tlp-2-040.c tlp-log-search.c
-tlp_2_041_SOURCES = tlp-2-041.c tlp-log-search.c
-tlp_2_042_SOURCES = tlp-2-042.c
-tlp_2_043_SOURCES = tlp-2-043.c
-tlp_2_044_SOURCES = tlp-2-044.c
-tlp_2_045_SOURCES = tlp-2-045.c
-tlp_2_046_SOURCES = tlp-2-046.c
-tlp_2_047_SOURCES = tlp-2-047.c
-tlp_2_048_SOURCES = tlp-2-048.c
-tlp_2_060_SOURCES = tlp-2-060.c ../clients/vc-lib.c
-tlp_2_061_SOURCES = tlp-2-061.c ../clients/vc-lib.c
-tlp_2_062_SOURCES = tlp-2-062.c ../clients/vc-lib.c
-tlp_2_063_SOURCES = tlp-2-063.c ../clients/vc-lib.c
-tlp_2_064_SOURCES = tlp-2-064.c ../clients/vc-lib.c
-tlp_2_065_SOURCES = tlp-2-065.c ../clients/vc-lib.c
-tlp_2_068_SOURCES = tlp-2-068.c ../clients/vc-lib.c
-tlp_2_069_SOURCES = tlp-2-069.c ../clients/vc-lib.c
-tlp_2_070_SOURCES = tlp-2-070.c ../clients/vc-lib.c
-tlp_2_071_SOURCES = tlp-2-071.c ../clients/vc-lib.c
+tlp_2_040_SOURCES = tlp-2-040.c tlp-log-search.c ../clients/talpa.c
+tlp_2_041_SOURCES = tlp-2-041.c tlp-log-search.c ../clients/talpa.c
+tlp_2_042_SOURCES = tlp-2-042.c ../clients/talpa.c
+tlp_2_043_SOURCES = tlp-2-043.c ../clients/talpa.c
+tlp_2_044_SOURCES = tlp-2-044.c ../clients/talpa.c
+tlp_2_045_SOURCES = tlp-2-045.c ../clients/talpa.c
+tlp_2_046_SOURCES = tlp-2-046.c ../clients/talpa.c
+tlp_2_047_SOURCES = tlp-2-047.c ../clients/talpa.c
+tlp_2_048_SOURCES = tlp-2-048.c ../clients/talpa.c
+tlp_2_060_SOURCES = tlp-2-060.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_061_SOURCES = tlp-2-061.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_062_SOURCES = tlp-2-062.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_063_SOURCES = tlp-2-063.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_064_SOURCES = tlp-2-064.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_065_SOURCES = tlp-2-065.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_068_SOURCES = tlp-2-068.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_069_SOURCES = tlp-2-069.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_070_SOURCES = tlp-2-070.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_2_071_SOURCES = tlp-2-071.c ../clients/vc-lib.c ../clients/talpa.c
 tlp_3_001_SOURCES = tlp-3-001.c
 tlp_3_010_SOURCES = tlp-3-010.c
 tlp_3_012_SOURCES = tlp-3-012.c
 tlp_3_020_SOURCES = tlp-3-020.c
-tlp_4_001_SOURCES = tlp-4-001.c ../clients/vc-lib.c ../clients/pe-lib.c
-tlp_4_002_SOURCES = tlp-4-002.c ../clients/vc-lib.c ../clients/pe-lib.c
-tlp_4_003_SOURCES = tlp-4-003.c ../clients/pe-lib.c
-tlp_4_003a_SOURCES = tlp-4-003a.c ../clients/vc-lib.c
-tlp_4_004_SOURCES = tlp-4-004.c ../clients/pe-lib.c
-tlp_4_005_SOURCES = tlp-4-005.c ../clients/pe-lib.c
+tlp_4_001_SOURCES = tlp-4-001.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_002_SOURCES = tlp-4-002.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_003_SOURCES = tlp-4-003.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_003a_SOURCES = tlp-4-003a.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_4_004_SOURCES = tlp-4-004.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_005_SOURCES = tlp-4-005.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_005_LDFLAGS = -lpthread
-tlp_4_006_SOURCES = tlp-4-006.c ../clients/vc-lib.c ../clients/pe-lib.c
+tlp_4_006_SOURCES = tlp-4-006.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_006_LDFLAGS = -lpthread
 tlp_5_001_SOURCES = tlp-5-001.c
 tlp_5_002_SOURCES = tlp-5-002.c
@@ -208,13 +212,13 @@ tlp_6_027_SOURCES = tlp-6-027.c
 tlp_6_028_SOURCES = tlp-6-028.c
 tlp_6_029_SOURCES = tlp-6-029.c
 tlp_6_030_SOURCES = tlp-6-030.c
-tlp_7_001_SOURCES = tlp-7-001.c ../clients/vc-lib.c
-tlp_7_003_SOURCES = tlp-7-003.c ../clients/vc-lib.c
-tlp_7_005_SOURCES = tlp-7-005.c ../clients/vc-lib.c
-tlp_8_001_SOURCES = tlp-8-001.c ../clients/vc-lib.c ../clients/pe-lib.c
-tlp_8_002_SOURCES = tlp-8-002.c ../clients/vc-lib.c ../clients/pe-lib.c
-tlp_8_003_SOURCES = tlp-8-003.c ../clients/vc-lib.c ../clients/pe-lib.c
-tlp_8_004_SOURCES = tlp-8-004.c ../clients/vc-lib.c ../clients/pe-lib.c
+tlp_7_001_SOURCES = tlp-7-001.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_7_003_SOURCES = tlp-7-003.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_7_005_SOURCES = tlp-7-005.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_8_001_SOURCES = tlp-8-001.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_002_SOURCES = tlp-8-002.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_003_SOURCES = tlp-8-003.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_004_SOURCES = tlp-8-004.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 
 SUBDIRS = modules
 
@@ -225,11 +229,14 @@ TESTS                   = tlp-init.sh \
                           tlp-1-004.sh \
                           tlp-1-005.sh \
                           tlp-1-006.sh \
-                          tlp-1-007.sh \
-                          tlp-1-008.sh \
+                          tlp-1-007.sh
+if BUILDPROCFS
+TESTS +=                  tlp-1-008.sh \
                           tlp-1-009.sh \
-                          tlp-1-010.sh \
-                          tlp-1-011.sh \
+                          tlp-1-010.sh
+endif
+
+TESTS +=                  tlp-1-011.sh \
                           tlp-1-012.sh \
                           tlp-1-013.sh \
                           tlp-1-014.sh \

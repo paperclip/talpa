@@ -30,64 +30,28 @@
 
 #include "vc.h"
 
-#define VC_DEVICE "/dev/talpa-vcdevice"
 
-static int autodetect_and_create(void)
-{
-    int fd;
-    char line[16];
-    int rc;
-    int major, minor;
-
-    fd = open("/proc/sys/talpa/filter-interfaces/DeviceDriverVettingClient/device", O_RDONLY);
-
-    if ( fd < 0 )
-    {
-        return -1;
-    }
-
-    rc = read(fd, line, sizeof(line));
-    close(fd);
-    rc = sscanf(line, "%d,%d", &major, &minor);
-
-    if ( rc != 2 )
-    {
-        return -1;
-    }
-
-    rc = unlink(VC_DEVICE);
-    rc = mknod(VC_DEVICE, S_IFCHR, makedev(major, minor));
-
-    if ( rc < 0 )
-    {
-        return -1;
-    }
-
-    return 0;
-}
+char *get_talpa_vcdevice(void);
 
 int vc_init(unsigned int group, unsigned int timeout_ms)
 {
     int talpafd;
-    int retried = 0;
     int rc;
     struct TalpaPacket_Register reg;
     struct TalpaPacket_SetWaitTimeout tout;
+    char *devname;
 
 
-    retry:
-    talpafd = open(VC_DEVICE, O_RDWR);
+    devname = get_talpa_vcdevice();
+    if ( !devname )
+    {
+        return -1;
+    }
+
+    talpafd = open(devname, O_RDWR);
+    free(devname);
     if ( talpafd < 0 )
     {
-        if ( autodetect_and_create() )
-        {
-            return -1;
-        }
-        else if ( !retried )
-        {
-            retried = 1;
-            goto retry;
-        }
         return -1;
     }
 
@@ -100,15 +64,6 @@ int vc_init(unsigned int group, unsigned int timeout_ms)
     if ( rc < 0 )
     {
         close(talpafd);
-        if ( autodetect_and_create() )
-        {
-            return -1;
-        }
-        else if ( !retried )
-        {
-            retried = 1;
-            goto retry;
-        }
         return -1;
     }
 
@@ -116,15 +71,6 @@ int vc_init(unsigned int group, unsigned int timeout_ms)
     if ( rc < 0 )
     {
         close(talpafd);
-        if ( autodetect_and_create() )
-        {
-            return -1;
-        }
-        else if ( !retried )
-        {
-            retried = 1;
-            goto retry;
-        }
         return -1;
     }
 

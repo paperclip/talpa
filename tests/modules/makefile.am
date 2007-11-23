@@ -45,7 +45,6 @@ CHECKMODULES := \
            tlp-fileinfo.ko \
            tlp-filesysteminfo.ko \
            tlp-syslog.ko \
-           tlp-procfs.ko \
            tlp-stdinterceptor.ko \
            tlp-inclusion.ko \
            tlp-opexcl.ko \
@@ -57,6 +56,10 @@ CHECKMODULES := \
            tlp-cache.ko \
            tlp-degrmode.ko \
            tlp-file.ko
+
+if BUILDPROCFS
+CHECKMODULES += tlp-procfs.ko
+endif
 
 if BUILDSECURITYFS
 CHECKMODULES += tlp-securityfs.ko

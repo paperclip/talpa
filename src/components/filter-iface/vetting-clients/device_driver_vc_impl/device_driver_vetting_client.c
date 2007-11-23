@@ -68,7 +68,7 @@ static void deleteDeviceDriverVettingClient(struct tag_DeviceDriverVettingClient
  * Constants
  */
 
-#define DDVC_NAME   "vetting-client"
+#define DDVC_NAME   "talpa-vc"
 #define DDVC_MINOR  MISC_DYNAMIC_MINOR
 
 #define CFG_DEVICE          "device"

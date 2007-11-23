@@ -48,15 +48,16 @@ endif
 include $(src)/src/app-ctrl/core/talpa-linux/common.mk
 talpa_linux-objs := $(talpaLinuxOBJS)
 
+ifeq "@buildprocfs@" "yes"
+	talpa_linux-objs += $(talpaProcFSConfiguratorOBJS)
+endif
+
 ifeq "@buildsecurityfs@" "yes"
 	talpa_linux-objs += $(talpaSecurityFSConfiguratorOBJS)
-else
-	talpa_linux-objs += $(talpaProcFSConfiguratorOBJS)
 endif
 
 ifeq "@builddualfs@" "yes"
 	talpa_linux-objs += $(talpaDualFSConfiguratorOBJS)
-	talpa_linux-objs += $(talpaProcFSConfiguratorOBJS)
 endif
 
 include $(src)/src/app-ctrl/core/talpa-core/common.mk
