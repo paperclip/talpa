@@ -12,5 +12,3 @@
      - actual configuration functions access pod_configuration_elements by array index which
        is totally un-flexible. A pointer to right string could be passed from setConfig
      - each module implements basically the same setConfig skeleton
-
-- new configuration implementation - talpacfgfs
