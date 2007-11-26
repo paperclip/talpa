@@ -1244,9 +1244,23 @@ if test $((kern_version_code)) -ge 132608; then
 
     # Check whether to use dualfs
     if test "$wantdualfs" = "yes"; then
+        # Check if binary sysctls are supported
+        AC_MSG_CHECKING([for binary sysctl support])
+        TALPA_LOCATE_HEADER(linux/sysctl.h, $kernelhdrspath, , , [quiet])
+        if ${EGREP} sysctl_check_table $TALPA_HEADER_LOCATION/linux/sysctl.h >/dev/null 2>&1; then
+            AC_MSG_RESULT([disabled])
+            AM_CONDITIONAL(BINARYSYSCTL, test 0 -eq 1)
+            AC_SUBST(binarysysctl, "")
+        else
+            AC_MSG_RESULT([enabled])
+            AM_CONDITIONAL(BINARYSYSCTL, test 1 -eq 1)
+            AC_SUBST(binarysysctl, "-DTALPA_BINARY_SYSCTL")
+        fi
+        # procfs will be built
         AM_CONDITIONAL(BUILDPROCFS, test 1 -eq 1)
         AC_SUBST(buildprocfs, "yes")
         AC_MSG_CHECKING([for legacy configuration support])
+        # So its just the question whether it is only procfs or dualfs maybe
         if test "$buildsecurityfs" != "yes"; then
             AC_SUBST(builddualfs, "no")
         else
@@ -1263,6 +1277,8 @@ if test $((kern_version_code)) -ge 132608; then
     else
         AM_CONDITIONAL(BUILDPROCFS, test 0 -eq 1)
         AC_SUBST(buildprocfs, "no")
+        AM_CONDITIONAL(BINARYSYSCTL, test 0 -eq 1)
+        AC_SUBST(binarysysctl, "")
         AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
     fi
 
@@ -1299,7 +1315,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
-                s/@buildprocfs@/${buildprocfs}/; \
+                s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
@@ -1336,7 +1352,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
-                s/@buildprocfs@/${buildprocfs}/; \
+                s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
@@ -1346,6 +1362,8 @@ else
     AM_CONDITIONAL(KBUILDUSEM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
     AM_CONDITIONAL(BUILDPROCFS, test 1 -eq 1)
+    AM_CONDITIONAL(BINARYSYSCTL, test 1 -eq 1)
+    AC_SUBST(binarysysctl, "-DTALPA_BINARY_SYSCTL")
     AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
     AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
 
@@ -1430,6 +1448,7 @@ else
     AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
     AM_CONDITIONAL(BUILDSTACKER, test 1 -eq 1)
     AM_CONDITIONAL(BUILDPROCFS, test 1 -eq 1)
+    AM_CONDITIONAL(BINARYSYSCTL, test 1 -eq 1)
     AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
     AM_CONDITIONAL(BUILDDUALFS, test 1 -eq 1)
     ## Defined to be true so that tests are included in source tar file

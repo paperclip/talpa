@@ -52,6 +52,10 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
 static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp, loff_t* ppos);
 #endif
 
+/*
+ * SystCtl Table.
+ */
+#define CTL_TALPA       7700
 
 /*
  * Singleton object.
@@ -166,11 +170,17 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
     }
 
     memset(element, 0, sizeof(ctl_table) * (6 + count + 1));
+#ifdef TALPA_BINARY_SYSCTL
+    element[0].ctl_name = CTL_TALPA;
+#endif
     element[0].procname = "talpa";
     element[0].mode     = 0555;
     element[0].child    = &element[2];
     /* Element 1 is terminator */
 
+#ifdef TALPA_BINARY_SYSCTL
+    element[2].ctl_name = group;
+#endif
     switch (group)
     {
         case ECG_Interceptor:
@@ -208,6 +218,9 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
         cfgElement->name != NULL;
         elementSubItem++, cfgElement++, count++)
     {
+#ifdef TALPA_BINARY_SYSCTL
+        elementSubItem->ctl_name     = count;
+#endif
         elementSubItem->procname     = cfgElement->name;
         elementSubItem->data         = cfgElement->value;
         elementSubItem->maxlen       = cfgElement->maxvalue_sz;
@@ -235,6 +248,9 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
 
     talpa_mutex_lock(&this->mSemaphore);
 
+#ifdef TALPA_BINARY_SYSCTL
+    element[4].ctl_name         = this->mElementId++;
+#endif
     configItem->item            = (void*)item;
     configItem->config          = element;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)

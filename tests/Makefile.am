@@ -23,7 +23,7 @@ check_PROGRAMS =    tlp-1-001 \
                     tlp-1-003 \
                     tlp-1-004
 
-if BUILDPROCFS
+if BINARYSYSCTL
 check_PROGRAMS +=   tlp-1-008 \
                     tlp-1-009 \
                     tlp-1-010
@@ -230,7 +230,7 @@ TESTS                   = tlp-init.sh \
                           tlp-1-005.sh \
                           tlp-1-006.sh \
                           tlp-1-007.sh
-if BUILDPROCFS
+if BINARYSYSCTL
 TESTS +=                  tlp-1-008.sh \
                           tlp-1-009.sh \
                           tlp-1-010.sh
@@ -360,6 +360,9 @@ TESTS +=                  tlp-3-001.sh \
                           tlp-cleanup.sh
 
 check_SCRIPTS =           $(TESTS) \
+			  tlp-1-008.sh \
+			  tlp-1-009.sh \
+			  tlp-1-010.sh \
 			  tlp-4-003a.sh \
 			  tlp-4-003b.sh \
 			  tlp-4-004a.sh \
