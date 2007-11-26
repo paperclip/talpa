@@ -349,7 +349,7 @@ TESTS +=                  tlp-3-001.sh \
                           tlp-8-004.sh \
                           tlp-1-109.sh \
                           tlp-1-110.sh \
-                          $(if $(NOLOADTEST),,\
+                          $(if $(LOADTEST),\
                             tlp-1-111.sh \
                             tlp-1-112.sh) \
                           tlp-1-113.sh \
