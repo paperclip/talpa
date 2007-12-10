@@ -1068,31 +1068,39 @@ if test $((kern_version_code)) -ge 132608; then
     # Check whether to build LSM related modules
     AC_MSG_CHECKING([for LSM support])
     if test "$auto_lsm" = "yes"; then
-        TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
-        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/lsm.c -o tests/configure/lsm
-        tests/configure/lsm
-        if test $? -eq 0; then
-            AC_MSG_RESULT([present])
-            AC_SUBST(lsm, "yes")
-            AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
-            # Autodetect if we are compiling for a 2.6.0-test in which case we will disable LSM modules
-            if test $((kern_version_code)) -eq 132608; then
-                AC_MSG_CHECKING([for 2.6.0-test kernel])
-                echo ${kern_uts_release} | ${EGREP} test >/dev/null 2>&1
-                if test $? -eq 0; then
-                    AC_MSG_RESULT([disabling LSM modules])
-                    AC_SUBST(lsm, "no")
-                    AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
-                else
-                    AC_MSG_RESULT([everything is fine])
+        # First check if LSM supports modules
+        TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath, , , [quiet])
+        if ${EGREP} unregister_security $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1; then
+            TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
+            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/lsm.c -o tests/configure/lsm
+            tests/configure/lsm
+            if test $? -eq 0; then
+                AC_MSG_RESULT([present])
+                AC_SUBST(lsm, "yes")
+                AM_CONDITIONAL(BUILDLSM, test 1 -eq 1)
+                # Autodetect if we are compiling for a 2.6.0-test in which case we will disable LSM modules
+                if test $((kern_version_code)) -eq 132608; then
+                    AC_MSG_CHECKING([for 2.6.0-test kernel])
+                    echo ${kern_uts_release} | ${EGREP} test >/dev/null 2>&1
+                    if test $? -eq 0; then
+                        AC_MSG_RESULT([disabling LSM modules])
+                        AC_SUBST(lsm, "no")
+                        AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
+                    else
+                        AC_MSG_RESULT([everything is fine])
+                    fi
                 fi
+            else
+                AC_MSG_RESULT([not present])
+                AC_SUBST(lsm, "no")
+                AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
             fi
+            ${RM} -f tests/configure/lsm
         else
-            AC_MSG_RESULT([not present])
+            AC_MSG_RESULT([static only, disabling])
             AC_SUBST(lsm, "no")
             AM_CONDITIONAL(BUILDLSM, test 0 -eq 1)
         fi
-        ${RM} -f tests/configure/lsm
     else
         if test "$lsm" = "yes"; then
             AC_MSG_RESULT([forced])
