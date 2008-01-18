@@ -23,6 +23,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@xhack@ \
 		@hrtimers@ \
 		@rodata@ \
+		@nopasymbol@ \
                 @kfuncchpgattraddr@ \
 		@notasklistlock@ \
 		@vfsmntlock@ \

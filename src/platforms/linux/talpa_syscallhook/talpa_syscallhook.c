@@ -159,7 +159,7 @@ static unsigned long rodata_start = TALPA_RODATA_START;
 static unsigned long rodata_start;
   #endif
 
-  #ifdef TALPA_RODATA_START
+  #ifdef TALPA_RODATA_END
 static unsigned long rodata_end = TALPA_RODATA_END;
   #else
 static unsigned long rodata_end;
@@ -713,6 +713,18 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
+#ifdef TALPA_NO_PA_SYMBOL
+static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
+
+#define talpa_pa_symbol(x)          \
+        ({unsigned long v;  \
+          asm("" : "=r" (v) : "0" (x)); \
+          ((v - __START_KERNEL_map) + (*talpa_phys_base)); })
+
+#else
+#define talpa_pa_symbol __pa_symbol
+#endif
+
 #ifndef TALPA_HAS_RODATA
 void talpa_syscallhook_unro(int rw)
 {
@@ -721,33 +733,30 @@ void talpa_syscallhook_unro(int rw)
 #else
 void talpa_syscallhook_unro(int rw)
 {
-    unsigned long addr;
+    unsigned long nr_pages = (rodata_end - rodata_start) / PAGE_SIZE;
 
-    for ( addr = rodata_start; addr < rodata_end; addr += PAGE_SIZE )
-    {
   #ifdef CONFIG_X86_64
         typedef int (*lfunc)(unsigned long addr, int numpages, pgprot_t prot);
         static lfunc talpa_change_page_attr_addr = (lfunc)TALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR;
 
         if ( rw )
         {
-            talpa_change_page_attr_addr(addr, 1, PAGE_KERNEL);
+            talpa_change_page_attr_addr((unsigned long)__va(talpa_pa_symbol(rodata_start)), nr_pages, PAGE_KERNEL);
         }
         else
         {
-            talpa_change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
+            talpa_change_page_attr_addr((unsigned long)__va(talpa_pa_symbol(rodata_start)), nr_pages, PAGE_KERNEL_RO);
         }
   #elif CONFIG_X86
         if ( rw )
         {
-            change_page_attr(virt_to_page(addr), 1, PAGE_KERNEL);
+            change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL);
         }
         else
         {
-            change_page_attr(virt_to_page(addr), 1, PAGE_KERNEL_RO);
+            change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL_RO);
         }
   #endif
-    }
 
     global_flush_tlb();
 }

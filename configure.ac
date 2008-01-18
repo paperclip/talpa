@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.41)
+AC_INIT(talpa, 0.9.42)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2006 Sophos PLC)
 
@@ -1026,23 +1026,6 @@ if test $((kern_version_code)) -ge 132608; then
         ${RM} -f tests/configure/rodata
         # Get change_page_attr_addr on x86_64
         if test "$kern_arch" = "x86_64" -a "$syscallhook" = "yes" -a "$rodata" != ""; then
-            # Test for blacklisted kernels - known to crash if rodata is used
-            AC_MSG_CHECKING([for blacklisted kernels])
-            blacklisted=""
-            # Stock SUSE 10.1 x86_64
-            if test "$kern_uts_release" = "2.6.16.13-4-default" -o "$kern_uts_release" = "2.6.16.13-4-smp"; then
-                blacklisted="1"
-            fi
-            # All of RHEL 5
-            if echo "$kern_uts_release" | ${EGREP} -q "\.el5$"; then
-                blacklisted="1"
-            fi
-            # Result
-            if test "$blacklisted" != ""; then
-                AC_MSG_ERROR([known bad])
-            else
-                AC_MSG_RESULT([all fine])
-            fi
             AC_MSG_CHECKING([for change_page_attr_addr symbol])
             kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
             if test "$kfuncchpgattraddr" != ""; then
@@ -1050,6 +1033,22 @@ if test $((kern_version_code)) -ge 132608; then
                 AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
             else
                 AC_MSG_ERROR([failed to get])
+            fi
+            # Check for RHEL 5 kernels which indirectly disallow modules to use __pa_symbol
+            AC_MSG_CHECKING([if __pa_symbol is available])
+            TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
+            if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
+                AC_MSG_RESULT([no])
+                AC_MSG_CHECKING([for phys_base address])
+                phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                if test "$phys_base" != ""; then
+                    AC_MSG_RESULT([ok])
+                    AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
+                else
+                    AC_MSG_ERROR([error])
+                fi
+            else
+                AC_MSG_RESULT([yes])
             fi
         fi
     else
@@ -1319,6 +1318,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
+                s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
@@ -1356,6 +1356,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
+                s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
