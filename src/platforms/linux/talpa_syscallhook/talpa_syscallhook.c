@@ -713,24 +713,27 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
-#ifdef TALPA_NO_PA_SYMBOL
-static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
-
-#define talpa_pa_symbol(x)          \
-        ({unsigned long v;  \
-          asm("" : "=r" (v) : "0" (x)); \
-          ((v - __START_KERNEL_map) + (*talpa_phys_base)); })
-
-#else
-#define talpa_pa_symbol __pa_symbol
-#endif
-
 #ifndef TALPA_HAS_RODATA
 void talpa_syscallhook_unro(int rw)
 {
     return;
 }
+#else /* defined TALPA_HAS_RODATA */
+
+#ifdef TALPA_NEEDS_VA_CPA
+static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
+
+#define talpa_pa_symbol(x) \
+        ({unsigned long v;  \
+          asm("" : "=r" (v) : "0" (x)); \
+          ((v - __START_KERNEL_map) + (*talpa_phys_base)); })
+
+#define talpa_ka_to_cpa(adr) ((unsigned long)__va(talpa_pa_symbol(adr)))
+
 #else
+#define talpa_ka_to_cpa(adr) ((unsigned long)adr)
+#endif
+
 void talpa_syscallhook_unro(int rw)
 {
     unsigned long nr_pages = (rodata_end - rodata_start) / PAGE_SIZE;
@@ -741,11 +744,11 @@ void talpa_syscallhook_unro(int rw)
 
         if ( rw )
         {
-            talpa_change_page_attr_addr((unsigned long)__va(talpa_pa_symbol(rodata_start)), nr_pages, PAGE_KERNEL);
+            talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL);
         }
         else
         {
-            talpa_change_page_attr_addr((unsigned long)__va(talpa_pa_symbol(rodata_start)), nr_pages, PAGE_KERNEL_RO);
+            talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL_RO);
         }
   #elif CONFIG_X86
         if ( rw )

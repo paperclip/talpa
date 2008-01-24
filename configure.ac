@@ -1034,21 +1034,29 @@ if test $((kern_version_code)) -ge 132608; then
             else
                 AC_MSG_ERROR([failed to get])
             fi
-            # Check for RHEL 5 kernels which indirectly disallow modules to use __pa_symbol
-            AC_MSG_CHECKING([if __pa_symbol is available])
-            TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
-            if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
-                AC_MSG_RESULT([no])
-                AC_MSG_CHECKING([for phys_base address])
-                phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                if test "$phys_base" != ""; then
-                    AC_MSG_RESULT([ok])
-                    AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
+            # Check for RHEL 5 kernels which need special handling
+            AC_MSG_CHECKING([for type of addressed passed to change_page_attr_addr])
+            TALPA_LOCATE_HEADER(asm/const.h, $kernelhdrspath, constheader=yes, constheader=no, [quiet])
+            if test "$constheader" = "yes"; then
+                AC_MSG_RESULT([virtual])
+                AC_SUBST(needsvacpa, "-DTALPA_NEEDS_VA_CPA")
+                AC_MSG_CHECKING([if __pa_symbol is available])
+                TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
+                if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
+                    AC_MSG_RESULT([no])
+                    AC_MSG_CHECKING([for phys_base address])
+                    phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                    if test "$phys_base" != ""; then
+                        AC_MSG_RESULT([ok])
+                        AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
+                    else
+                        AC_MSG_ERROR([error])
+                    fi
                 else
-                    AC_MSG_ERROR([error])
+                    AC_MSG_RESULT([yes])
                 fi
             else
-                AC_MSG_RESULT([yes])
+                AC_MSG_RESULT([logical])
             fi
         fi
     else
@@ -1318,6 +1326,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
+                s/@needsvacpa@/${needsvacpa}/; \
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
@@ -1356,6 +1365,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
+                s/@needsvacpa@/${needsvacpa}/; \
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
