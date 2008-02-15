@@ -8,7 +8,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@dotruncatetype@ @dotruncateaddr@ \
 		@tasknewtty@ \
 		@rcubackport@ \
-		@mutexbackport@ \
+		@mutexes@ \
 		@inodemutex@ \
 		@inodeiprivate@ \
 		@signalbackport@ \
@@ -23,6 +23,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@xhack@ \
 		@hrtimers@ \
 		@rodata@ \
+		@hassetpages@ \
 		@needsvacpa@ \
 		@nopasymbol@ \
 		@kfuncchpgattraddr@ \

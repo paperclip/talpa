@@ -372,7 +372,11 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
     atomic_inc(&usecnt);
     ops = interceptor;
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+    filename = getname((char *) regs.bx);
+    #else
     filename = getname((char *) regs.ebx);
+    #endif
     error = PTR_ERR(filename);
     if (IS_ERR(filename))
         goto out;
@@ -386,7 +390,11 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
         }
     }
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+    error = talpa_do_execve(filename, (char **) regs.cx, (char **) regs.dx, &regs);
+    #else
     error = talpa_do_execve(filename, (char **) regs.ecx, (char **) regs.edx, &regs);
+    #endif
     if (error == 0)
     {
         task_lock(current);
@@ -554,7 +562,11 @@ static void **get_start_addr(void)
     return (void **)&lock_kernel;
     #else
       #include <linux/mutex.h>
+      #ifdef CONFIG_DEBUG_LOCK_ALLOC
+    return (void **)&mutex_lock_nested;
+      #else
     return (void **)&mutex_lock;
+      #endif
     #endif
   #else
     #ifdef CONFIG_X86_64
@@ -629,8 +641,11 @@ static int verify(void **p, const unsigned int unique_syscalls[], const unsigned
     }
 
     /* Lookup symbols (if we can) as a final check */
-    if ( symlookup && kallsyms_lookup && (   !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
-                                          || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
+    if (    symlookup
+         && kallsyms_lookup
+         && !IS_ERR(kallsyms_lookup)
+         && (    !kallsym_is_equal((unsigned long)p[__NR_close], "sys_close")
+              || !kallsym_is_equal((unsigned long)p[__NR_chdir], "sys_chdir")) )
     {
         dbg("  [0x%p] lookup mismatch", p);
         return 0;
@@ -730,49 +745,79 @@ static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
 
 #define talpa_ka_to_cpa(adr) ((unsigned long)__va(talpa_pa_symbol(adr)))
 
-#else
+#else /* NEEDS_VA_CPA */
 #define talpa_ka_to_cpa(adr) ((unsigned long)adr)
-#endif
+#endif /* NEEDS_VA_CPA */
 
 void talpa_syscallhook_unro(int rw)
 {
     unsigned long nr_pages = (rodata_end - rodata_start) / PAGE_SIZE;
 
-  #ifdef CONFIG_X86_64
-        typedef int (*lfunc)(unsigned long addr, int numpages, pgprot_t prot);
-        static lfunc talpa_change_page_attr_addr = (lfunc)TALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR;
 
-        if ( rw )
-        {
-            talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL);
-        }
-        else
-        {
-            talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL_RO);
-        }
-  #elif CONFIG_X86
-        if ( rw )
-        {
-            change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL);
-        }
-        else
-        {
-            change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL_RO);
-        }
-  #endif
+  #ifdef TALPA_HAS_SET_PAGES
+    #ifdef CONFIG_X86_64
+    typedef int (*kfunc)(unsigned long addr, int numpages);
+    kfunc set_memory_rwro;
+
+
+    if ( rw )
+    {
+        set_memory_rwro  = (kfunc)TALPA_KFUNC_SET_MEMORY_RW;
+    }
+    else
+    {
+        set_memory_rwro  = (kfunc)TALPA_KFUNC_SET_MEMORY_RO;
+    }
+
+    set_memory_rwro(rodata_start, nr_pages);
+    #elif CONFIG_X86
+    typedef int (*kfunc)(struct page *page, int numpages);
+    kfunc set_pages_rwro;
+
+
+    if ( rw )
+    {
+        set_pages_rwro  = (kfunc)TALPA_KFUNC_SET_PAGES_RW;
+    }
+    else
+    {
+        set_pages_rwro  = (kfunc)TALPA_KFUNC_SET_PAGES_RO;
+    }
+
+    set_pages_rwro(virt_to_page(rodata_start), nr_pages);
+    #endif
+  #else /* HAS_SET_PAGES */
+    #ifdef CONFIG_X86_64
+    typedef int (*kfunc)(unsigned long addr, int numpages, pgprot_t prot);
+    static kfunc talpa_change_page_attr_addr = (kfunc)TALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR;
+
+    if ( rw )
+    {
+        talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL);
+    }
+    else
+    {
+        talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL_RO);
+    }
+    #elif CONFIG_X86
+    if ( rw )
+    {
+        change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL);
+    }
+    else
+    {
+        change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL_RO);
+    }
+    #endif
 
     global_flush_tlb();
+  #endif
 }
-#endif
+#endif /* HAS_RODATA */
 
-/*
- * Module init and exit
- */
-
-static int __init talpa_syscallhook_init(void)
-{
 #ifdef TALPA_HIDDEN_SYSCALLS
-
+static int find_syscall_table(void)
+{
     unsigned int num_unique_syscalls;
     unsigned int num_zapped_syscalls;
 
@@ -891,13 +936,17 @@ static int __init talpa_syscallhook_init(void)
     }
 
     dbg("Syscall table at 0x%p", sys_call_table);
+    return 0;
+}
+#else
+static int find_syscall_table
+{
+    return 0;
+}
 #endif
 
-    lock_kernel();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    fsync_dev(0);
-#endif
-
+static void save_originals(void)
+{
 #ifdef CONFIG_X86
     orig_open = sys_call_table[__NR_open];
     orig_close = sys_call_table[__NR_close];
@@ -925,9 +974,10 @@ static int __init talpa_syscallhook_init(void)
 #else
   #error "Architecture currently not supported!"
 #endif
+}
 
-    talpa_syscallhook_unro(1);
-
+static void patch_table(void)
+{
     if ( strchr(hook_mask, 'o') )
     {
         sys_call_table[__NR_open] = talpa_open;
@@ -982,31 +1032,10 @@ static int __init talpa_syscallhook_init(void)
         sys_call_table[__NR_execve] = talpa_execve;
     }
 #endif
-
-    unlock_kernel();
-
-    dbg("Hooked [%s]", hook_mask);
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    inter_module_register("talpa_syscallhook_register", THIS_MODULE, (const void *)talpa_syscallhook_register);
-    inter_module_register("talpa_syscallhook_unregister", THIS_MODULE, (const void *)talpa_syscallhook_unregister);
-#endif
-
-    return 0;
 }
 
-static void __exit talpa_syscallhook_exit(void)
+static void restore_table(void)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    inter_module_unregister("talpa_syscallhook_register");
-    inter_module_unregister("talpa_syscallhook_unregister");
-#endif
-
-    lock_kernel();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    fsync_dev(0);
-#endif
-
 #if defined CONFIG_X86
     sys_call_table[__NR_open] = orig_open;
     sys_call_table[__NR_close] = orig_close;
@@ -1032,9 +1061,55 @@ static void __exit talpa_syscallhook_exit(void)
     sys_call_table[__NR_umount2] = orig_umount2;
   #endif
 #endif
+}
 
+/*
+ * Module init and exit
+ */
+
+static int __init talpa_syscallhook_init(void)
+{
+    int ret;
+
+
+    ret = find_syscall_table();
+    if ( ret < 0 )
+    {
+        return ret;
+    }
+
+    lock_kernel();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+    fsync_dev(0);
+#endif
+    save_originals();
+    talpa_syscallhook_unro(1);
+    patch_table();
+    unlock_kernel();
+
+    dbg("Hooked [%s]", hook_mask);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+    inter_module_register("talpa_syscallhook_register", THIS_MODULE, (const void *)talpa_syscallhook_register);
+    inter_module_register("talpa_syscallhook_unregister", THIS_MODULE, (const void *)talpa_syscallhook_unregister);
+#endif
+
+    return 0;
+}
+
+static void __exit talpa_syscallhook_exit(void)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+    inter_module_unregister("talpa_syscallhook_register");
+    inter_module_unregister("talpa_syscallhook_unregister");
+#endif
+
+    lock_kernel();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+    fsync_dev(0);
+#endif
+    restore_table();
     talpa_syscallhook_unro(0);
-
     unlock_kernel();
 
     /* Now wait for a last caller to exit */
