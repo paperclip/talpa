@@ -22,7 +22,6 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/file.h>
-#include <linux/quotaops.h>
 #include <linux/smp_lock.h>
 #if defined TALPA_INODE_USES_MUTEXES
 #include <linux/mutex.h>
@@ -504,11 +503,7 @@ static int unlink(void* self)
     }
 
 #if defined TALPA_INODE_USES_MUTEXES
-  #if defined TALPA_HAS_NESTED_MUTEX
-    mutex_lock_nested(&parenti->i_mutex, I_MUTEX_PARENT);
-  #else
     mutex_lock(&parenti->i_mutex);
-  #endif
 #else
     down(&parenti->i_sem);
 #endif
@@ -587,18 +582,6 @@ static int truncate(void* self, loff_t length)
         goto out;
 #endif
 
-    error = get_write_access(inode);
-    if (error)
-        goto out;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    error = break_lease(inode, FMODE_WRITE);
-#else
-    error = get_lease(inode, FMODE_WRITE);
-#endif
-    if (error)
-        goto put_and_out;
-
     error = locks_verify_truncate(inode, file, length);
     if (!error) {
         /* Not pretty: "inode->i_size" shouldn't really be signed. But it is. */
@@ -620,7 +603,6 @@ static int truncate(void* self, loff_t length)
 #endif
             static dotruncatefunc talpa_do_truncate = (dotruncatefunc)TALPA_DOTRUNCATE_ADDR;
 
-            DQUOT_INIT(inode);
 #if defined TALPA_DOTRUNCATE_1
             error = talpa_do_truncate(file->f_dentry, length);
 #elif defined TALPA_DOTRUNCATE_2
@@ -635,9 +617,7 @@ static int truncate(void* self, loff_t length)
         }
     }
 
-put_and_out:
-    put_write_access(inode);
-out:
+    out:
     return error;
 }
 

@@ -1,13 +1,12 @@
 
 EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../include \
-		@talpaversion@ \
                 @debug@ \
 		@assert@ \
                 @dpath@ \
 		@dotruncatetype@ @dotruncateaddr@ \
 		@tasknewtty@ \
 		@rcubackport@ \
-		@mutexes@ \
+		@mutexbackport@ \
 		@inodemutex@ \
 		@inodeiprivate@ \
 		@signalbackport@ \
@@ -22,14 +21,10 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@xhack@ \
 		@hrtimers@ \
 		@rodata@ \
-		@hassetpages@ \
-		@needsvacpa@ \
-		@nopasymbol@ \
                 @kfuncchpgattraddr@ \
 		@notasklistlock@ \
 		@vfsmntlock@ \
 		@samefile@ \
-		@filldirbackport@ \
 		@binarysysctl@ \
 		@securityfs@ \
 		@dualfs@ \

@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.43)
+AC_INIT(talpa, 0.9.42)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2006 Sophos PLC)
 
@@ -142,7 +142,7 @@ AC_ARG_ENABLE(backported-rcu,
 AC_ARG_ENABLE(backported-mutexes,
                 [  --enable-backported-mutexes    Fedora FC5 2.6.15 has mutexes backported from vanilla 2.6.16 [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
-                        AC_SUBST(mutexes,"-DTALPA_HAS_MUTEXES")
+                        AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
                     fi
                     auto_mutexbackport=no
                 ],
@@ -900,31 +900,20 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$auto_mutexbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/mutex.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
             AC_MSG_CHECKING([for backported mutexes])
-            if ${EGREP} -q "struct mutex" "$TALPA_HEADER_LOCATION/linux/mutex.h" 2>/dev/null; then
+            if grep -q "struct mutex" "$TALPA_HEADER_LOCATION/linux/mutex.h" 2>/dev/null; then
                 AC_MSG_RESULT([detected])
-                AC_SUBST(mutexes,"-DTALPA_HAS_MUTEXES")
+                AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
             else
                 AC_MSG_RESULT([not detected])
             fi
         fi
     else
         # Kernels starting with 2.6.16 have them
-        AC_SUBST(mutexes,"-DTALPA_HAS_MUTEXES")
-    fi
-
-    # Check for nested mutex support
-    if test "$mutexes" != ""; then
-        AC_MSG_CHECKING([for nested mutexes])
-        if ${EGREP} -q "mutex_lock_nested" "$TALPA_HEADER_LOCATION/linux/mutex.h" 2>/dev/null; then
-            AC_MSG_RESULT([present])
-            AC_SUBST(mutexes,"$mutexes -DTALPA_HAS_NESTED_MUTEX")
-        else
-            AC_MSG_RESULT([not present])
-        fi
+        AC_SUBST(mutexbackport,"-DTALPA_HAS_MUTEXES")
     fi
 
     # Autodetect if struct inode uses mutexes
-    if test $((kern_version_code)) -lt 132624 -a "$mutexes" != ""; then
+    if test $((kern_version_code)) -lt 132624 -a "$mutexbackport" != ""; then
         if test "$auto_inodemutex" = "yes"; then
             TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
             AC_MSG_CHECKING([for i_mutex inode struct member])
@@ -937,7 +926,7 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
     else
-        if test "$mutexes" != ""; then
+        if test "$mutexbackport" != ""; then
             # Kernels starting with 2.6.16 use them
             AC_SUBST(inodemutex,"-DTALPA_INODE_USES_MUTEXES")
         fi
@@ -1035,71 +1024,39 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
         ${RM} -f tests/configure/rodata
-
-        if test "$syscallhook" = "yes" -a "$rodata" != ""; then
-            # Check whether to use set_page_XXX or change_page_attr functions
-            TALPA_LOCATE_HEADER(asm/cacheflush.h, $kernelhdrspath, , , [quiet])
-            AC_MSG_CHECKING([for set_pages/memory interface])
-            if ${EGREP} set_pages_rw $TALPA_HEADER_LOCATION/asm/cacheflush.h >/dev/null 2>&1; then
-                AC_MSG_RESULT([present])
-                if test "$kern_arch" = "x86_64"; then
-                    AC_MSG_CHECKING([for set_memory symbols])
-                    kfunc_set_memory_rw=`${EGREP} " set_memory_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    kfunc_set_memory_ro=`${EGREP} " set_memory_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    if test "$kfunc_set_memory_rw" != "" -a "$kfunc_set_memory_ro" != ""; then
+        # Get change_page_attr_addr on x86_64
+        if test "$kern_arch" = "x86_64" -a "$syscallhook" = "yes" -a "$rodata" != ""; then
+            AC_MSG_CHECKING([for change_page_attr_addr symbol])
+            kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+            if test "$kfuncchpgattraddr" != ""; then
+                AC_MSG_RESULT([ok])
+                AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
+            else
+                AC_MSG_ERROR([failed to get])
+            fi
+            # Check for RHEL 5 kernels which need special handling
+            AC_MSG_CHECKING([for type of addressed passed to change_page_attr_addr])
+            TALPA_LOCATE_HEADER(asm/const.h, $kernelhdrspath, constheader=yes, constheader=no, [quiet])
+            if test "$constheader" = "yes"; then
+                AC_MSG_RESULT([virtual])
+                AC_SUBST(needsvacpa, "-DTALPA_NEEDS_VA_CPA")
+                AC_MSG_CHECKING([if __pa_symbol is available])
+                TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
+                if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
+                    AC_MSG_RESULT([no])
+                    AC_MSG_CHECKING([for phys_base address])
+                    phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                    if test "$phys_base" != ""; then
                         AC_MSG_RESULT([ok])
-                        AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_MEMORY_RW=0x$kfunc_set_memory_rw -DTALPA_KFUNC_SET_MEMORY_RO=0x$kfunc_set_memory_ro")
+                        AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
                     else
-                        AC_MSG_ERROR([failed to get])
+                        AC_MSG_ERROR([error])
                     fi
                 else
-                    AC_MSG_CHECKING([for set_pages symbols])
-                    kfunc_set_pages_rw=`${EGREP} " set_pages_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    kfunc_set_pages_ro=`${EGREP} " set_pages_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    if test "$kfunc_set_pages_rw" != "" -a "$kfunc_set_pages_ro" != ""; then
-                        AC_MSG_RESULT([ok])
-                        AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_PAGES_RW=0x$kfunc_set_pages_rw -DTALPA_KFUNC_SET_PAGES_RO=0x$kfunc_set_pages_ro")
-                    else
-                        AC_MSG_ERROR([failed to get])
-                    fi
+                    AC_MSG_RESULT([yes])
                 fi
-            else # old change_page_attr_addr interface
-                AC_MSG_RESULT([not present])
-                # Get change_page_attr_addr on x86_64
-                if test "$kern_arch" = "x86_64"; then
-                    AC_MSG_CHECKING([for change_page_attr_addr symbol])
-                    kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    if test "$kfuncchpgattraddr" != ""; then
-                        AC_MSG_RESULT([ok])
-                        AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
-                    else
-                        AC_MSG_ERROR([failed to get])
-                    fi
-                    # Check for RHEL 5 kernels which need special handling
-                    AC_MSG_CHECKING([for type of addressed passed to change_page_attr_addr])
-                    TALPA_LOCATE_HEADER(asm/const.h, $kernelhdrspath, constheader=yes, constheader=no, [quiet])
-                    if test "$constheader" = "yes"; then
-                        AC_MSG_RESULT([virtual])
-                        AC_SUBST(needsvacpa, "-DTALPA_NEEDS_VA_CPA")
-                        AC_MSG_CHECKING([if __pa_symbol is available])
-                        TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
-                        if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
-                            AC_MSG_RESULT([no])
-                            AC_MSG_CHECKING([for phys_base address])
-                            phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                            if test "$phys_base" != ""; then
-                                AC_MSG_RESULT([ok])
-                                AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
-                            else
-                                AC_MSG_ERROR([error])
-                            fi
-                        else
-                            AC_MSG_RESULT([yes])
-                        fi
-                    else
-                        AC_MSG_RESULT([logical])
-                    fi
-                fi
+            else
+                AC_MSG_RESULT([logical])
             fi
         fi
     else
@@ -1350,7 +1307,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@vfsunlink@/${vfsunlink}/; \
                 s/@tasknewtty@/${tasknewtty}/; \
                 s/@rcubackport@/${rcubackport}/; \
-                s/@mutexes@/${mutexes}/; \
+                s/@mutexbackport@/${mutexbackport}/; \
                 s/@inodemutex@/${inodemutex}/; \
                 s/@inodeiprivate@/${inodeiprivate}/; \
                 s/@signalbackport@/${signalbackport}/; \
@@ -1369,7 +1326,6 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
-                s/@hassetpages@/${hassetpages}/; \
                 s/@needsvacpa@/${needsvacpa}/; \
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
@@ -1390,7 +1346,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@vfsunlink@/${vfsunlink}/; \
                 s/@tasknewtty@/${tasknewtty}/; \
                 s/@rcubackport@/${rcubackport}/; \
-                s/@mutexes@/${mutexes}/; \
+                s/@mutexbackport@/${mutexbackport}/; \
                 s/@inodemutex@/${inodemutex}/; \
                 s/@inodeiprivate@/${inodeiprivate}/; \
                 s/@signalbackport@/${signalbackport}/; \
@@ -1409,7 +1365,6 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
-                s/@hassetpages@/${hassetpages}/; \
                 s/@needsvacpa@/${needsvacpa}/; \
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
