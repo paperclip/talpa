@@ -1699,7 +1699,7 @@ static void walkMountTree(void)
 {
     struct task_struct* inittask;
     struct vfsmount *rootmnt;
-    struct vfsmount *mnt, *nextmnt;
+    struct vfsmount *mnt, *nextmnt, *prevmnt;
     struct list_head *nexthead = NULL;
 
 
@@ -1756,9 +1756,9 @@ static void walkMountTree(void)
             /* Abort if we are at the root */
             if ( nextmnt == nextmnt->mnt_parent )
             {
-                mntput(mnt);
                 talpa_vfsmount_unlock();
                 spin_unlock(&dcache_lock);
+                mntput(mnt);
                 break;
             }
 
@@ -1767,10 +1767,11 @@ static void walkMountTree(void)
         }
 
         mntget(nextmnt);
-        mntput(mnt);
+        prevmnt = mnt;
         mnt = nextmnt;
         talpa_vfsmount_unlock();
         spin_unlock(&dcache_lock);
+        mntput(prevmnt);
     } while (mnt);
 
     mntput(rootmnt);
