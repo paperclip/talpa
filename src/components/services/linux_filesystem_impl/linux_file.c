@@ -310,9 +310,9 @@ static int open(void* self, const char* filename, unsigned int flags)
         return ret;
     }
 
-    ret = openDentry(self, nd.dentry, nd.mnt, flags);
+    ret = openDentry(self, talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), flags);
 
-    path_release(&nd);
+    talpa_path_release(&nd);
 
     return ret;
 }

@@ -96,7 +96,7 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
             {
                 read_lock(&init_fs->lock);
                 spin_lock(&dcache_lock);
-                for (rootmnt = init_fs->rootmnt; rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
+                for (rootmnt = talpa_fs_mnt(init_fs); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
                 object->mMnt = mntget(rootmnt);
                 object->mDentry = dget(rootmnt->mnt_root);
                 spin_unlock(&dcache_lock);

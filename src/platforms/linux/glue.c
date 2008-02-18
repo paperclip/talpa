@@ -114,7 +114,7 @@ Elong:
 }
 #endif /* >= 2.6.0 */
 
-char* talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dentry *root, struct vfsmount *rootmnt, char *buffer, int buflen)
+char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dentry *root, struct vfsmount *rootmnt, char *buffer, int buflen)
 {
     char* path;
 

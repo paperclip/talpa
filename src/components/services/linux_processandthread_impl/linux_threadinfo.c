@@ -147,8 +147,8 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
         }
 
         read_lock(&proc->fs->lock);
-        object->mRootMount = mntget(proc->fs->rootmnt);
-        object->mRootDentry = dget(proc->fs->root);
+        object->mRootMount = mntget(talpa_task_root_mnt(proc));
+        object->mRootDentry = dget(talpa_task_root_dentry(proc));
         read_unlock(&proc->fs->lock);
     }
 
@@ -230,7 +230,7 @@ static const char* rootDir(const void* self)
     {
         ISystemRoot* root = TALPA_Portability()->systemRoot();
 
-        this->mRootDir = talpa_d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPath, path_size);
+        this->mRootDir = talpa__d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPath, path_size);
     }
     else
     {

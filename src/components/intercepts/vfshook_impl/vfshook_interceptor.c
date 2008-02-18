@@ -468,7 +468,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
                 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-                    pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, nd->mnt, O_CREAT | O_EXCL, mode);
+                    pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, talpa_nd_mnt(nd), O_CREAT | O_EXCL, mode);
 
                     if ( pFInfo )
                     {
@@ -905,18 +905,18 @@ rescan:
         if ( err == 0 )
         {
             /* If dentry resolves to regular file we're done! */
-            if ( S_ISREG(nd->dentry->d_inode->i_mode) )
+            if ( S_ISREG(talpa_nd_dentry(nd)->d_inode->i_mode) )
             {
                 dbg("regular %s", dc->dirent);
-                reg = dget(nd->dentry);
+                reg = dget(talpa_nd_dentry(nd));
             }
             /* If it is a directory and not a root of a mounted filesystem, enter into it.
                But only if we have enough space in the buffer to copy that path. */
-            else if ( S_ISDIR(nd->dentry->d_inode->i_mode) && (nd->dentry != nd->mnt->mnt_root) && (dc->rootsize > strlen(dc->dirent)) )
+            else if ( S_ISDIR(talpa_nd_dentry(nd)->d_inode->i_mode) && (talpa_nd_dentry(nd) != talpa_nd_mnt(nd)->mnt_root) && (dc->rootsize > strlen(dc->dirent)) )
             {
                 dbg("entering %s", dc->dirent);
                 depth++;
-                path_release(nd);
+                talpa_path_release(nd);
                 strcpy(dc->root, dc->dirent);
                 dc->rootlen = strlen(dc->root);
                 goto rescan;
@@ -925,7 +925,7 @@ rescan:
             {
                 dbg("  skipping %s", dc->dirent);
             }
-            path_release(nd);
+            talpa_path_release(nd);
         }
     } while ( !reg ); /* !reg = search finished, we have a regular file */
 
@@ -969,7 +969,7 @@ static struct dentry *findRegular(struct vfsmount* root)
             dbg("failed to allocate order %u", mnt_order);
             goto exit1;
         }
-        name = d_path(root->mnt_root, root, path, path_size);
+        name = talpa_d_path(root->mnt_root, root, path, path_size);
         if ( IS_ERR(name) )
         {
             talpa_free_path_order(path, mnt_order);
@@ -1515,17 +1515,17 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                 if ( path )
                 {
                     /* Double path resolve. Makes smbmount way of mounting work. */
-                    dir2 = d_path(nd.dentry, nd.mnt, path, path_size);
+                    dir2 = talpa_d_path(talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), path, path_size);
                     if ( !IS_ERR(dir2) )
                     {
                        if ( !talpa_path_lookup(dir2, TALPA_LOOKUP, &nd2) )
                        {
                             talpa_free_path(path);
-                            path_release(&nd);
+                            talpa_path_release(&nd);
                             putname(dir);
 
-                            processMount(nd2.mnt, flags, true);
-                            path_release(&nd2);
+                            processMount(talpa_nd_mnt(&nd2), flags, true);
+                            talpa_path_release(&nd2);
 
                             return;
                         }
@@ -1534,7 +1534,7 @@ static void talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                     talpa_free_path(path);
                 }
 
-                path_release(&nd);
+                talpa_path_release(&nd);
             }
 
             putname(dir);
@@ -1672,8 +1672,8 @@ static void talpaPostUmount(int err, char* name, int flags)
 
                     if ( !err )
                     {
-                        err = processMount(nd.mnt, nd.mnt->mnt_flags, false);
-                        path_release(&nd);
+                        err = processMount(talpa_nd_mnt(&nd), talpa_nd_mnt(&nd)->mnt_flags, false);
+                        talpa_path_release(&nd);
                     }
                     else
                     {
@@ -1716,7 +1716,7 @@ static void walkMountTree(void)
     spin_lock(&dcache_lock);
     talpa_vfsmount_lock();
     /* Find system root */
-    for (rootmnt = inittask->fs->rootmnt; rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
+    for (rootmnt = talpa_task_root_mnt(inittask); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
     rootmnt = mntget(rootmnt);
     talpa_vfsmount_unlock();
     spin_unlock(&dcache_lock);

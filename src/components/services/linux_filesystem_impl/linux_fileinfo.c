@@ -123,29 +123,29 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
             {
                 ISystemRoot* root = TALPA_Portability()->systemRoot();
 
-                object->mFilename = talpa_d_path(nd.dentry, nd.mnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
+                object->mFilename = talpa__d_path(talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
                 object->mOperation = operation;
                 object->mFlags = flags;
-                object->mDentry = nd.dentry;
-                object->mVFSMount = nd.mnt;
-                object->mMode = nd.dentry->d_inode->i_mode;
-                object->mIno = nd.dentry->d_inode->i_ino;
-                object->mWriteCount = (atomic_read(&nd.dentry->d_inode->i_writecount)<=0)?0:atomic_read(&nd.dentry->d_inode->i_writecount);
-                object->mDevice = kdev_t_to_nr(inode_dev(nd.dentry->d_inode));
-                object->mDeviceMajor = MAJOR(inode_dev(nd.dentry->d_inode));
-                object->mDeviceMinor = MINOR(inode_dev(nd.dentry->d_inode));
+                object->mDentry = talpa_nd_dentry(&nd);
+                object->mVFSMount = talpa_nd_mnt(&nd);
+                object->mMode = talpa_nd_dentry(&nd)->d_inode->i_mode;
+                object->mIno = talpa_nd_dentry(&nd)->d_inode->i_ino;
+                object->mWriteCount = (atomic_read(&talpa_nd_dentry(&nd)->d_inode->i_writecount)<=0)?0:atomic_read(&talpa_nd_dentry(&nd)->d_inode->i_writecount);
+                object->mDevice = kdev_t_to_nr(inode_dev(talpa_nd_dentry(&nd)->d_inode));
+                object->mDeviceMajor = MAJOR(inode_dev(talpa_nd_dentry(&nd)->d_inode));
+                object->mDeviceMinor = MINOR(inode_dev(talpa_nd_dentry(&nd)->d_inode));
 //                 dbg("%s, F:0x%x, M:0x%x, D:0x%x",object->mFilename,object->mFlags,object->mMode,(unsigned int)object->mDevice);
             }
             else
             {
                 talpa_free(object);
                 warn("Not getting a single free page!");
-                path_release(&nd);
+                talpa_path_release(&nd);
 
                 return NULL;
             }
 
-            path_release(&nd);
+            talpa_path_release(&nd);
         }
         else
         {
@@ -185,7 +185,7 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
         {
             ISystemRoot* root = TALPA_Portability()->systemRoot();
 
-            object->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
+            object->mFilename = talpa__d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
             object->mOperation = operation;
             object->mFlags = file->f_flags;
             object->mDentry = file->f_dentry;
@@ -258,7 +258,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     inode = file->f_dentry->d_inode;
     root = TALPA_Portability()->systemRoot();
 
-    fi->mFilename = talpa_d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
+    fi->mFilename = talpa__d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
     fi->mOperation = operation;
     fi->mFlags = file->f_flags;
     fi->mMode = inode->i_mode;
@@ -313,7 +313,7 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     vfsmnt = (struct vfsmount *)mntobj;
     root = TALPA_Portability()->systemRoot();
 
-    fi->mFilename = talpa_d_path(dentry, vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
+    fi->mFilename = talpa__d_path(dentry, vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
     fi->mOperation = operation;
     fi->mFlags = flags;
     fi->mDentry = dentry;

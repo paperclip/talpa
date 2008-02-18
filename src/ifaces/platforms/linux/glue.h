@@ -44,6 +44,10 @@
 #define inode_dev(i) ((i)->i_dev)
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+#include <linux/path.h>
+#endif
+
 #include "platform/compiler.h"
 
 
@@ -93,10 +97,40 @@
 #define snprintf(string, len, arg...) sprintf(string, ## arg)
 #endif
 
-char * talpa_d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
+char * talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt,
             struct dentry *root, struct vfsmount *rootmnt,
             char *buffer, int buflen);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+
+#define talpa_nd_dentry(nd) ((nd)->path.dentry)
+#define talpa_nd_mnt(nd) ((nd)->path.mnt)
+#define talpa_path_release(nd) (path_put(&(nd)->path))
+#define talpa_task_root_dentry(t) ((t)->fs->root.dentry)
+#define talpa_task_root_mnt(t) ((t)->fs->root.mnt)
+#define talpa_fs_mnt(f) ((f)->root.mnt)
+
+static inline char *talpa_d_path(struct dentry *dentry, struct vfsmount *mnt, char *buf, int len)
+{
+    struct path path;
+
+
+    path.dentry = dentry;
+    path.mnt = mnt;
+
+    return d_path(&path, buf, len);
+}
+#else /* <2.6.25 */
+
+#define talpa_nd_dentry(nd) ((nd)->dentry)
+#define talpa_nd_mnt(nd) ((nd)->mnt)
+#define talpa_d_path d_path
+#define talpa_path_release(nd) (path_release(nd))
+#define talpa_task_root_dentry(t) ((t)->fs->root)
+#define talpa_task_root_mnt(t) ((t)->fs->rootmnt)
+#define talpa_fs_mnt(f) ((f)->rootmnt)
+
+#endif /* 2.6.25 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,25) && !defined TALPA_HAS_PATH_LOOKUP
 static inline int talpa_path_lookup(const char *path, unsigned flags, struct nameidata *nd)

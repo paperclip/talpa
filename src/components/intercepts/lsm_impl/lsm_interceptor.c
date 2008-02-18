@@ -332,7 +332,7 @@ static inline int talpa_inode_permission(struct inode *inode, int mask, struct n
         return 0;
     }
 
-    decision = examineDirectoryEntry(&GL_object, EFS_Open, nd->dentry, nd->mnt, flags, -1);
+    decision = examineDirectoryEntry(&GL_object, EFS_Open, talpa_nd_dentry(nd), talpa_nd_mnt(nd), flags, -1);
 
     return decision;
 }
@@ -603,7 +603,7 @@ static inline int talpa_sb_mount(char *dev_name, struct nameidata *nd, char *typ
         return -ENOMEM;
     }
 
-    mountpoint = d_path(nd->dentry, nd->mnt, mpath, path_size);
+    mountpoint = talpa_d_path(talpa_nd_dentry(nd), talpa_nd_mnt(nd), mpath, path_size);
     if ( unlikely( IS_ERR(mountpoint) != 0 ) )
     {
         mountpoint = NULL;
@@ -652,7 +652,7 @@ static inline int talpa_sb_umount(struct vfsmount *mnt, int flags)
     mpath = talpa_alloc_path(&path_size);
     if ( likely(mpath != NULL) )
     {
-        mountpoint = d_path(mnt->mnt_mountpoint, mnt->mnt_parent, mpath, path_size);
+        mountpoint = talpa_d_path(mnt->mnt_mountpoint, mnt->mnt_parent, mpath, path_size);
         if ( unlikely( IS_ERR(mountpoint) != 0 ) )
         {
             mountpoint = NULL;
