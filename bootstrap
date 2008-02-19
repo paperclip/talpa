@@ -2,4 +2,4 @@
 # autoreconf assumes we're not using automake if it doesn't see 'Makefile.am'
 # in the top level.
 test -f Makefile.am || touch Makefile.am
-autoreconf --verbose --install
+autoreconf --verbose --install -Wno-portability
