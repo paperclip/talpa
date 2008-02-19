@@ -1898,6 +1898,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "sysfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "debugfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "securityfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "fusectl", false);
 #else
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "usbdevfs", false);
 #endif
@@ -1906,6 +1907,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
 
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
+    appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuseblk", true);
 
     /* Parse module parameters */
     parseParams(&GL_object, skip_list, &GL_object.mSkipFilesystems, &GL_object.mSkipFilesystemsSet);
