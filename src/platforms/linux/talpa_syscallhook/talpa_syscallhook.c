@@ -939,7 +939,7 @@ static int find_syscall_table(void)
     return 0;
 }
 #else
-static int find_syscall_table
+static int find_syscall_table(void)
 {
     return 0;
 }
