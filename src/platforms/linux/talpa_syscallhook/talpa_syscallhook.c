@@ -94,6 +94,21 @@ const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
   #undef TALPA_EXECVE_SUPPORT
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+
+#define try_module_get(m) \
+({ \
+    MOD_INC_USE_COUNT; \
+    1; \
+})
+
+#define module_put(m) \
+({ \
+    MOD_DEC_USE_COUNT; \
+    1; \
+})
+
+#endif
 
 static atomic_t usecnt = ATOMIC_INIT(0);
 static struct talpa_syscall_operations* interceptor;
