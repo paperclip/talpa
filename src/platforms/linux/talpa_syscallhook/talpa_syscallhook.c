@@ -53,6 +53,7 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
 #endif
 
+#define critical(format, arg...) printk(KERN_CRIT "talpa-syscallhook: " format "\n" , ## arg)
 #define err(format, arg...) printk(KERN_ERR "talpa-syscallhook: " format "\n" , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "talpa-syscallhook: " format "\n" , ## arg)
 #define notice(format, arg...) printk(KERN_NOTICE "talpa-syscallhook: " format "\n" , ## arg)
@@ -121,6 +122,9 @@ static asmlinkage long (*orig_umount_32)(char* name);
 static asmlinkage long (*orig_umount2_32)(char* name, int flags);
 #endif
 
+static void talpa_syscallhook_unro(int rw);
+static unsigned int check_table(void);
+
 /*
  * Hooking mask:
  * o = open
@@ -182,8 +186,16 @@ int talpa_syscallhook_register(struct talpa_syscall_operations* ops)
         return -EINVAL;
     }
 
-    atomic_inc(&usecnt);
-    interceptor = ops;
+    if ( try_module_get(THIS_MODULE) )
+    {
+        atomic_inc(&usecnt);
+        interceptor = ops;
+    }
+    else
+    {
+        err("Failed to get module!");
+        return -ENOTTY;
+    }
 
     return 0;
 }
@@ -202,7 +214,42 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
     /* Now wait for a last caller to exit */
     wait_event(unregister_wait, atomic_read(&usecnt) == 0);
 
+    /* And now a hack which requires understanding the bigger
+       picture. We have no way of stopping the unload of this module
+       if someone has patched the sys call table after us. Therefore
+       we will block our innocent unregistrant here until things
+       clear up. There is still a window between this succeeds and
+       we actually get to unload this module but this is the best
+       we can do.
+       Another consequence of this is that unload of this module is
+       not as safe on it's own. It depends on the bigger picture,
+       the fact that other modules use it and that normal use is to
+       remove all those modules when product shuts down.
+       What I was advocating from the start is that we never unload
+       this module after it is loaded for the first time. That would
+       be the safest things considering the whole hairy situation.
+    */
+    while ( check_table() != 0 )
+    {
+        schedule_timeout(HZ);
+    }
+
+    module_put(THIS_MODULE);
     return;
+}
+
+void talpa_syscallhook_modify_start(void)
+{
+    lock_kernel();
+    talpa_syscallhook_unro(1);
+    unlock_kernel();
+}
+
+void talpa_syscallhook_modify_finish(void)
+{
+    lock_kernel();
+    talpa_syscallhook_unro(0);
+    unlock_kernel();
 }
 
 /*
@@ -729,7 +776,7 @@ extern void *sys_call_table[];
 #endif
 
 #ifndef TALPA_HAS_RODATA
-void talpa_syscallhook_unro(int rw)
+static void talpa_syscallhook_unro(int rw)
 {
     return;
 }
@@ -749,7 +796,7 @@ static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
 #define talpa_ka_to_cpa(adr) ((unsigned long)adr)
 #endif /* NEEDS_VA_CPA */
 
-void talpa_syscallhook_unro(int rw)
+static void talpa_syscallhook_unro(int rw)
 {
     unsigned long nr_pages = (rodata_end - rodata_start) / PAGE_SIZE;
 
@@ -1034,6 +1081,125 @@ static void patch_table(void)
 #endif
 }
 
+static unsigned int check_table(void)
+{
+    unsigned int rc = 0;
+
+
+    if ( strchr(hook_mask, 'o') )
+    {
+        if ( sys_call_table[__NR_open] != talpa_open )
+        {
+            warn("open() is patched by someone else!");
+            rc = 1;
+        }
+#ifdef CONFIG_IA32_EMULATION
+        if ( ia32_sys_call_table[__NR_open_ia32] != talpa_open )
+        {
+            warn("ia32_open() is patches by someone else!");
+            rc = 1;
+        }
+#endif
+    }
+
+    if ( strchr(hook_mask, 'c') )
+    {
+        if ( sys_call_table[__NR_close] != talpa_close )
+        {
+            warn("close() is patched by someone else!");
+            rc = 1;
+        }
+#ifdef CONFIG_IA32_EMULATION
+        if ( ia32_sys_call_table[__NR_close_ia32] != talpa_close )
+        {
+            warn("ia32_close() is patched by someone else!");
+            rc = 1;
+        }
+#endif
+    }
+
+    if ( strchr(hook_mask, 'l') )
+    {
+        if ( sys_call_table[__NR_uselib] != talpa_uselib )
+        {
+            warn("uselib() is patched by someone else!");
+            rc = 1;
+        }
+#if defined CONFIG_IA32_EMULATION && defined CONFIG_IA32_AOUT
+        if ( ia32_sys_call_table[__NR_uselib_ia32] != talpa_uselib )
+        {
+            warn("ia32_uselib() is patched by someone else!");
+            rc = 1;
+        }
+#endif
+    }
+
+    if ( strchr(hook_mask, 'm') )
+    {
+        if ( sys_call_table[__NR_mount] != talpa_mount )
+        {
+            warn("mount() is patched by someone else!");
+            rc = 1;
+        }
+#ifdef CONFIG_IA32_EMULATION
+        if ( ia32_sys_call_table[__NR_mount_ia32] != talpa_mount )
+        {
+            warn("ia32_mount() is patched by someone else!");
+            rc = 1;
+        }
+#endif
+    }
+
+    if ( strchr(hook_mask, 'u') )
+    {
+#if defined CONFIG_X86
+ #if defined CONFIG_X86_64
+        if ( sys_call_table[__NR_umount2] != talpa_umount2 )
+        {
+            warn("umount2() is patched by someone else!");
+            rc = 1;
+        }
+ #else
+        if ( sys_call_table[__NR_umount] != talpa_umount )
+        {
+            warn("umount() is patched by someone else!");
+            rc = 1;
+        }
+        if ( sys_call_table[__NR_umount2] != talpa_umount2 )
+        {
+            warn("umount2() is patched by someone else!");
+            rc = 1;
+        }
+ #endif
+#endif
+#ifdef CONFIG_IA32_EMULATION
+        if ( ia32_sys_call_table[__NR_umount_ia32] != talpa_umount )
+        {
+            warn("ia32_umount() is patched by someone else!");
+            rc = 1;
+        }
+        if ( ia32_sys_call_table[__NR_umount2_ia32] != talpa_umount2 )
+        {
+            warn("ia32_umount2() is patched by someone else!");
+            rc = 1;
+        }
+#endif
+    }
+
+#ifdef TALPA_EXECVE_SUPPORT
+    if ( strchr(hook_mask, 'e') )
+    {
+        if ( sys_call_table[__NR_execve] != talpa_execve )
+        {
+            warn("execve() is patched by someone else!");
+            rc = 1;
+        }
+    }
+#endif
+
+    return rc;
+}
+
 static void restore_table(void)
 {
 #if defined CONFIG_X86
@@ -1083,8 +1249,9 @@ static int __init talpa_syscallhook_init(void)
     fsync_dev(0);
 #endif
     save_originals();
-    talpa_syscallhook_unro(1);
+    talpa_syscallhook_modify_start();
     patch_table();
+    talpa_syscallhook_modify_finish();
     unlock_kernel();
 
     dbg("Hooked [%s]", hook_mask);
@@ -1092,6 +1259,8 @@ static int __init talpa_syscallhook_init(void)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     inter_module_register("talpa_syscallhook_register", THIS_MODULE, (const void *)talpa_syscallhook_register);
     inter_module_register("talpa_syscallhook_unregister", THIS_MODULE, (const void *)talpa_syscallhook_unregister);
+    inter_module_register("talpa_syscallhook_modify_start", THIS_MODULE, (const void *)talpa_syscallhook_modify_start);
+    inter_module_register("talpa_syscallhook_modify_finish", THIS_MODULE, (const void *)talpa_syscallhook_modify_finish);
 #endif
 
     return 0;
@@ -1102,14 +1271,24 @@ static void __exit talpa_syscallhook_exit(void)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     inter_module_unregister("talpa_syscallhook_register");
     inter_module_unregister("talpa_syscallhook_unregister");
+    inter_module_unregister("talpa_syscallhook_modify_start");
+    inter_module_unregister("talpa_syscallhook_modify_finish");
 #endif
 
     lock_kernel();
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     fsync_dev(0);
 #endif
+
+    /* Nothing we can do here but shout. At least this
+       message might get through helping in diagnosis. */
+    if ( check_table() != 0 )
+    {
+        critical("Syscall table modified by another module!");
+    }
+    talpa_syscallhook_modify_start();
     restore_table();
-    talpa_syscallhook_unro(0);
+    talpa_syscallhook_modify_finish();
     unlock_kernel();
 
     /* Now wait for a last caller to exit */
@@ -1122,6 +1301,8 @@ static void __exit talpa_syscallhook_exit(void)
 
 EXPORT_SYMBOL(talpa_syscallhook_register);
 EXPORT_SYMBOL(talpa_syscallhook_unregister);
+EXPORT_SYMBOL(talpa_syscallhook_modify_start);
+EXPORT_SYMBOL(talpa_syscallhook_modify_finish);
 
 module_param(hook_mask, charp, 0400);
   #ifdef TALPA_HIDDEN_SYSCALLS
@@ -1138,6 +1319,8 @@ module_param(rodata_end, ulong, 0400);
 
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_register);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_unregister);
+EXPORT_SYMBOL_NOVERS(talpa_syscallhook_modify_start);
+EXPORT_SYMBOL_NOVERS(talpa_syscallhook_modify_finish);
 
 MODULE_PARM(hook_mask, "s");
   #ifdef TALPA_HIDDEN_SYSCALLS

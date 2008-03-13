@@ -441,6 +441,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
 
                 /* Re-patch, this time using file operations */
                 dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+                talpa_syscallhook_modify_start();
                 patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
                 patch->lookup = NULL;
@@ -452,17 +453,16 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     patch->sf_ops = NULL;
                     patch->ioctl = NULL;
                 }
-                patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 dbg("  storing original inode operations [0x%p]", patch->i_ops);
+                patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
+                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
-                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
                 patch->f_ops->open = talpaOpen;
                 patch->f_ops->release = talpaRelease;
-                smp_wmb();
-
-                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
+                talpa_syscallhook_modify_finish();
 
                 /* Do not examine if we should not intercept opens or we are already examining one */
                 if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
@@ -550,6 +550,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
             {
                 /* Re-patch, this time using file operations */
                 dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+                talpa_syscallhook_modify_start();
                 patch->i_ops->lookup = patch->lookup;
                 patch->i_ops->create = patch->create;
                 patch->lookup = NULL;
@@ -561,17 +562,16 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                     patch->sf_ops = NULL;
                     patch->ioctl = NULL;
                 }
-                patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 dbg("  storing original inode operations [0x%p]", patch->i_ops);
+                patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
+                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
-                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
                 patch->f_ops->open = talpaOpen;
                 patch->f_ops->release = talpaRelease;
-                smp_wmb();
-
-                dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
+                talpa_syscallhook_modify_finish();
             }
         }
 
@@ -1096,21 +1096,26 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
         dbg("  patching file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+        talpa_syscallhook_modify_start();
         patch->f_ops->open = talpaOpen;
         patch->f_ops->release = talpaRelease;
+        talpa_syscallhook_modify_finish();
     }
     else if ( dentry && smbfs )
     {
         dbg("  patching smbfs ioctl [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+        talpa_syscallhook_modify_start();
         patch->sf_ops->ioctl = talpaIoctl;
+        talpa_syscallhook_modify_finish();
     }
     else
     {
+        dbg("  patching inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+        talpa_syscallhook_modify_start();
         patch->i_ops->lookup = talpaInodeLookup;
         patch->i_ops->create = talpaInodeCreate;
-        dbg("  patching inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+        talpa_syscallhook_modify_finish();
     }
-    smp_wmb();
 
     dbg("Patched filesystem %s", mnt->mnt_sb->s_type->name);
 
@@ -1131,6 +1136,8 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
+        talpa_syscallhook_modify_start();
+
         if ( patch->i_ops->lookup == talpaInodeLookup )
         {
             dbg("  restoring inode lookup operation [0x%p][0x%p]", patch->i_ops, patch->lookup);
@@ -1162,7 +1169,8 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
         dbg("  patching file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         patch->f_ops->open = talpaOpen;
         patch->f_ops->release = talpaRelease;
-        smp_wmb();
+
+        talpa_syscallhook_modify_finish();
     }
     else if ( smbfs )
     {
@@ -1185,17 +1193,25 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
                 shouldinc = false;
                 dbg("Not increasing usecnt for post ioctl smbfs mounts.");
             }
-            if ( patch->i_ops->lookup != talpaInodeLookup )
+
+            if ( (patch->i_ops->lookup != talpaInodeLookup)
+                 || (patch->i_ops->create != talpaInodeCreate) )
             {
-                dbg("  patching inode lookup [0x%p][0x%p]", patch->i_ops, patch->lookup);
-                patch->i_ops->lookup = talpaInodeLookup;
+                talpa_syscallhook_modify_start();
+
+                if ( patch->i_ops->lookup != talpaInodeLookup )
+                {
+                    dbg("  patching inode lookup [0x%p][0x%p]", patch->i_ops, patch->lookup);
+                    patch->i_ops->lookup = talpaInodeLookup;
+                }
+                if ( patch->i_ops->create != talpaInodeCreate )
+                {
+                    dbg("  patching inode creation [0x%p][0x%p]", patch->i_ops, patch->create);
+                    patch->i_ops->create = talpaInodeCreate;
+                }
+
+                talpa_syscallhook_modify_finish();
             }
-            if ( patch->i_ops->create != talpaInodeCreate )
-            {
-                dbg("  patching inode creation [0x%p][0x%p]", patch->i_ops, patch->create);
-                patch->i_ops->create = talpaInodeCreate;
-            }
-            smp_wmb();
         }
     }
 
@@ -1206,11 +1222,18 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
 
 static int restoreFilesystem(struct patchedFilesystem* patch)
 {
+    if ( !(patch->sf_ops || patch->f_ops || patch->i_ops) )
+    {
+        err("Restore on an unpatched filesystem!");
+        return 0;
+    }
+
+    talpa_syscallhook_modify_start();
+
     if ( patch->sf_ops )
     {
         dbg("Restoring smbfs file operations 0x%p 0x%p", patch->sf_ops, patch->ioctl);
         patch->sf_ops->ioctl = patch->ioctl;
-        smp_wmb();
     }
 
     if ( patch->f_ops )
@@ -1219,7 +1242,6 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         patch->f_ops->open = patch->open;
         patch->f_ops->release = patch->release;
         patch->f_ops->ioctl = patch->ioctl;
-        smp_wmb();
     }
     else if ( patch->i_ops )
     {
@@ -1235,12 +1257,9 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
             patch->i_ops->create = patch->create;
             patch->create = NULL;
         }
-        smp_wmb();
     }
-    else
-    {
-        err("Restore on an unpatched filesystem!");
-    }
+
+    talpa_syscallhook_modify_finish();
 
     return 0;
 }

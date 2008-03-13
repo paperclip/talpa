@@ -48,6 +48,19 @@ int talpa_syscallhook_register(struct talpa_syscall_operations* ops);
  */
 void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops);
 
+/*
+ * Call when you want to write to potentialy read-only kernel
+ * memory. modify_finish must be called after modifications are
+ * done. Calls cannot be nested.
+ */
+void talpa_syscallhook_modify_start(void);
+
+/*
+ * Call when you are done writing to potentialy read-only kernel
+ * memory.
+ */
+void talpa_syscallhook_modify_finish(void);
+
 #endif
 
 /*
