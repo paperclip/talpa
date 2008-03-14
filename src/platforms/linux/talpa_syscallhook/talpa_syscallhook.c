@@ -246,6 +246,7 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
     */
     while ( check_table() != 0 )
     {
+        __set_current_state(TASK_UNINTERRUPTIBLE);
         schedule_timeout(HZ);
     }
 
