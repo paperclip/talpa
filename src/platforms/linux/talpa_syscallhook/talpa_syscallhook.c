@@ -53,7 +53,6 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
 #endif
 
-#define critical(format, arg...) printk(KERN_CRIT "talpa-syscallhook: " format "\n" , ## arg)
 #define err(format, arg...) printk(KERN_ERR "talpa-syscallhook: " format "\n" , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "talpa-syscallhook: " format "\n" , ## arg)
 #define notice(format, arg...) printk(KERN_NOTICE "talpa-syscallhook: " format "\n" , ## arg)
@@ -94,21 +93,6 @@ const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
   #undef TALPA_EXECVE_SUPPORT
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-
-#define try_module_get(m) \
-({ \
-    MOD_INC_USE_COUNT; \
-    1; \
-})
-
-#define module_put(m) \
-({ \
-    MOD_DEC_USE_COUNT; \
-    1; \
-})
-
-#endif
 
 static atomic_t usecnt = ATOMIC_INIT(0);
 static struct talpa_syscall_operations* interceptor;
@@ -138,7 +122,6 @@ static asmlinkage long (*orig_umount2_32)(char* name, int flags);
 #endif
 
 static void talpa_syscallhook_unro(int rw);
-static unsigned int check_table(void);
 
 /*
  * Hooking mask:
@@ -201,23 +184,15 @@ int talpa_syscallhook_register(struct talpa_syscall_operations* ops)
         return -EINVAL;
     }
 
-    if ( try_module_get(THIS_MODULE) )
-    {
-        atomic_inc(&usecnt);
-        interceptor = ops;
-    }
-    else
-    {
-        err("Failed to get module!");
-        return -ENOTTY;
-    }
+    atomic_inc(&usecnt);
+    interceptor = ops;
 
     return 0;
 }
 
 void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
 {
-    if ( (!interceptor) || (!ops) ) || (ops != interceptor) )
+    if ( (!interceptor) || (!ops) || (ops != interceptor) )
     {
         err("Interface misuse!");
         return;
@@ -230,27 +205,6 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
     /* Now wait for a last caller to exit */
     wait_event(unregister_wait, atomic_read(&usecnt) == 0);
 
-    /* And now a hack which requires understanding the bigger
-       picture. We have no way of stopping the unload of this module
-       if someone has patched the sys call table after us. Therefore
-       we will block our innocent unregistrant here until things
-       clear up. There is still a window between this succeeds and
-       we actually get to unload this module but this is the best
-       we can do.
-       Another consequence of this is that unload of this module is
-       not as safe on it's own. It depends on the bigger picture,
-       the fact that other modules use it and that normal use is to
-       remove all those modules when product shuts down.
-       Even better is to never unload this module so please do that
-       if in any way possible.
-    */
-    while ( check_table() != 0 )
-    {
-        __set_current_state(TASK_UNINTERRUPTIBLE);
-        schedule_timeout(HZ);
-    }
-
-    module_put(THIS_MODULE);
     return;
 }
 
@@ -1296,11 +1250,20 @@ static void __exit talpa_syscallhook_exit(void)
     fsync_dev(0);
 #endif
 
-    /* Nothing we can do here but shout. At least this
-       message might get through helping in diagnosis. */
-    if ( check_table() != 0 )
+    /* We have to cater for the possibility that someone else
+       has modified the syscall table after us. Therefore we
+       will check for that and sleep until the situation resolves.
+       There isn't really a perfect solution in these sorts of
+       unsupported oprations so it is better to hang here than
+       to cause system instability in any way.
+       The best thing would be to leave this module loaded forever.
+    */
+    while ( check_table() != 0 )
     {
-        critical("Syscall table modified by another module!");
+        unlock_kernel();
+        __set_current_state(TASK_UNINTERRUPTIBLE);
+        schedule_timeout(HZ);
+        lock_kernel();
     }
     talpa_syscallhook_modify_start();
     restore_table();
