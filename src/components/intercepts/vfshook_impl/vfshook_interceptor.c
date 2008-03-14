@@ -1918,6 +1918,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "debugfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "securityfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "fusectl", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "rpc_pipefs", false);
 #else
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "usbdevfs", false);
 #endif
