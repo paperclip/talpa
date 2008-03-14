@@ -217,8 +217,9 @@ int talpa_syscallhook_register(struct talpa_syscall_operations* ops)
 
 void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
 {
-    if ( (!interceptor) || (!ops) || (ops != interceptor) )
+    if ( (!interceptor) || (!ops) ) || (ops != interceptor) )
     {
+        err("Interface misuse!");
         return;
     }
 
@@ -240,9 +241,8 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops)
        not as safe on it's own. It depends on the bigger picture,
        the fact that other modules use it and that normal use is to
        remove all those modules when product shuts down.
-       What I was advocating from the start is that we never unload
-       this module after it is loaded for the first time. That would
-       be the safest things considering the whole hairy situation.
+       Even better is to never unload this module so please do that
+       if in any way possible.
     */
     while ( check_table() != 0 )
     {
