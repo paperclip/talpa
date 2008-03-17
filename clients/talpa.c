@@ -59,6 +59,7 @@ static char *get_talpa_device(const char *miscname, const char *container)
     struct stat statbuf;
     char sflvar[256];
     char *talpafs;
+    int retry = 2;
 
 
     /* See if our driver is listed in procfs */
@@ -78,7 +79,7 @@ static char *get_talpa_device(const char *miscname, const char *container)
     strcat(devname, miscname);
 
     /* Check if it's valid or recreate */
-    if ( found ) {
+    while ( found && retry ) {
         ret = stat(devname, &statbuf);
         if ( !ret && S_ISCHR(statbuf.st_mode) && (major(statbuf.st_rdev) == 10) && (minor(statbuf.st_rdev) == minor) ) {
                 return strdup(devname);
@@ -93,7 +94,13 @@ static char *get_talpa_device(const char *miscname, const char *container)
                 ret = mknod(devname, S_IFCHR, makedev(10, minor));
                 if ( !ret ) {
                     return strdup(devname);
+                } else {
+                    /* mknod failed - could be a race condition with udev so retry. */
+                    retry--;
                 }
+            } else {
+                /* Unlink failed - strange, maybe no permissions? */
+                break;
             }
         }
     }
