@@ -1015,6 +1015,8 @@ if test $((kern_version_code)) -ge 132608; then
         if test $? -eq 0; then
             AC_MSG_RESULT([yes])
             AC_SUBST(syscallhook, "yes")
+        elif test $((kern_version_code)) -ge 132633; then
+            AC_MSG_ERROR([unsupported kernel])
         else
             # If passed through environment do nothing since makefile will handle that
             if test "$TALPA_RODATA_START" = "" -a "$TALPA_RODATA_END" = ""; then
