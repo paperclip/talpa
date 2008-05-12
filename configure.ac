@@ -21,7 +21,7 @@
 #
 AC_INIT(talpa, 0.9.44)
 AC_CONFIG_AUX_DIR(config)
-AC_COPYRIGHT(Copyright (c) 2004-2006 Sophos PLC)
+AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
 AM_INIT_AUTOMAKE([1.9 tar-ustar])
 AM_INIT_AUTOMAKE([dist-zip dist-bzip2 dist-shar])
@@ -339,6 +339,12 @@ AC_ARG_ENABLE(test-warnings-errors,
                 [   auto_warnings=yes])
 
 CFLAGS=
+
+#
+# Talpa version
+#
+AC_MSG_CHECKING([for Talpa version])
+AC_MSG_RESULT(AC_PACKAGE_VERSION)
 
 #
 # Should we build?
