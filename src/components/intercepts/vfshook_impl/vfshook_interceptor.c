@@ -1924,6 +1924,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
 #endif
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nssadmin", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nsspool", true);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "autofs", true);
 
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
