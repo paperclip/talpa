@@ -86,6 +86,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
  */
 #define CFG_STATUS          "status"
 #define CFG_OPS             "ops"
+#define CFG_GOOD            "fs-good"
 #define CFG_FS              "fs-ignore"
 #define CFG_NOSCAN          "no-scan"
 #define CFG_PATCHLIST       "fs-list"
@@ -135,12 +136,14 @@ static VFSHookInterceptor GL_object =
         TALPA_RCU_UNLOCKED,
         TALPA_LIST_HEAD_INIT(GL_object.mPatches),
         TALPA_RCU_UNLOCKED,
+        TALPA_LIST_HEAD_INIT(GL_object.mGoodFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mSkipFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mNoScanFilesystems),
         NULL,
         {
             {GL_object.mConfigData.name, GL_object.mConfigData.value, VFSHOOK_CFGDATASIZE, true, true },
             {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, VFSHOOK_OPSCFGDATASIZE, true, false },
+            {GL_object.mGoodListConfigData.name, GL_object.mGoodListConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
             {GL_object.mSkipListConfigData.name, GL_object.mSkipListConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
             {GL_object.mNoScanConfigData.name, GL_object.mNoScanConfigData.value, VFSHOOK_FSCFGDATASIZE, true, false },
             {GL_object.mPatchConfigData.name, GL_object.mPatchConfigData.value, VFSHOOK_FSCFGDATASIZE, false, false },
@@ -148,6 +151,7 @@ static VFSHookInterceptor GL_object =
         },
         { CFG_STATUS, CFG_VALUE_DISABLED },
         { CFG_OPS, CFG_VALUE_DUMMY },
+        { CFG_GOOD, CFG_VALUE_DUMMY },
         { CFG_FS, CFG_VALUE_DUMMY },
         { CFG_NOSCAN, CFG_VALUE_DUMMY },
         { CFG_PATCHLIST, CFG_VALUE_DUMMY },
@@ -163,6 +167,7 @@ static VFSHookInterceptor GL_object =
             .umount_pre = talpaPreUmount,
             .umount_post = talpaPostUmount,
         },
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -1296,20 +1301,35 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     bool                        shouldinc;
     bool                        smbfs = false;
     const char*                 fsname = (const char *)mnt->mnt_sb->s_type->name;
+    bool                        good_fs = false;
 
 
-    /* We don't want to patch some filesystems */
+    /* We don't want to patch some filesystems, and for some we want
+       to output a warning message. */
     talpa_rcu_read_lock(&GL_object.mListLock);
     talpa_list_for_each_entry_rcu(obj, &GL_object.mSkipFilesystems, head)
     {
         if ( !strcmp(fsname, obj->value) )
         {
-            dbg("%s is on the skip list", obj->value);
+            info("%s is on the skip list, not patching", fsname);
             talpa_rcu_read_unlock(&GL_object.mListLock);
             return 0;
         }
     }
+    talpa_list_for_each_entry_rcu(obj, &GL_object.mGoodFilesystems, head)
+    {
+        if ( !strcmp(fsname, obj->value) )
+        {
+            good_fs = true;
+            break;
+        }
+    }
     talpa_rcu_read_unlock(&GL_object.mListLock);
+
+    if (!good_fs)
+    {
+        info("Patching %s", fsname);
+    }
 
     /* Allocate patchedFilesystem structure because we
        can't do it while holding a lock. */
@@ -1799,16 +1819,20 @@ static void walkMountTree(void)
 /*
  * Object creation/destruction.
  */
+static char *good_list = "";
 static char *skip_list = "";
 static char *no_scan = "";
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+module_param(good_list, charp, 0400);
 module_param(skip_list, charp, 0400);
 module_param(no_scan, charp, 0400);
 #else
+MODULE_PARM(good_list, "s");
 MODULE_PARM(skip_list, "s");
 MODULE_PARM(no_scan, "s");
 #endif
+MODULE_PARM_DESC(good_list, "Comma-delimited list of additions/removals from the list of known good filesystems");
 MODULE_PARM_DESC(skip_list, "Comma-delimited list of additions/removals from the list of ignored filesystems");
 MODULE_PARM_DESC(no_scan, "Comma-delimited list of additions/removals from the list of filesystems which need a workaround on mount");
 
@@ -1902,10 +1926,32 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     talpa_rcu_lock_init(&GL_object.mPatchLock);
     TALPA_INIT_LIST_HEAD(&GL_object.mPatches);
     talpa_rcu_lock_init(&GL_object.mListLock);
+    TALPA_INIT_LIST_HEAD(&GL_object.mGoodFilesystems);
     TALPA_INIT_LIST_HEAD(&GL_object.mSkipFilesystems);
     TALPA_INIT_LIST_HEAD(&GL_object.mNoScanFilesystems);
 
-    /* Configure the interceptor with platform dependent data */
+    /* Known good filesystems */
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "ext2", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "ext3", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "jfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "xfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "reiserfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "tmpfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "minix", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "smbfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "cifs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "nfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "nfs4", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "fuse", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "fuseblk", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "iso9660", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "udf", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "msdos", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "vfat", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "ncpfs", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "ramfs", false);
+
+    /* Filesystem which should not (or must not) be patched */
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "rootfs", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "proc", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "usbfs", false);
@@ -1925,12 +1971,19 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nssadmin", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nsspool", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "autofs", true);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "configfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "debugfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "inotifyfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "romfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "binfmt_misc", false);
 
+    /* Filesystems not to be scanned immediately after mount */
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuseblk", true);
 
-    /* Parse module parameters */
+    /* Parse module parameters - addition and removals from the above lists */
+    parseParams(&GL_object, good_list, &GL_object.mGoodFilesystems, &GL_object.mGoodFilesystemsSet);
     parseParams(&GL_object, skip_list, &GL_object.mSkipFilesystems, &GL_object.mSkipFilesystemsSet);
     parseParams(&GL_object, no_scan, &GL_object.mNoScanFilesystems, &GL_object.mNoScanFilesystemsSet);
 
@@ -1947,6 +2000,11 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
         unlock_kernel();
         purgePatches(&GL_object);
         /* Free the configuration list objects */
+        talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mGoodFilesystems, head)
+        {
+            talpa_list_del(&obj->head);
+            freeObject(obj);
+        }
         talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mSkipFilesystems, head)
         {
             talpa_list_del(&obj->head);
@@ -2008,6 +2066,11 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     object->mLinuxSystemRoot = NULL;
 
     /* Free the configuration list objects */
+    talpa_list_for_each_entry_safe(obj, tmp, &object->mGoodFilesystems, head)
+    {
+        talpa_list_del(&obj->head);
+        freeObject(obj);
+    }
     talpa_list_for_each_entry_safe(obj, tmp, &object->mSkipFilesystems, head)
     {
         talpa_list_del(&obj->head);
@@ -2020,6 +2083,7 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     }
 
     /* Free string sets representing configuration data */
+    talpa_free(object->mGoodFilesystemsSet);
     talpa_free(object->mSkipFilesystemsSet);
     talpa_free(object->mNoScanFilesystemsSet);
     talpa_free(object->mPatchListSet);
@@ -2483,7 +2547,15 @@ static const char* config(const void* self, const char* name)
 
         talpa_mutex_lock(&this->mSemaphore);
 
-        if ( !strcmp(cfgElement->name, CFG_FS) )
+        if ( !strcmp(cfgElement->name, CFG_GOOD) )
+        {
+            if ( !this->mGoodFilesystemsSet )
+            {
+                constructStringSet(this, &this->mGoodFilesystems, &this->mGoodFilesystemsSet);
+            }
+            retstring = this->mGoodFilesystemsSet;
+        }
+        else if ( !strcmp(cfgElement->name, CFG_FS) )
         {
             if ( !this->mSkipFilesystemsSet )
             {
@@ -2560,6 +2632,10 @@ static void  setConfig(void* self, const char* name, const char* value)
     else if ( !strcmp(name, CFG_OPS) )
     {
         doSpecialString(this, value);
+    }
+    else if ( !strcmp(name, CFG_GOOD) )
+    {
+        doActionString(this, &this->mGoodFilesystems, &(this->mGoodFilesystemsSet), value);
     }
     else if ( !strcmp(name, CFG_FS) )
     {
