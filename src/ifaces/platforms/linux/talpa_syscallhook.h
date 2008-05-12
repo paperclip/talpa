@@ -20,6 +20,8 @@
 #define H_TALPASYSCALLHOOK
 
 
+#define TALPA_SYSCALLHOOK_IFACE_VERSION (1)
+
 /*
  * All strings are in userspace except for execve.
  */
@@ -35,6 +37,12 @@ struct talpa_syscall_operations
     void    (*umount_pre)   (char* name, int flags);
     void    (*umount_post)  (int err, char* name, int flags);
 };
+
+/*
+ * Returns an integer describing version of struct talpa_syscall_operations.
+ * Users must check before registering that the versions match.
+ */
+unsigned int talpa_syscallhook_interface_version(void);
 
 /*
  * Register yourself if you want talpa_syscallhook to call you.

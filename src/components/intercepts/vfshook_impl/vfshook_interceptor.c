@@ -1994,30 +1994,18 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     /* See which filesystem are already present and patch them */
     walkMountTree();
 
+    /* Check if syscallhook interface version matches */
+    if ( talpa_syscallhook_interface_version() != TALPA_SYSCALLHOOK_IFACE_VERSION )
+    {
+        err("Wrong version of talpa-syscallhook!");
+        goto error;
+    }
+
     /* Start catching (u)mounts to hook new filesystems */
     if ( talpa_syscallhook_register(&GL_object.mSyscallOps) )
     {
-        unlock_kernel();
-        purgePatches(&GL_object);
-        /* Free the configuration list objects */
-        talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mGoodFilesystems, head)
-        {
-            talpa_list_del(&obj->head);
-            freeObject(obj);
-        }
-        talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mSkipFilesystems, head)
-        {
-            talpa_list_del(&obj->head);
-            freeObject(obj);
-        }
-        talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mNoScanFilesystems, head)
-        {
-            talpa_list_del(&obj->head);
-            freeObject(obj);
-        }
-        talpa_mutex_unlock(&GL_object.mSemaphore);
         err("Failed to register with talpa-syscallhook!");
-        return NULL;
+        goto error;
     }
 
     unlock_kernel();
@@ -2027,6 +2015,29 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     talpa_mutex_unlock(&GL_object.mSemaphore);
 
     return &GL_object;
+
+error:
+    unlock_kernel();
+    purgePatches(&GL_object);
+    /* Free the configuration list objects */
+    talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mGoodFilesystems, head)
+    {
+        talpa_list_del(&obj->head);
+        freeObject(obj);
+    }
+    talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mSkipFilesystems, head)
+    {
+        talpa_list_del(&obj->head);
+        freeObject(obj);
+    }
+    talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mNoScanFilesystems, head)
+    {
+        talpa_list_del(&obj->head);
+        freeObject(obj);
+    }
+    talpa_mutex_unlock(&GL_object.mSemaphore);
+
+    return NULL;
 }
 
 static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
