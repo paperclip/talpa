@@ -121,7 +121,6 @@ static SyscallInterceptor GL_object =
         NULL,
         NULL,
         NULL,
-        NULL,
         {
             .open_post = talpaOpenHook,
             .close_pre = talpaCloseHook,
@@ -565,32 +564,18 @@ static void talpaUmountDummy(int err, char* name, int flags)
 static bool hook(void* self)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    this->syscallhook_interface_version = (int (*)(struct talpa_syscall_operations* ops))inter_module_get("talpa_syscallhook_interface_version");
-    this->syscallhook_register = (int (*)(struct talpa_syscall_operations* ops))inter_module_get("talpa_syscallhook_register");
+    this->syscallhook_register = (int (*)(struct talpa_syscall_operations* ops))inter_module_get("__talpa_syscallhook_register");
     this->syscallhook_unregister = (void (*)(struct talpa_syscall_operations* ops))inter_module_get("talpa_syscallhook_unregister");
 #else
-    this->syscallhook_interface_version = symbol_get(talpa_syscallhook_interface_version);
-    this->syscallhook_register = symbol_get(talpa_syscallhook_register);
+    this->syscallhook_register = symbol_get(__talpa_syscallhook_register);
     this->syscallhook_unregister = symbol_get(talpa_syscallhook_unregister);
 #endif
-
-    if ( !this->syscallhook_interface_version )
-    {
-        err("No talpa-syscallhook present!");
-        goto error;
-    }
-
-    if ( this->syscallhook_interface_version() != TALPA_SYSCALLHOOK_IFACE_VERSION )
-    {
-        err("Wrong version of talpa-syscallhook!");
-        goto error;
-    }
 
     if ( this->syscallhook_register && this->syscallhook_unregister )
     {
         int err;
 
-        err = this->syscallhook_register(&this->mSyscallOps);
+        err = this->syscallhook_register(TALPA_SYSCALLHOOK_IFACE_VERSION, &this->mSyscallOps);
         if ( err )
         {
             err("Failed to register with talpa-syscallhook! (%d)", err);
@@ -609,26 +594,18 @@ static bool hook(void* self)
 
 error:
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-        if ( this->syscallhook_interface_version )
-        {
-            inter_module_put("talpa_syscallhook_interface_version");
-        }
         if ( this->syscallhook_register )
         {
-            inter_module_put("talpa_syscallhook_register");
+            inter_module_put("__talpa_syscallhook_register");
         }
         if ( this->syscallhook_unregister )
         {
             inter_module_put("talpa_syscallhook_unregister");
         }
 #else
-        if ( this->syscallhook_interface_version )
-        {
-            symbol_put(talpa_syscallhook_interface_version);
-        }
         if ( this->syscallhook_register )
         {
-            symbol_put(talpa_syscallhook_register);
+            symbol_put(__talpa_syscallhook_register);
         }
         if ( this->syscallhook_unregister )
         {
@@ -645,12 +622,10 @@ static bool unhook(void* self)
     {
         this->syscallhook_unregister(&this->mSyscallOps);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-        inter_module_put("talpa_syscallhook_interface_version");
-        inter_module_put("talpa_syscallhook_register");
+        inter_module_put("__talpa_syscallhook_register");
         inter_module_put("talpa_syscallhook_unregister");
 #else
-        symbol_put(talpa_syscallhook_interface_version);
-        symbol_put(talpa_syscallhook_register);
+        symbol_put(__talpa_syscallhook_register);
         symbol_put(talpa_syscallhook_unregister);
 #endif
         info("Disabled");

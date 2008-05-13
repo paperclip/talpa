@@ -49,7 +49,9 @@ obj-m :=    tlp-personality.o \
             tlp-cacheobj.o \
             tlp-cache.o \
             tlp-degrmode.o \
-            tlp-file.o
+            tlp-file.o \
+            tlp-wronginterceptor.o \
+            tlp-syscalltable.o
 
 ifeq "@buildprocfs@" "yes"
 	obj-m += tlp-procfs.o
@@ -83,6 +85,8 @@ tlp-cacheobj-objs := $(tlpCacheObjOBJS)
 tlp-cache-objs := $(tlpCacheOBJS)
 tlp-degrmode-objs := $(tlpDegrModeOBJS)
 tlp-file-objs := $(tlpFileOBJS)
+tlp-wronginterceptor-objs := $(tlpWrongInterceptorOBJS)
+tlp-syscalltable-objs := $(tlpSyscallTableOBJS)
 
 # Hidden by makefile, which is run in preference.  If makefile doesn't exist,
 # then we shall cry foul.

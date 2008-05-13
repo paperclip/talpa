@@ -347,6 +347,10 @@ TESTS +=                  tlp-3-001.sh \
                           tlp-8-002.sh \
                           tlp-8-003.sh \
                           tlp-8-004.sh \
+                          tlp-9-001.sh \
+                          tlp-9-002.sh \
+                          tlp-9-003.sh \
+                          tlp-9-004.sh \
                           tlp-1-109.sh \
                           tlp-1-110.sh \
                           $(if $(LOADTEST),\

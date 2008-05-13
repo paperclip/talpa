@@ -40,12 +40,6 @@ struct talpa_syscall_operations
 };
 
 /*
- * Returns an integer describing version of struct talpa_syscall_operations.
- * Users must check before registering that the versions match.
- */
-unsigned int talpa_syscallhook_interface_version(void);
-
-/*
  * Returns non-zero if the module is unloadable at the time of call.
  */
 unsigned int talpa_syscallhook_can_unload(void);
@@ -55,7 +49,8 @@ unsigned int talpa_syscallhook_can_unload(void);
  * You must define all the hooks which are enabled at run time
  * because talpa_syscallhook does no checking!
  */
-int talpa_syscallhook_register(struct talpa_syscall_operations* ops);
+#define talpa_syscallhook_register(ops) __talpa_syscallhook_register(TALPA_SYSCALLHOOK_IFACE_VERSION, ops)
+int __talpa_syscallhook_register(unsigned int version, struct talpa_syscall_operations* ops);
 
 /*
  * Unregister may sleep until the last caller exits.

@@ -162,3 +162,10 @@ tlpFileSOURCES    =  tlp_file.c \
 
 tlpFileOBJS       =  $(tlpFileSOURCES:.c=.o)
 
+tlpWrongInterceptorSOURCES    =  tlp_wronginterceptor.c
+
+tlpWrongInterceptorOBJS      =  $(tlpWrongInterceptorSOURCES:.c=.o)
+
+tlpSyscallTableSOURCES    =  tlp_syscalltable.c
+
+tlpSyscallTableOBJS       =  $(tlpSyscallTableSOURCES:.c=.o)

@@ -24,8 +24,12 @@ if test -f ${talpafs}/interceptors/${interceptor_name}/status; then
     sync
 fi
 
+# Before syscallhook
+rmmod tlp-syscalltable 2>/dev/null
+
 rmmod talpa_${interceptor_module} 2>/dev/null
 if test "$interceptor_module" = "syscall" -o "$interceptor_module" = "vfshook"; then
+    rmmod talpa_syscallhookprobe 2>/dev/null
     rmmod talpa_syscallhook 2>/dev/null
 fi
 rmmod talpa_pedconnector 2>/dev/null
@@ -52,6 +56,7 @@ rmmod tlp-cache 2>/dev/null
 rmmod tlp-cacheobj 2>/dev/null
 rmmod tlp-degrmode 2>/dev/null
 rmmod tlp-file 2>/dev/null
+rmmod tlp-wronginterceptor 2>/dev/null
 
 rm -rf /tmp/tlp-test 2>/dev/null
 

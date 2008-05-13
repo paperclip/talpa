@@ -1906,6 +1906,7 @@ nextpatch:
 VFSHookInterceptor* newVFSHookInterceptor(void)
 {
     VFSHookObject *obj, *tmp;
+    int err;
 
 
     talpa_mutex_lock(&GL_object.mSemaphore);
@@ -1994,17 +1995,11 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     /* See which filesystem are already present and patch them */
     walkMountTree();
 
-    /* Check if syscallhook interface version matches */
-    if ( talpa_syscallhook_interface_version() != TALPA_SYSCALLHOOK_IFACE_VERSION )
-    {
-        err("Wrong version of talpa-syscallhook!");
-        goto error;
-    }
-
     /* Start catching (u)mounts to hook new filesystems */
-    if ( talpa_syscallhook_register(&GL_object.mSyscallOps) )
+    err = talpa_syscallhook_register(&GL_object.mSyscallOps);
+    if ( err )
     {
-        err("Failed to register with talpa-syscallhook!");
+        err("Failed to register with talpa-syscallhook! (%d)", err);
         goto error;
     }
 

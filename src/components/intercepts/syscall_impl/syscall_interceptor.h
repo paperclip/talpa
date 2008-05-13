@@ -59,8 +59,7 @@ typedef struct tag_SyscallInterceptor
     SyscallStatusConfigData         mConfigData;
     SyscallOpsConfigData            mOpsConfigData;
     LinuxFilesystemFactoryImpl*     mLinuxFilesystemFactory;
-    unsigned int                    (*syscallhook_interface_version)(void);
-    int                             (*syscallhook_register)(struct talpa_syscall_operations* ops);
+    int                             (*syscallhook_register)(unsigned int version, struct talpa_syscall_operations* ops);
     void                            (*syscallhook_unregister)(struct talpa_syscall_operations* ops);
     struct talpa_syscall_operations mSyscallOps;
 } SyscallInterceptor;

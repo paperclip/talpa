@@ -38,12 +38,17 @@ const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
  */
 static int __init talpa_syscallhookprobe_init(void)
 {
-    return talpa_syscallhook_can_unload();
+    if ( talpa_syscallhook_can_unload() )
+    {
+        return 0;
+    }
+
+    return -EAGAIN;
 }
 
 static void __exit talpa_syscallhookprobe_exit(void)
 {
-
+    return;
 }
 
 module_init(talpa_syscallhookprobe_init);
