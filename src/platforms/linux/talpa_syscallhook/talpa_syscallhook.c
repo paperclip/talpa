@@ -53,6 +53,8 @@ const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
 const char talpa_version[] = "$TALPA_VERSION:" TALPA_VERSION;
 #endif
 
+const char talpa_iface_version[] = "$TALPA_IFACE_VERSION:" TALPA_SYSCALLHOOK_IFACE_VERSION_STR;
+
 #define err(format, arg...) printk(KERN_ERR "talpa-syscallhook: " format "\n" , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "talpa-syscallhook: " format "\n" , ## arg)
 #define notice(format, arg...) printk(KERN_NOTICE "talpa-syscallhook: " format "\n" , ## arg)
@@ -122,6 +124,7 @@ static asmlinkage long (*orig_umount2_32)(char* name, int flags);
 #endif
 
 static void talpa_syscallhook_unro(int rw);
+static unsigned int check_table(void);
 
 /*
  * Hooking mask:
@@ -175,6 +178,11 @@ static unsigned long rodata_end;
 unsigned int talpa_syscallhook_interface_version(void)
 {
     return TALPA_SYSCALLHOOK_IFACE_VERSION;
+}
+
+unsigned int talpa_syscallhook_can_unload(void)
+{
+    return check_table() == 0;
 }
 
 int talpa_syscallhook_register(struct talpa_syscall_operations* ops)
@@ -1233,6 +1241,7 @@ static int __init talpa_syscallhook_init(void)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     inter_module_register("talpa_syscallhook_interface_version", THIS_MODULE, (const void *)talpa_syscallhook_interface_version);
+    inter_module_register("talpa_syscallhook_can_unload", THIS_MODULE, (const void *)talpa_syscallhook_can_unload);
     inter_module_register("talpa_syscallhook_register", THIS_MODULE, (const void *)talpa_syscallhook_register);
     inter_module_register("talpa_syscallhook_unregister", THIS_MODULE, (const void *)talpa_syscallhook_unregister);
     inter_module_register("talpa_syscallhook_modify_start", THIS_MODULE, (const void *)talpa_syscallhook_modify_start);
@@ -1246,6 +1255,7 @@ static void __exit talpa_syscallhook_exit(void)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     inter_module_unregister("talpa_syscallhook_interface_version");
+    inter_module_unregister("talpa_syscallhook_can_unload");
     inter_module_unregister("talpa_syscallhook_register");
     inter_module_unregister("talpa_syscallhook_unregister");
     inter_module_unregister("talpa_syscallhook_modify_start");
@@ -1286,6 +1296,7 @@ static void __exit talpa_syscallhook_exit(void)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 
 EXPORT_SYMBOL(talpa_syscallhook_interface_version);
+EXPORT_SYMBOL(talpa_syscallhook_can_unload);
 EXPORT_SYMBOL(talpa_syscallhook_register);
 EXPORT_SYMBOL(talpa_syscallhook_unregister);
 EXPORT_SYMBOL(talpa_syscallhook_modify_start);
@@ -1305,6 +1316,7 @@ module_param(rodata_end, ulong, 0400);
 #else
 
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_interface_version);
+EXPORT_SYMBOL_NOVERS(talpa_syscallhook_can_unload);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_register);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_unregister);
 EXPORT_SYMBOL_NOVERS(talpa_syscallhook_modify_start);

@@ -21,6 +21,7 @@
 
 
 #define TALPA_SYSCALLHOOK_IFACE_VERSION (1)
+#define TALPA_SYSCALLHOOK_IFACE_VERSION_STR "1"
 
 /*
  * All strings are in userspace except for execve.
@@ -43,6 +44,11 @@ struct talpa_syscall_operations
  * Users must check before registering that the versions match.
  */
 unsigned int talpa_syscallhook_interface_version(void);
+
+/*
+ * Returns non-zero if the module is unloadable at the time of call.
+ */
+unsigned int talpa_syscallhook_can_unload(void);
 
 /*
  * Register yourself if you want talpa_syscallhook to call you.
