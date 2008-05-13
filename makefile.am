@@ -45,6 +45,7 @@ TALPAMODULES := \
 				talpa_pedevice.ko \
 				talpa_pedconnector.ko \
 				talpa_syscallhook.ko \
+				talpa_syscallhookprobe.ko \
 				talpa_syscall.ko \
 				talpa_vfshook.ko 
 
@@ -99,7 +100,7 @@ modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @talpaversion@
 modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/src -I$(srcdir)/src/ifaces -I$(srcdir)/include @kernelincludes@
 MODULELINKCMD           =   $(MODULELINKER) -m elf_i386 -r -o $@
 modulesdir              =   $(libdir)
-modules_PROGRAMS        =   talpa_core.o talpa_linux.o talpa_syscall.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o talpa_syscallhook.o talpa_vfshook.o
+modules_PROGRAMS        =   talpa_core.o talpa_linux.o talpa_syscall.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o talpa_syscallhook.o talpa_syscallhookprobe.o talpa_vfshook.o
 
 clean-local :
 	@cd clients && make clean
@@ -133,6 +134,7 @@ include src/app-ctrl/intercepts/talpa-syscall/Makefile.am
 include src/app-ctrl/filter-iface/vetting-clients/talpa-vcdevice/Makefile.am
 include src/app-ctrl/filter-iface/process-exclusion/talpa-pedevice/Makefile.am
 include src/platforms/linux/talpa_syscallhook/Makefile.am
+include src/platforms/linux/talpa_syscallhookprobe/Makefile.am
 include src/platforms/linux/talpa_pedconnector/Makefile.am
 include src/app-ctrl/intercepts/talpa-vfshook/Makefile.am
 

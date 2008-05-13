@@ -39,7 +39,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o
 
 ifeq "@syscallhook@" "yes"
-	obj-m += talpa_syscallhook.o talpa_syscall.o talpa_vfshook.o
+	obj-m += talpa_syscallhook.o talpa_syscallhookprobe.o talpa_syscall.o talpa_vfshook.o
 endif
 
 ifeq "@buildlsm@" "yes"
@@ -79,6 +79,9 @@ talpa_pedconnector-objs := $(talpaPEDConnectorOBJS)
 ifeq "@syscallhook@" "yes"
 	include $(src)/src/platforms/linux/talpa_syscallhook/common.mk
 	talpa_syscallhook-objs := $(talpaSyscallHookOBJS)
+
+	include $(src)/src/platforms/linux/talpa_syscallhookprobe/common.mk
+	talpa_syscallhookprobe-objs := $(talpaSyscallHookProbeOBJS)
 
 	include $(src)/src/app-ctrl/intercepts/talpa-syscall/common.mk
 	talpa_syscall-objs :=   $(talpaSyscallOBJS)
