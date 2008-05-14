@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/errno.h>
 
 #include "platforms/linux/talpa_syscallhook.h"
 

@@ -564,7 +564,7 @@ static void talpaUmountDummy(int err, char* name, int flags)
 static bool hook(void* self)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    this->syscallhook_register = (int (*)(struct talpa_syscall_operations* ops))inter_module_get("__talpa_syscallhook_register");
+    this->syscallhook_register = (int (*)(unsigned int, struct talpa_syscall_operations* ops))inter_module_get("__talpa_syscallhook_register");
     this->syscallhook_unregister = (void (*)(struct talpa_syscall_operations* ops))inter_module_get("talpa_syscallhook_unregister");
 #else
     this->syscallhook_register = symbol_get(__talpa_syscallhook_register);

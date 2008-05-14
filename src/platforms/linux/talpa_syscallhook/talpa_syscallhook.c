@@ -148,10 +148,12 @@ static unsigned long syscall_table = TALPA_SYSCALL_TABLE;
 static unsigned long syscall_table;
   #endif
 
-  #ifdef TALPA_SYSCALL32_TABLE
+  #ifdef CONFIG_IA32_EMULATION
+    #ifdef TALPA_SYSCALL32_TABLE
 static unsigned long syscall32_table = TALPA_SYSCALL32_TABLE;
-  #else
+    #else
 static unsigned long syscall32_table;
+    #endif
   #endif
 
 static unsigned long force;
@@ -1302,7 +1304,9 @@ EXPORT_SYMBOL(talpa_syscallhook_modify_finish);
 module_param(hook_mask, charp, 0400);
   #ifdef TALPA_HIDDEN_SYSCALLS
 module_param(syscall_table, ulong, 0400);
+    #ifdef CONFIG_IA32_EMULATION
 module_param(syscall32_table, ulong, 0400);
+    #endif
 module_param(force, ulong, 0400);
   #endif
   #ifdef TALPA_HAS_RODATA
@@ -1321,7 +1325,9 @@ EXPORT_SYMBOL_NOVERS(talpa_syscallhook_modify_finish);
 MODULE_PARM(hook_mask, "s");
   #ifdef TALPA_HIDDEN_SYSCALLS
 MODULE_PARM(syscall_table, "l");
+    #ifdef CONFIG_IA32_EMULATION
 MODULE_PARM(syscall32_table, "l");
+    #endif
 MODULE_PARM(force, "l");
   #endif
   #ifdef TALPA_HAS_RODATA
@@ -1338,7 +1344,9 @@ MODULE_PARM_DESC(hook_mask, "list of system calls to hook where o=open, c=close,
 #endif
 #ifdef TALPA_HIDDEN_SYSCALLS
 MODULE_PARM_DESC(syscall_table, "system call table address");
+  #ifdef CONFIG_IA32_EMULATION
 MODULE_PARM_DESC(syscall32_table, "ia32 emulation system call table address");
+  #endif
 MODULE_PARM_DESC(force, "ignore system call table verfication results");
 #endif
 #ifdef TALPA_HAS_RODATA
