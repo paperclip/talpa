@@ -1,5 +1,6 @@
 
 EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../include \
+		${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE} ${TALPA_RODATA_START} ${TALPA_RODATA_END} \
 		@talpaversion@ \
                 @debug@ \
 		@assert@ \
