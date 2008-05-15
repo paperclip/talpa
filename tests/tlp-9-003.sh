@@ -33,7 +33,7 @@ fi
 (date +%s >/tmp/tlp-9-003-1.tmp && rmmod talpa_syscallhook && date +%s >/tmp/tlp-9-003-2.tmp) &
 
 sleep 1
-rmmod tlp_syscalltable
+rmmod tlp-syscalltable
 wait
 
 if test ! -f /tmp/tlp-9-003-2.tmp; then
