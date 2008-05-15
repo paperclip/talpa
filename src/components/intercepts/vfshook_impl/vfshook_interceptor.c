@@ -1977,6 +1977,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "inotifyfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "romfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "binfmt_misc", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "selinuxfs", false);
 
     /* Filesystems not to be scanned immediately after mount */
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
