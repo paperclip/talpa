@@ -141,10 +141,10 @@ static void deleteProcessExclusionProcessor(struct tag_ProcessExclusionProcessor
 
     /* Cleanup registered processs */
     talpa_rcu_write_lock(&object->mExcludedLock);
-    talpa_list_for_each_safe_rcu(excluded, iter, &object->mExcluded)
+    talpa_list_for_each_safe(excluded, iter, &object->mExcluded)
     {
         process = talpa_list_entry(excluded, ProcessExcluded, head);
-        talpa_list_del_rcu(excluded);
+        talpa_list_del(excluded);
         talpa_free(process);
     }
     talpa_rcu_write_unlock(&object->mExcludedLock);
