@@ -1092,6 +1092,14 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 
     }
 
+    if (        patch->open == talpaOpen || patch->release == talpaRelease
+            ||  patch->ioctl == talpaIoctl
+            ||  patch->lookup == talpaInodeLookup || patch->create == talpaInodeCreate )
+    {
+        err("Double patching detected on %s!", mnt->mnt_sb->s_type->name);
+        return -EBADSLT;
+    }
+
     return 0;
 }
 
