@@ -1348,9 +1348,25 @@ if test $((kern_version_code)) -ge 132608; then
         AM_CONDITIONAL(BUILDDUALFS, test 0 -eq 1)
     fi
 
+    # Autodetect bool typdef
+    if test $((kern_version_code)) -lt 132627; then
+        TALPA_LOCATE_HEADER(linux/types.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
+        AC_MSG_CHECKING([for boolean datatype])
+        if ${EGREP} -q "bool" "$TALPA_HEADER_LOCATION/linux/types.h" 2>/dev/null; then
+            AC_MSG_RESULT([detected])
+            AC_SUBST(bool,"-DTALPA_HAS_BOOL")
+        else
+            AC_MSG_RESULT([not detected])
+        fi
+    else
+        # Kernels starting with 2.6.19 have it
+        AC_SUBST(mutexes,"-DTALPA_HAS_BOOL")
+    fi
+
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
+                s/@bool@/${bool}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
@@ -1391,6 +1407,7 @@ if test $((kern_version_code)) -ge 132608; then
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
+                s/@bool@/${bool}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \

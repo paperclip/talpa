@@ -4,6 +4,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@talpaversion@ \
                 @debug@ \
 		@assert@ \
+		@bool@ \
                 @dpath@ \
 		@dotruncatetype@ @dotruncateaddr@ \
 		@tasknewtty@ \

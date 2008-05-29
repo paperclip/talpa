@@ -22,7 +22,7 @@
 #include <linux/version.h>
 #include <linux/types.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+#ifndef TALPA_HAS_BOOL
 typedef int bool;
 #endif
 
