@@ -85,6 +85,7 @@ int search_log(time_t timeout, const char* match)
                 {
                     return 1;
                 }
+                continue;
             }
             pos++;
             if ( pos >= sizeof(line) )
