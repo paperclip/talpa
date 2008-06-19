@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.46)
+AC_INIT(talpa, 0.9.47)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -60,12 +60,7 @@ AC_ARG_WITH(kernel,
 
 AC_ARG_WITH(kernel-include,
             [  --with-kernel-include=DIR:DIR        specify the include path for kernel header files that should be built against],
-            [ AC_SUBST(kernelhdrspath,[$withval]) ],
-            [ if test -s ${sourcedir}; then
-                AC_SUBST(kernelhdrspath,[$kerneldir/include:$sourcedir/include])
-              else
-                AC_SUBST(kernelhdrspath,[$kerneldir/include])
-              fi ])
+            [ AC_SUBST(kernelhdrspath,[$withval]) ])
 
 AC_ARG_ENABLE(debug,
               [  --enable-debug                 enable debugging code],
@@ -354,34 +349,6 @@ if test "$talpabuild" = "yes"; then
 #
 # Setup our search macros.
 #
-# TALPA_LOCATE_DIR(name, path, [action-if-found], [action-if-not-found])
-#--------------------------------------------------------------------------
-AC_DEFUN([TALPA_LOCATE_DIR],
-[
-file_found="false"
-for searchdir in `echo $2 | ${SED} 's/:/ /g'`
-  do
-    if test -d $searchdir/$1; then
-        file_found="true"
-        TALPA_DIR_LOCATION=$searchdir
-    fi
-  done
-if test "$file_found" = "false"; then
-    TALPA_DIR_LOCATION=
-    checkString=`sed -e 's/"/\\"/g' <<++++
-$4
-++++`
-    if test "$checkString" != ""; then
-        eval "$checkString"
-    fi
- else
-    checkString=`sed -e 's/"/\\"/g' <<++++
-$3
-++++`
-    if test "checkString" != ""; then
-        eval "$checkString"
-    fi
-fi])
 
 # TALPA_LOCATE_FILE(name, path, [action-if-found], [action-if-not-found])
 #--------------------------------------------------------------------------
@@ -466,12 +433,6 @@ AC_DEFUN([TALPA_INCLUDE_PATH],
 [-I`echo $1 | ${SED} 's/:/ -I/g'`])
 
 #
-# Headers.
-#
-TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
-TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath)
-
-#
 # Autodetect platform we are running on.
 #
 AC_MSG_CHECKING([for operating system])
@@ -490,6 +451,52 @@ else
 fi
 
 #
+# Kernel headers autodetection
+#
+AC_MSG_CHECKING([kernel headers layout])
+if test "$kernelhdrspath" = ""; then
+    if test -d "${kerneldir}/include2/asm/mach-xen"; then
+        kernelhdrspath="${kerneldir}/include2/asm/mach-xen:"
+    fi
+    kernelhdrspath="${kernelhdrspath}${kerneldir}/include"
+    if test -d "${kerneldir}/include2"; then
+        kernelhdrspath="${kernelhdrspath}:${kerneldir}/include2"
+    fi
+    if test -d "${sourcedir}"; then
+        kernelhdrspath="${kernelhdrspath}:${sourcedir}/include"
+    fi
+    if test -d "${kerneldir}/include/asm/mach-xen"; then
+        kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-xen"
+    fi
+    if test -d "${kerneldir}/include/asm/mach-default"; then
+        kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-default"
+    fi
+    if test -d "${sourcedir}/include/asm/mach-xen"; then
+        kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-xen"
+    fi
+    if test -d "${sourcedir}/include/asm/mach-default"; then
+        kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-default"
+    fi
+    AC_MSG_RESULT([done [[$kernelhdrspath]]])
+else
+    AC_MSG_RESULT([skipped [[$kernelhdrspath]]])
+fi
+
+#
+# Headers.
+#
+TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
+TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath)
+
+AC_MSG_CHECKING([kernel compilation environment])
+kernccflags="-pipe -D__KERNEL__"
+tmp=`${EGREP} "CONFIG_XEN_INTERFACE_VERSION" $TALPA_HEADER_LOCATION/linux/autoconf.h 2>/dev/null | ${CUT} -d ' ' -f 3`
+if test "$tmp" != ""; then
+    kernccflags="${kernccflags} -D__XEN_INTERFACE_VERSION__=${tmp}"
+fi
+AC_MSG_RESULT([done])
+
+#
 # Autodetect kernel version.
 #
 
@@ -497,36 +504,28 @@ if test ! -d tests/configure; then
     mkdir -p tests/configure
 fi
 
-TALPA_LOCATE_DIR(asm/mach-default, $kernelhdrspath)
-if test "$TALPA_DIR_LOCATION" != ""; then
-    mach_default_dir="$TALPA_DIR_LOCATION"
-    mach_default_include="-I$mach_default_dir/asm/mach-default"
-fi
-
 # Test if and how we can compile test programs
 AC_MSG_CHECKING([for compilation environment])
 if test "$auto_warnings" = "yes"; then
-    if ! ${CC} -Werror -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/kernelheaders.c -o /dev/null 1>/dev/null 2>&1; then
-        if ! ${CC} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/kernelheaders.c -o /dev/null 1>/dev/null 2>&1; then
+    if ! ${CC} ${kernccflags} -Werror TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernelheaders.c -o /dev/null 1>/dev/null 2>&1; then
+        if ! ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernelheaders.c -o /dev/null 1>/dev/null 2>&1; then
             AC_MSG_ERROR([unable to compile test programs])
         else
             AC_MSG_RESULT([warnings as errors turned off])
-            AC_SUBST(werror,"")
         fi
     else
         AC_MSG_RESULT([ok])
-        AC_SUBST(werror,"-Werror")
+        kernccflags="${kernccflags} -Werror"
     fi
 elif test "$auto_warnings" = "force"; then
     AC_MSG_RESULT([forced ok])
-    AC_SUBST(werror,"-Werror")
+    kernccflags="${kernccflags} -Werror"
 else
     AC_MSG_RESULT([forced no warnings as errors])
-    AC_SUBST(werror,"")
 fi
 
 AC_MSG_CHECKING([for kernel architecture])
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/kernarch.c -o tests/configure/kernarch
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernarch.c -o tests/configure/kernarch
 kern_arch=`tests/configure/kernarch`
 AC_MSG_RESULT([${kern_arch}])
 ${RM} -f tests/configure/kernarch
@@ -538,13 +537,13 @@ else
 fi
 
 AC_MSG_CHECKING([for kernel version code])
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/kernversion.c -o tests/configure/kernversion
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernversion.c -o tests/configure/kernversion
 kern_version_code=`tests/configure/kernversion`
 AC_MSG_RESULT([${kern_version_code}])
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
 TALPA_LOCATE_HEADER(linux/utsrelease.h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
-${CC} ${werror} -pipe -D__KERNEL__ $cckernrelease TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/kernrelease.c -o tests/configure/kernrelease
+${CC} ${kernccflags} ${cckernrelease} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernrelease.c -o tests/configure/kernrelease
 kern_uts_release=`tests/configure/kernrelease`
 AC_MSG_RESULT([${kern_uts_release}])
 ${RM} -f tests/configure/kernrelease
@@ -611,31 +610,31 @@ fi
 TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
 AC_MSG_CHECKING([for do_truncate type])
 let hitcnt=0
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dotruncate1.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncate1.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_1")
     AC_MSG_RESULT([type 1])
 fi
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dotruncate2.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncate2.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_2")
     AC_MSG_RESULT([type 2])
 fi
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dotruncate3.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncate3.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_3")
     AC_MSG_RESULT([type 3])
 fi
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dotruncaterh4.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncaterh4.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_RH4")
     AC_MSG_RESULT([type rh4])
 fi
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dotruncatesuse103.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncatesuse103.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_SUSE103")
@@ -652,13 +651,13 @@ fi
 TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
 AC_MSG_CHECKING([for vfs_unlink type])
 let hitcnt=0
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/unlink.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/unlink.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_STANDARD")
     AC_MSG_RESULT([standard])
 fi
-${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/unlinksuse103.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/unlinksuse103.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=($hitcnt)+1
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_SUSE103")
@@ -807,13 +806,13 @@ if test $((kern_version_code)) -ge 132608; then
         TALPA_LOCATE_HEADER(linux/dcache.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
         AC_MSG_CHECKING([for __d_path type])
         let hitcnt=0
-        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dpath.c -o /dev/null 1>/dev/null 2>&1
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpath.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
             let hitcnt=($hitcnt)+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_STANDARD")
             AC_MSG_RESULT([standard])
         fi
-        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/dpathsuse103.c -o /dev/null 1>/dev/null 2>&1
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathsuse103.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
             let hitcnt=($hitcnt)+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_SUSE103")
@@ -879,7 +878,7 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$auto_tasknewtty" = "yes"; then
             TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
             AC_MSG_CHECKING([for backported sched.h])
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/tasktty.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/tasktty.c -o /dev/null 1>/dev/null 2>&1
             if test $? -ne 0; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(tasknewtty,"-DTALPA_HAS_TASK_NEW_TTY")
@@ -971,7 +970,7 @@ if test $((kern_version_code)) -ge 132608; then
         if test "$auto_signalbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
             AC_MSG_CHECKING([for backported task_struct->signal])
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/tasksignal.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/tasksignal.c -o /dev/null 1>/dev/null 2>&1
             if test $? -ne 0; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(signalbackport,"-DTALPA_HAS_BACKPORTED_SIGNAL")
@@ -987,7 +986,7 @@ if test $((kern_version_code)) -ge 132608; then
             TALPA_LOCATE_HEADER(linux/time.h, $kernelhdrspath)
             TALPA_LOCATE_HEADER(linux/jiffies.h, $kernelhdrspath)
             AC_MSG_CHECKING([for backported msecs_to_jiffies])
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/msecstojiffies.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/msecstojiffies.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(jiffiesbackport,"-DTALPA_HAS_BACKPORTED_JIFFIES")
@@ -1016,7 +1015,7 @@ if test $((kern_version_code)) -ge 132608; then
     AC_MSG_CHECKING([for system call table hooking support])
     if test "$auto_syscallhook" = "yes"; then
         TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
-        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
         tests/configure/rodata
         if test $? -eq 0; then
             AC_MSG_RESULT([yes])
@@ -1130,7 +1129,7 @@ if test $((kern_version_code)) -ge 132608; then
         TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath, , , [quiet])
         if ${EGREP} unregister_security $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1; then
             TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/lsm.c -o tests/configure/lsm
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/lsm.c -o tests/configure/lsm
             tests/configure/lsm
             if test $? -eq 0; then
                 AC_MSG_RESULT([present])
@@ -1178,7 +1177,7 @@ if test $((kern_version_code)) -ge 132608; then
         # Autodetect if LSM has key support
         if test "$auto_lsmkeys" = "yes"; then
             AC_MSG_CHECKING([for LSM key support])
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/lsmkeys.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/lsmkeys.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_MSG_RESULT([detected])
                 AC_SUBST(lsmkeys,"-DTALPA_HAS_LSM_KEYS")
@@ -1191,7 +1190,7 @@ if test $((kern_version_code)) -ge 132608; then
             # Autodetect if LSM from 2.6.14 is backported to the earlier version
             if test "$auto_lsm2614" = "yes"; then
                 AC_MSG_CHECKING([for 2.6.14 LSM])
-                ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/lsm2614.c -o /dev/null 1>/dev/null 2>&1
+                ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/lsm2614.c -o /dev/null 1>/dev/null 2>&1
                 if test $? -eq 0; then
                     AC_MSG_RESULT([detected])
                     AC_SUBST(lsm2614,"-DTALPA_HAS_2614_LSM")
@@ -1205,7 +1204,7 @@ if test $((kern_version_code)) -ge 132608; then
             # Autodetect if LSM from 2.6.10 is backported to 2.6.9
             if test "$auto_lsm2610" = "yes"; then
                 AC_MSG_CHECKING([for 2.6.10 LSM])
-                ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/lsm2610.c -o /dev/null 1>/dev/null 2>&1
+                ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/lsm2610.c -o /dev/null 1>/dev/null 2>&1
                 if test $? -eq 0; then
                     AC_MSG_RESULT([detected])
                     AC_SUBST(lsm2610,"-DTALPA_HAS_2610_LSM")
@@ -1219,7 +1218,7 @@ if test $((kern_version_code)) -ge 132608; then
             # Autodetect if LSM from 2.6.6 is backported to 2.6.5
             if test "$auto_lsm266" = "yes"; then
                 AC_MSG_CHECKING([for 2.6.6 LSM])
-                ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/lsm266.c -o /dev/null 1>/dev/null 2>&1
+                ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/lsm266.c -o /dev/null 1>/dev/null 2>&1
                 if test $? -ne 0; then
                     AC_MSG_RESULT([detected])
                     AC_SUBST(lsm266,"-DTALPA_HAS_266_LSM")
@@ -1232,7 +1231,7 @@ if test $((kern_version_code)) -ge 132608; then
             if test $((kern_version_code)) -le 132612 -a $((kern_version_code)) -ge 132611; then
                 if test "$auto_lsm265" = "yes"; then
                     AC_MSG_CHECKING([for 2.6.5 LSM])
-                    ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/lsm265.c -o /dev/null 1>/dev/null 2>&1
+                    ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/lsm265.c -o /dev/null 1>/dev/null 2>&1
                     if test $? -ne 0; then
                         AC_MSG_RESULT([detected])
                         AC_SUBST(lsm265,"-DTALPA_HAS_265_LSM")
@@ -1256,10 +1255,10 @@ if test $((kern_version_code)) -ge 132608; then
         # Vanilla 2.6.16 has hrtimers but no exports. However, backports can exist.
         # Vanilla 2.6.17 exports the needed symbols but again handle backports as well.
         AC_MSG_CHECKING([for exported hrtimers])
-        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/hrtimersversion17.c -o /dev/null 1>/dev/null 2>&1
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/hrtimersversion17.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
             AC_SUBST(hrtimers,"-DTALPA_HAS_HRTIMERS")
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/hrtimersversion21.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/hrtimersversion21.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_SUBST(hrtimers,"$hrtimers -DTALPA_HAS_HRTIMERS_V21")
             fi
@@ -1272,7 +1271,7 @@ if test $((kern_version_code)) -ge 132608; then
     # Check whether xhack can be implemented
     if test "$auto_xhack" = "yes"; then
         if test "$hrtimers" = ""; then
-            ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include -c ${srcdir}/tests/configure/hrtimersversion16.c -o /dev/null 1>/dev/null 2>&1
+            ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/hrtimersversion16.c -o /dev/null 1>/dev/null 2>&1
             if test $? -eq 0; then
                 AC_SUBST(xhack,"")
             fi
@@ -1285,7 +1284,7 @@ if test $((kern_version_code)) -ge 132608; then
         TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath, , , [quiet])
         ${EGREP} securityfs_remove $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1
         rc1=$?
-        ${CC} ${werror} -pipe -D__KERNEL__ TALPA_INCLUDE_PATH($kernelhdrspath) $mach_default_include ${srcdir}/tests/configure/security.c -o tests/configure/security
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/security.c -o tests/configure/security
         tests/configure/security
         rc2=$?
         ${RM} -f tests/configure/security
