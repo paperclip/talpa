@@ -453,10 +453,16 @@ fi
 #
 # Kernel headers autodetection
 #
-AC_MSG_CHECKING([kernel headers layout])
-if test "$kernelhdrspath" = ""; then
-    if test -d "${kerneldir}/include2/asm/mach-xen"; then
-        kernelhdrspath="${kerneldir}/include2/asm/mach-xen:"
+function check_headers_layout
+{
+    local type=$1
+
+    kernelhdrspath=
+    AC_MSG_CHECKING([for kernel headers layout])
+    if test "$type" = "full"; then
+        if test -d "${kerneldir}/include2/asm/mach-xen"; then
+            kernelhdrspath="${kerneldir}/include2/asm/mach-xen:"
+        fi
     fi
     kernelhdrspath="${kernelhdrspath}${kerneldir}/include"
     if test -d "${kerneldir}/include2"; then
@@ -465,21 +471,28 @@ if test "$kernelhdrspath" = ""; then
     if test -d "${sourcedir}"; then
         kernelhdrspath="${kernelhdrspath}:${sourcedir}/include"
     fi
-    if test -d "${kerneldir}/include/asm/mach-xen"; then
-        kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-xen"
+    if test "$type" = "full"; then
+        if test -d "${kerneldir}/include/asm/mach-xen"; then
+            kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-xen"
+        fi
     fi
     if test -d "${kerneldir}/include/asm/mach-default"; then
         kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-default"
     fi
-    if test -d "${sourcedir}/include/asm/mach-xen"; then
-        kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-xen"
+    if test "$type" = "full"; then
+        if test -d "${sourcedir}/include/asm/mach-xen"; then
+            kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-xen"
+        fi
     fi
     if test -d "${sourcedir}/include/asm/mach-default"; then
         kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-default"
     fi
-    AC_MSG_RESULT([done [[$kernelhdrspath]]])
-else
-    AC_MSG_RESULT([skipped [[$kernelhdrspath]]])
+    AC_MSG_RESULT([$kernelhdrspath])
+}
+
+if test "$kernelhdrspath" = ""; then
+    auto_headers=yes
+    check_headers_layout basic
 fi
 
 #
@@ -488,14 +501,23 @@ fi
 TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
 TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath)
 
-AC_MSG_CHECKING([kernel compilation environment])
+AC_MSG_CHECKING([for kernel configuration])
 kernccflags="-pipe -D__KERNEL__"
-tmp=`${EGREP} "CONFIG_XEN_INTERFACE_VERSION" $TALPA_HEADER_LOCATION/linux/autoconf.h 2>/dev/null | ${CUT} -d ' ' -f 3`
-if test "$tmp" != ""; then
-    kernccflags="${kernccflags} -D__XEN_INTERFACE_VERSION__=${tmp}"
+tmp=`${EGREP} "CONFIG_X86.*_XEN " $TALPA_HEADER_LOCATION/linux/autoconf.h 2>/dev/null | ${CUT} -d ' ' -f 3`
+if test "$tmp" = "1"; then
+    xen=1
+    tmp=`${EGREP} "CONFIG_XEN_INTERFACE_VERSION " $TALPA_HEADER_LOCATION/linux/autoconf.h 2>/dev/null | ${CUT} -d ' ' -f 3`
+    if test "$tmp" != ""; then
+        kernccflags="${kernccflags} -D__XEN_INTERFACE_VERSION__=${tmp}"
+    fi
 fi
 AC_MSG_RESULT([done])
 
+if test "$xen" = "1"; then
+    if test "$auto_headers" = "yes"; then
+        check_headers_layout full
+    fi
+fi
 #
 # Autodetect kernel version.
 #
