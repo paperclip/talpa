@@ -185,10 +185,12 @@ static void deleteGlobals(void)
 
 static int __init talpa_core_init(void)
 {
+    int ret = -ENOMEM;
+
+
     /*
      * Get the system configurator.
      */
-
     mConfig = TALPA_Portability()->configurator();
     if ( !mConfig )
     {
@@ -314,6 +316,31 @@ static int __init talpa_core_init(void)
     mExclusion->i_IConfigurable.set(mExclusion, "mount-fstypes", "+sysfs");
 #endif
 
+#define ATTACH_CONFIG_OR_FAIL(chain, obj) \
+{ \
+    int _ret = mConfig->attach(mConfig->object, chain, &obj->i_IConfigurable); \
+    if ( _ret != 0 ) \
+    { \
+        err("Failed to register configuration for %s!", obj->i_IConfigurable.name(obj)); \
+        ret = _ret; \
+        goto failed; \
+    } \
+}
+
+    /*
+     * Expose the objects' configuration.
+     */
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptProcessor, mProcessor);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mDegrMode);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mProcExcl);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mVetCtrl);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mInclusion);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mExclusion);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mOpExcl);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mDebugSyslog);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mDenySyslog);
+    ATTACH_CONFIG_OR_FAIL(ECG_InterceptFilter, mCache);
+
     /*
      * Add filters to the intercept processor.
      * Note: In the future we want to evalute the order of the filters. Possibly make
@@ -335,20 +362,6 @@ static int __init talpa_core_init(void)
     mProcessor->i_IInterceptProcessor.addDenyFilter(mProcessor, &mDenySyslog->i_IInterceptFilter);
 
     /*
-     * Expose the objects' configuration.
-     */
-    mConfig->attach(mConfig->object, ECG_InterceptProcessor, &mProcessor->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mDegrMode->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mProcExcl->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mVetCtrl->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mInclusion->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mExclusion->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mOpExcl->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mDebugSyslog->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mDenySyslog->i_IConfigurable);
-    mConfig->attach(mConfig->object, ECG_InterceptFilter,    &mCache->i_IConfigurable);
-
-    /*
      * Register for intermodule communication on 2.4 kernels.
      */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
@@ -361,7 +374,7 @@ static int __init talpa_core_init(void)
     failed:
     deleteGlobals();
 
-    return -ENOMEM;
+    return ret;
 }
 
 static void __exit talpa_core_exit(void)

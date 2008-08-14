@@ -198,7 +198,17 @@ static int __init talpa_test_init(void)
         return 1;
     }
 
-    mConfig->i_IConfigurator.attach(mConfig, ECG_InterceptFilter, &exclusion->i_IConfigurable);
+    ret = mConfig->i_IConfigurator.attach(mConfig, ECG_InterceptFilter, &exclusion->i_IConfigurable);
+
+    if ( ret )
+    {
+        err("Failed to attach configuration!");
+        erep->delete(erep);
+        exclusion->delete(exclusion);
+        mConfig->delete(mConfig);
+        mSystemRoot->delete(mSystemRoot);
+        return ret;
+    }
 
     ret = register_chrdev(TALPA_MAJOR, TALPA_DEVICE, &talpa_fops);
 

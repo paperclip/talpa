@@ -44,6 +44,7 @@ static int __init talpa_lsm_init(void)
 {
     IInterceptProcessor*    target;
     IConfigurator*          config;
+    int ret;
 
 
     /*
@@ -72,7 +73,13 @@ static int __init talpa_lsm_init(void)
      * Expose the Interceptor's configuration.
      */
     config = TALPA_Portability()->configurator();
-    config->attach(config->object, ECG_Interceptor, &mIntercept->i_IConfigurable);
+    ret = config->attach(config->object, ECG_Interceptor, &mIntercept->i_IConfigurable);
+    if ( ret != 0 )
+    {
+        err("Failed to attach configuration!");
+        mIntercept->delete(mIntercept);
+        return ret;
+    }
 
     dbg("Ready");
     return 0;

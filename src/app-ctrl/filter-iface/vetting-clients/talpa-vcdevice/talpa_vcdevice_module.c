@@ -44,6 +44,7 @@ static DeviceDriverVettingClient*   mClient;
 static int __init talpa_vcdevice_init(void)
 {
     IConfigurator* config;
+    int ret;
 
 
     /* Create a new client */
@@ -56,7 +57,13 @@ static int __init talpa_vcdevice_init(void)
 
     /* Expose the configuration */
     config = TALPA_Portability()->configurator();
-    config->attach(config->object, ECG_FilterInterfaces, &mClient->i_IConfigurable);
+    ret = config->attach(config->object, ECG_FilterInterfaces, &mClient->i_IConfigurable);
+    if ( ret != 0 )
+    {
+        err("Failed to attach configuration!");
+        mClient->delete(mClient);
+        return ret;
+    }
 
     dbg("Ready");
     return 0;

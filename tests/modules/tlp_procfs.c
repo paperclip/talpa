@@ -157,7 +157,15 @@ static int __init talpa_test_init(void)
         return -ENOMEM;
     }
 
-    mConfig->i_IConfigurator.attach(mConfig, ECG_InterceptProcessor, &mProcfsTest->i_IConfigurable);
+    ret = mConfig->i_IConfigurator.attach(mConfig, ECG_InterceptProcessor, &mProcfsTest->i_IConfigurable);
+
+    if ( ret )
+    {
+        err("Failed to attach configuration!");
+        mProcfsTest->delete(mProcfsTest);
+        mConfig->delete(mConfig);
+        return ret;
+    }
 
     ret = register_chrdev(TALPA_MAJOR, TALPA_DEVICE, &talpa_fops);
 
