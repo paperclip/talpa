@@ -263,14 +263,17 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
         return -EISDIR;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    error = permission(inode, acc_mode, NULL);
-#else
-    error = permission(inode, acc_mode);
-#endif
-    if ( unlikely( error != 0 ) )
+    if ( acc_mode & MAY_WRITE )
     {
-        return error;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+        error = permission(inode, acc_mode, NULL);
+#else
+        error = permission(inode, acc_mode);
+#endif
+        if ( unlikely( error != 0 ) )
+        {
+            return error;
+        }
     }
 
     file = dentry_open(dget(dentry), mntget(mnt), flags);
