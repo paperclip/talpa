@@ -843,7 +843,7 @@ static void configureCache(void* self, const char *string)
             this->mEntries = entries;
             this->mPrime = prime;
             this->mSetSize = set;
-            sprintf(this->mStatisticsData.value, "%u,%u,%u", this->mEntries, this->mPrime, this->mSetSize);
+            sprintf(this->mParamsConfigData.value, "%u,%u,%u", this->mEntries, this->mPrime, this->mSetSize);
             notice("Cache now has %u entries, %u-way associated, 2nd hash prime is %u", entries, set, prime);
         }
     }
