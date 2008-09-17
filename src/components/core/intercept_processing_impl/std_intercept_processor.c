@@ -215,11 +215,6 @@ static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file)
         }
 
         posptr->filter->examineFile(posptr->filter->object, &evalReport->i_IEvaluationReport, userInfo, info, file);
-
-        if ( unlikely(evalReport->i_IEvaluationReport.recommendedAction(evalReport) == EIA_Error) )
-        {
-            break;
-        }
     }
 
     /*
