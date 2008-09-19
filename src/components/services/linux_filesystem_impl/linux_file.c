@@ -265,7 +265,9 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
 
     if ( acc_mode & MAY_WRITE )
     {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+        error = inode_permission(inode, acc_mode);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
         error = permission(inode, acc_mode, NULL);
 #else
         error = permission(inode, acc_mode);

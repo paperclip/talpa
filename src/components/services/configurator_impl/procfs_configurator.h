@@ -21,7 +21,6 @@
 
 #include <linux/list.h>
 #include <linux/sysctl.h>
-#include <asm/semaphore.h>
 
 #include "common/bool.h"
 #include "common/locking.h"
