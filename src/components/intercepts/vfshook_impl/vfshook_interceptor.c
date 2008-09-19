@@ -1026,7 +1026,10 @@ static struct dentry *findRegular(struct vfsmount* root)
             talpa_free_path_order(buf, dir_order);
             continue;
         }
-        dbg("found regular dentry 0x%p", reg);
+        if (reg)
+        {
+            dbg("found regular dentry 0x%p", reg);
+        }
         break;
     }
 
@@ -1975,18 +1978,17 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "securityfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "fusectl", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "rpc_pipefs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "selinuxfs", false);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "configfs", false);
 #else
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "usbdevfs", false);
 #endif
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nssadmin", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "nsspool", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "autofs", true);
-    appendObject(&GL_object, &GL_object.mSkipFilesystems, "configfs", false);
-    appendObject(&GL_object, &GL_object.mSkipFilesystems, "debugfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "inotifyfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "romfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "binfmt_misc", false);
-    appendObject(&GL_object, &GL_object.mSkipFilesystems, "selinuxfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "aufs", true);
 
     /* Filesystems not to be scanned immediately after mount */
