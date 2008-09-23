@@ -263,7 +263,11 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
         return -EISDIR;
     }
 
-    if ( acc_mode & MAY_WRITE )
+    /* Do permission checking if we are requesting write access or not
+       owning the file. Not doing permission checking for a read-only
+       open when we own the file works around a problem with scanning a
+       file created by user without permissions. */
+    if ( (acc_mode&MAY_WRITE) || (inode->i_uid != current->fsuid) )
     {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
         error = inode_permission(inode, acc_mode);
