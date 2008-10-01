@@ -20,12 +20,10 @@ AM_CFLAGS = -I$(srcdir)/../../include -O2 -DNDEBUG
 
 noinst_PROGRAMS = open-bench vc vc-scan 
 
-vc_SOURCES = ../../clients/vc-quiet.c ../../clients/vc.h ../../clients/vc-lib.c
+vc_SOURCES = ../../clients/vc-quiet.c ../../clients/vc.h ../../clients/vc-lib.c ../../clients/talpa.c
 vc_scan_CFLAGS =-DSCANFILE $(AM_CFLAGS)
-vc_scan_SOURCES = ../../clients/vc-quiet.c ../../clients/vc.h ../../clients/vc-lib.c
+vc_scan_SOURCES = ../../clients/vc-quiet.c ../../clients/vc.h ../../clients/vc-lib.c ../../clients/talpa.c
 
 
 benchmark: open-bench vc vc-scan
 	@./bench.sh
-
-   
