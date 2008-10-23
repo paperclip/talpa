@@ -386,24 +386,24 @@ static void __exit talpa_core_exit(void)
     inter_module_unregister("TALPA_Core");
 #endif
 
-    dbg("Detaching Degraded Mode Processor configurator");
-    mConfig->detach(mConfig->object, &mDegrMode->i_IConfigurable);
-    dbg("Detaching Process Exclusion Processor configurator");
-    mConfig->detach(mConfig->object, &mProcExcl->i_IConfigurable);
-    dbg("Detaching Vetting Controller configurator");
-    mConfig->detach(mConfig->object, &mVetCtrl->i_IConfigurable);
     dbg("Detaching Cache configurator");
     mConfig->detach(mConfig->object, &mCache->i_IConfigurable);
+    dbg("Detaching Deny Syslog configurator");
+    mConfig->detach(mConfig->object, &mDenySyslog->i_IConfigurable);
+    dbg("Detaching Debug Syslog configurator");
+    mConfig->detach(mConfig->object, &mDebugSyslog->i_IConfigurable);
     dbg("Detaching Operation Exclusion Processor configurator");
     mConfig->detach(mConfig->object, &mOpExcl->i_IConfigurable);
     dbg("Detaching Filesystem Exclusion Processor configurator");
     mConfig->detach(mConfig->object, &mExclusion->i_IConfigurable);
     dbg("Detaching Filesystem Inclusion Processor configurator");
     mConfig->detach(mConfig->object, &mInclusion->i_IConfigurable);
-    dbg("Detaching Debug Syslog configurator");
-    mConfig->detach(mConfig->object, &mDebugSyslog->i_IConfigurable);
-    dbg("Detaching Deny Syslog configurator");
-    mConfig->detach(mConfig->object, &mDenySyslog->i_IConfigurable);
+    dbg("Detaching Vetting Controller configurator");
+    mConfig->detach(mConfig->object, &mVetCtrl->i_IConfigurable);
+    dbg("Detaching Process Exclusion Processor configurator");
+    mConfig->detach(mConfig->object, &mProcExcl->i_IConfigurable);
+    dbg("Detaching Degraded Mode Processor configurator");
+    mConfig->detach(mConfig->object, &mDegrMode->i_IConfigurable);
     dbg("Detaching Processor configurator");
     mConfig->detach(mConfig->object, &mProcessor->i_IConfigurable);
 
