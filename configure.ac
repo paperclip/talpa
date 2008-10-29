@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.48)
+AC_INIT(talpa, 0.9.49)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -459,7 +459,7 @@ function check_headers_layout
 
     kernelhdrspath=
     AC_MSG_CHECKING([for kernel headers layout])
-    if test "$type" = "full"; then
+    if test "$type" = "xen"; then
         if test -d "${kerneldir}/include2/asm/mach-xen"; then
             kernelhdrspath="${kerneldir}/include2/asm/mach-xen:"
         fi
@@ -467,11 +467,14 @@ function check_headers_layout
     kernelhdrspath="${kernelhdrspath}${kerneldir}/include"
     if test -d "${kerneldir}/include2"; then
         kernelhdrspath="${kernelhdrspath}:${kerneldir}/include2"
+        if test -d "${kerneldir}/include2/asm/mach-default"; then
+            kernelhdrspath="${kernelhdrspath}:${kerneldir}/include2/asm/mach-default"
+        fi
     fi
     if test -d "${sourcedir}"; then
         kernelhdrspath="${kernelhdrspath}:${sourcedir}/include"
     fi
-    if test "$type" = "full"; then
+    if test "$type" = "xen"; then
         if test -d "${kerneldir}/include/asm/mach-xen"; then
             kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-xen"
         fi
@@ -479,7 +482,7 @@ function check_headers_layout
     if test -d "${kerneldir}/include/asm/mach-default"; then
         kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-default"
     fi
-    if test "$type" = "full"; then
+    if test "$type" = "xen"; then
         if test -d "${sourcedir}/include/asm/mach-xen"; then
             kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-xen"
         fi
@@ -515,7 +518,7 @@ AC_MSG_RESULT([done])
 
 if test "$xen" = "1"; then
     if test "$auto_headers" = "yes"; then
-        check_headers_layout full
+        check_headers_layout xen
     fi
 fi
 #

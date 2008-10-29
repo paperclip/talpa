@@ -267,12 +267,17 @@ static void talpa_syscallhook_unro(int rw)
 #else /* defined TALPA_HAS_RODATA */
 
 #ifdef TALPA_NEEDS_VA_CPA
+
+#ifdef TALPA_NO_PA_SYMBOL
 static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
 
 #define talpa_pa_symbol(x) \
         ({unsigned long v;  \
           asm("" : "=r" (v) : "0" (x)); \
           ((v - __START_KERNEL_map) + (*talpa_phys_base)); })
+#else
+#define talpa_pa_symbol __pa_symbol
+#endif
 
 #define talpa_ka_to_cpa(adr) ((unsigned long)__va(talpa_pa_symbol(adr)))
 
