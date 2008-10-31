@@ -25,6 +25,7 @@ if su -c /bin/true nobody; then
     su -c ./tlp-6-029 nobody
     rc=$?
     if [ $rc -ne 0 ]; then
+        export -p
         ls -l tlp-6-029*
         exit $rc
     fi
