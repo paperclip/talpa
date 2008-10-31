@@ -877,14 +877,14 @@ static int find_syscall_table(void)
       #define __NR_ftime_ia32     35
       #define __NR_prof_ia32      44
       #define __NR_lock_ia32      53
-      #define __NR_mpx_ia32       56
+      #define __NR_ulimit_ia32    58
       #define __NR_exit_ia32      1
       #define __NR_read_ia32      3
       #define __NR_write_ia32     4
       #define __NR_unlink_ia32    10
 
     const unsigned int unique_syscalls_ia32[] = { __NR_exit_ia32, __NR_mount_ia32, __NR_read_ia32, __NR_write_ia32, __NR_open_ia32, __NR_close_ia32, __NR_unlink_ia32 };
-    const unsigned int zapped_syscalls_ia32[] = { __NR_break_ia32, __NR_stty_ia32, __NR_gtty_ia32, __NR_ftime_ia32, __NR_prof_ia32, __NR_lock_ia32, __NR_mpx_ia32, 0 };
+    const unsigned int zapped_syscalls_ia32[] = { __NR_break_ia32, __NR_stty_ia32, __NR_gtty_ia32, __NR_ftime_ia32, __NR_prof_ia32, __NR_lock_ia32, __NR_ulimit_ia32, 0 };
     const unsigned int num_unique_syscalls_ia32 = sizeof(unique_syscalls_ia32)/sizeof(unique_syscalls_ia32[0]);
     const unsigned int num_zapped_syscalls_ia32 = (sizeof(zapped_syscalls_ia32)/sizeof(zapped_syscalls_ia32[0])) - 1;
 
@@ -930,7 +930,7 @@ static int find_syscall_table(void)
 
   #elif CONFIG_X86
     const unsigned int unique_syscalls[] = { __NR_exit, __NR_mount, __NR_read, __NR_write, __NR_open, __NR_close, __NR_unlink };
-    const unsigned int zapped_syscalls[] = { __NR_break, __NR_stty, __NR_gtty, __NR_ftime, __NR_prof, __NR_lock, __NR_mpx, 0 };
+    const unsigned int zapped_syscalls[] = { __NR_break, __NR_stty, __NR_gtty, __NR_ftime, __NR_prof, __NR_lock, __NR_ulimit, 0 };
   #endif
     num_unique_syscalls = sizeof(unique_syscalls)/sizeof(unique_syscalls[0]);
     num_zapped_syscalls = (sizeof(zapped_syscalls)/sizeof(zapped_syscalls[0])) - 1;
