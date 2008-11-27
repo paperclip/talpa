@@ -2507,7 +2507,10 @@ static void disable(void* self)
     {
         this->mInterceptMask = 0;
         strcpy(this->mConfigData.value, CFG_VALUE_DISABLED);
-        atomic_dec(&this->mUseCnt);
+        if ( atomic_dec_and_test(&this->mUseCnt) != 0 )
+        {
+            wake_up(&this->mUnload);
+        }
         module_put(THIS_MODULE);
         info("Disabled");
     }
