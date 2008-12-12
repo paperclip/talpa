@@ -17,29 +17,12 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod ../talpa_linux.${ko}
-tlp_insmod ../talpa_core.${ko}
-tlp_insmod ../talpa_vcdevice.${ko}
-tlp_insmod ../talpa_pedevice.${ko}
-tlp_insmod ../talpa_pedconnector.${ko}
-if test "$interceptor_module" = "syscall"; then
-    tlp_insmod ../talpa_syscallhook.${ko}
-fi
-if test "$interceptor_module" = "vfshook"; then
-    tlp_insmod ../talpa_syscallhook.${ko} hook_mask=mu
-fi
-tlp_insmod ../talpa_${interceptor_module}.${ko}
-
-echo disable >${talpafs}/intercept-filters/DebugSyslog/status
-echo +proc >${talpafs}/intercept-filters/FilesystemExclusionProcessor/fstypes
 mkdir -p /tmp/tlp-test
 dd if=/dev/zero of=/tmp/tlp-test/file bs=1k count=128 1>/dev/null 2>&1
 cp -a /bin/true /tmp/tlp-test/
 cp -a /bin/bash /tmp/tlp-test/
 cp -a ${srcdir}/test-script*.sh /tmp/tlp-test/
-echo /tmp/tlp-test/ >${talpafs}/intercept-filters/FilesystemInclusionProcessor/include-path
-echo enable >${talpafs}/intercept-filters/FilesystemInclusionProcessor/status
-echo enable >${talpafs}/intercept-filters/ProcessExclusionProcessor/status
-echo enable >${talpafs}/intercept-filters/Cache/status
-echo enable >${talpafs}/intercept-filters/DegradedModeProcessor/status
-echo enable >${talpafs}/interceptors/${interceptor_name}/status
+
+talpa_load
+talpa_defaults
+talpa_enable

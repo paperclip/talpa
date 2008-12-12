@@ -15,9 +15,27 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-. ${srcdir}/functions.sh
+. ${srcdir}/talpa-init.sh
 
+tmpdir='/tmp/tlp-test'
+
+fs=ext2
+mkfs='/sbin/mkfs.ext2'
+if [ ! -x "$mkfs" ]; then
+    exit 77
+fi
+
+mkdir -p ${tmpdir}/mnt1
+dd if=/dev/zero of=${tmpdir}/fs1.img bs=1M count=4 >/dev/null 2>&1
+${mkfs} -q -F ${tmpdir}/fs1.img >/dev/null
+mount -t $fs ${tmpdir}/fs1.img ${tmpdir}/mnt1 -o loop
+touch ${tmpdir}/mnt1/file
+
+lsattr ${tmpdir}/mnt1/file >/dev/null || { echo "Error on first access!"; exit 1; }
 talpa_disable
 talpa_unload
+lsattr ${tmpdir}/mnt1/file >/dev/null || { echo "Error on second access!"; exit 2; }
 
-rm -rf /tmp/tlp-test 2>/dev/null
+umount ${tmpdir}/mnt1
+
+exit 0

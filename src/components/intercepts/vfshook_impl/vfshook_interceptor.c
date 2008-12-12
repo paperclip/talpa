@@ -1258,7 +1258,6 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
         patch->f_ops->open = patch->open;
         patch->f_ops->release = patch->release;
-        patch->f_ops->ioctl = patch->ioctl;
     }
     else if ( patch->i_ops )
     {
