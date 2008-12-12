@@ -72,6 +72,7 @@ static const char* configName(const void* self);
 static const PODConfigurationElement* allConfig(const void* self);
 static const char* config(const void* self, const char* name);
 static void setConfig(void* self, const char* name, const char* value);
+static void constructSpecialSet(void* self);
 
 static void deleteVettingController(struct tag_VettingController* object);
 
@@ -91,6 +92,7 @@ static void deleteObject(const void *self, VetCtrlConfigObject* obj);
 #define CFG_ROUTING         "routing"
 #define CFG_XHACK           "xsmartsched-fix"
 #define CFG_GROUPS          "groups"
+#define CFG_OPS             "ops"
 
 #define CFG_VALUE_ENABLED   "enabled"
 #define CFG_VALUE_DISABLED  "disabled"
@@ -101,6 +103,14 @@ static void deleteObject(const void *self, VetCtrlConfigObject* obj);
 #define CFG_DEFAULT_FSTIMEOUT 60000
 #define CFG_VALUE_FSTIMEOUT   "60000"
 #define CFG_VALUE_DUMMY     "(empty)"
+
+#define HOOK_OPEN       0x01
+#define HOOK_CLOSE      0x02
+#define HOOK_EXEC       0x04
+#define HOOK_MOUNT      0x10
+#define HOOK_UMOUNT     0x20
+
+#define HOOK_DEFAULT (HOOK_OPEN | HOOK_CLOSE | HOOK_EXEC | HOOK_MOUNT | HOOK_UMOUNT)
 
 /*
  * Template Object.
@@ -153,6 +163,7 @@ static VettingController template_VettingController =
         },
         deleteVettingController,
         true,
+        HOOK_DEFAULT,
         TALPA_GROUP_UNLOCKED,
         0,
         TALPA_RCU_UNLOCKED,
@@ -180,6 +191,7 @@ static VettingController template_VettingController =
             { NULL, NULL, VETCTRL_CFGDATASIZE, false, true },
 #endif
             { NULL, NULL, VETCTRL_GROUPSDATASIZE, false, true },
+            { NULL, NULL, VETCTRL_OPSDATASIZE, true, true },
             { NULL, NULL, 0, false, false }
         },
         { CFG_STATUS, CFG_VALUE_ENABLED },
@@ -188,6 +200,7 @@ static VettingController template_VettingController =
         { CFG_ROUTING, CFG_VALUE_DUMMY },
         { CFG_XHACK, CFG_VALUE_ENABLED },
         { CFG_GROUPS, CFG_VALUE_DUMMY },
+        { CFG_OPS, CFG_VALUE_DUMMY },
 
         NULL,
         NULL
@@ -212,6 +225,8 @@ VettingController* newVettingController(void)
         dbg("object at 0x%p", object);
         memcpy(object, &template_VettingController,sizeof(template_VettingController));
         object->i_IInterceptFilter.object = object->i_IVettingServer.object = object->i_IConfigurable.object = object;
+
+        constructSpecialSet(object);
 
         object->mFilesystemFactory = TALPA_Portability()->filesystemFactory();
         object->mThreadFactory = TALPA_Portability()->threadandprocessFactory();
@@ -248,6 +263,8 @@ VettingController* newVettingController(void)
         object->mConfig[4].value = object->mXHackConfigData.value;
         object->mConfig[5].name  = object->mGroupsConfigData.name;
         object->mConfig[5].value = object->mGroupsConfigData.value;
+        object->mConfig[6].name  = object->mOpsConfigData.name;
+        object->mConfig[6].value = object->mOpsConfigData.value;
     }
     return object;
 }
@@ -528,6 +545,14 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     struct TalpaPacket_VettingDetails* packet;
 
 
+    operation = info->operation(info);
+    if (!(    ((operation == EFS_Open) && (this->mVettingMask&HOOK_OPEN))
+           || ((operation == EFS_Close) && (this->mVettingMask&HOOK_CLOSE))
+           || ((operation == EFS_Exec) && (this->mVettingMask&HOOK_EXEC)) ))
+    {
+        return;
+    }
+
     if ( unlikely(excludeClient(this) == true) )
     {
         return;
@@ -587,8 +612,6 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
             rootdir_len = 0;
         }
     }
-
-    operation = info->operation(info);
 
     /* Allocate it */
     packet = talpa_alloc(len);
@@ -802,6 +825,13 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     struct TalpaPacket_VettingDetails* packet;
 
 
+    operation = info->operation(info);
+    if (!(    ((operation == EFS_Mount) && (this->mVettingMask&HOOK_MOUNT))
+           || ((operation == EFS_Umount) && (this->mVettingMask&HOOK_UMOUNT)) ))
+    {
+        return;
+    }
+
     if ( excludeClient(this) )
     {
         return;
@@ -867,8 +897,6 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
     len += dev_len + 1;
     len += path_len + 1;
     len += fstype_len + 1;
-
-    operation = info->operation(info);
 
     /* Allocate it */
     packet = talpa_alloc(len);
@@ -2239,6 +2267,80 @@ static bool isEnabled(const void* self)
     return this->mEnabled;
 }
 
+#define catState(string, check, name) \
+do \
+{ \
+    if ( this->mVettingMask & check ) \
+    { \
+        strcat(string, "+"); \
+    } \
+    else \
+    { \
+        strcat(string, "-"); \
+    } \
+    strcat(string, name); \
+} \
+while ( 0 )
+
+static void constructSpecialSet(void* self)
+{
+    char* out = this->mOpsConfigData.value;
+
+    *out = 0;
+
+    catState(out, HOOK_OPEN, "open\n");
+    catState(out, HOOK_CLOSE, "close\n");
+    catState(out, HOOK_EXEC, "exec\n");
+    catState(out, HOOK_MOUNT, "mount\n");
+    catState(out, HOOK_UMOUNT, "umount\n");
+
+    return;
+}
+
+#undef catState
+
+static void doSpecialString(void* self, const char* value)
+{
+    unsigned long mask = 0;
+
+
+    if ( strlen(value) >= 2 )
+    {
+        if ( !strcmp(&value[1], "open") )
+        {
+            mask = HOOK_OPEN;
+        }
+        else if ( !strcmp(&value[1], "close") )
+        {
+            mask = HOOK_CLOSE;
+        }
+        else if ( !strcmp(&value[1], "exec") )
+        {
+            mask = HOOK_EXEC;
+        }
+        else if ( !strcmp(&value[1], "mount") )
+        {
+            mask = HOOK_MOUNT;
+        }
+        else if ( !strcmp(&value[1], "umount") )
+        {
+            mask = HOOK_UMOUNT;
+        }
+
+        if ( value[0] == '+' )
+        {
+            this->mVettingMask |= mask;
+        }
+        else if ( value[0] == '-' )
+        {
+            this->mVettingMask &= ~(mask);
+        }
+    }
+
+    constructSpecialSet(this);
+
+    return;
+}
 /*
  * IConfigurable.
  */
@@ -2394,6 +2496,10 @@ static void  setConfig(void* self, const char* name, const char* value)
             this->mXHack = false;
             strcpy(this->mXHackConfigData.value, CFG_VALUE_DISABLED);
         }
+    }
+    else if ( !strcmp(name, CFG_OPS) )
+    {
+        doSpecialString(this, value);
     }
 
     talpa_mutex_unlock(&this->mConfigSerialize);

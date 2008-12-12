@@ -43,6 +43,7 @@
 #define VETCTRL_CFGDATASIZE     (16)
 #define VETTING_GROUPS          (8)
 #define VETCTRL_GROUPSDATASIZE  (2*(VETTING_GROUPS*(10+1))+1)
+#define VETCTRL_OPSDATASIZE  (64)
 
 
 typedef struct {
@@ -59,6 +60,11 @@ typedef struct {
     char    name[VETCTRL_CFGDATASIZE];
     char    value[VETCTRL_GROUPSDATASIZE];
 } VetCtrlGroupsConfigData;
+
+typedef struct {
+    char    name[VETCTRL_CFGDATASIZE];
+    char    value[VETCTRL_OPSDATASIZE];
+} VetCtrlOpsConfigData;
 
 typedef enum {
     FILESYSTEM = 1, /* Don't change this to zero! */
@@ -83,6 +89,7 @@ typedef struct tag_VettingController
     IConfigurable             i_IConfigurable;
     void                      (*delete)(struct tag_VettingController* object);
     bool                      mEnabled;
+    unsigned int              mVettingMask;
     talpa_simple_lock_t       mVettingIDLock;
     uint32_t                  mNextVettingID;
     talpa_rcu_lock_t          mClientsLock;
@@ -99,13 +106,14 @@ typedef struct tag_VettingController
     atomic_t                  mFSTimeout;
     char*                     mRoutingsSet;
 
-    PODConfigurationElement   mConfig[7];
+    PODConfigurationElement   mConfig[8];
     VetCtrlConfigData         mStateConfigData;
     VetCtrlConfigData         mTimeoutConfigData;
     VetCtrlConfigData         mFSTimeoutConfigData;
     VetCtrlRoutingConfigData  mRoutingConfigData;
     VetCtrlConfigData         mXHackConfigData;
     VetCtrlGroupsConfigData   mGroupsConfigData;
+    VetCtrlOpsConfigData      mOpsConfigData;
 
     IFilesystemFactory*       mFilesystemFactory;
     IThreadAndProcessFactory* mThreadFactory;
