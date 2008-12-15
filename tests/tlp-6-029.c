@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     if ( fd < 0 )
     {
         fprintf(stderr,"Failed to open talpa-test device!\n");
-        return 1;
+        return 77;
     }
 
     strcpy(to.filename,"/tmp/talpa-file-object-test-file");
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr,"Create error!\n");
         close(fd);
-        return 1;
+        return 77;
     }
 
     close(ret);
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
         fprintf(stderr,"Open sucess!\n");
         ioctl(fd,TALPA_TEST_FILE_CLOSE);
         close(fd);
-        return 1;
+        return 77;
     }
 
     return 0;

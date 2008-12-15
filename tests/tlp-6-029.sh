@@ -24,10 +24,14 @@ if su -c /bin/true nobody; then
     chown nobody tlp-6-029
     su -c ./tlp-6-029 nobody
     rc=$?
-    if [ $rc -ne 0 ]; then
-        export -p
-        ls -l tlp-6-029*
-        exit $rc
+    if [ $rc -eq 0 ]; then
+        exit 0
+    elif [ $rc -eq 77 ]; then
+        # Actual test case failure
+        exit 1
+    else
+        # Ignore failures when test can't run
+        exit 77
     fi
 else
     exit 77
