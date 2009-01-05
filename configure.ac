@@ -465,6 +465,9 @@ function check_headers_layout
         fi
     fi
     kernelhdrspath="${kernelhdrspath}${kerneldir}/include"
+    if test -d "${kerneldir}/arch/x86/include/asm"; then
+        kernelhdrspath="${kernelhdrspath}:${kerneldir}/arch/x86/include"
+    fi
     if test -d "${kerneldir}/include2"; then
         kernelhdrspath="${kernelhdrspath}:${kerneldir}/include2"
         if test -d "${kerneldir}/include2/asm/mach-default"; then
@@ -473,22 +476,37 @@ function check_headers_layout
     fi
     if test -d "${sourcedir}"; then
         kernelhdrspath="${kernelhdrspath}:${sourcedir}/include"
+        if test -d "${sourcedir}/arch/x86/include/asm"; then
+            kernelhdrspath="${kernelhdrspath}:${sourcedir}/arch/x86/include"
+        fi
     fi
     if test "$type" = "xen"; then
         if test -d "${kerneldir}/include/asm/mach-xen"; then
             kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-xen"
         fi
+        if test -d "${kerneldir}/arch/x86/include/asm/mach-xen"; then
+            kernelhdrspath="${kernelhdrspath}:${kerneldir}/arch/x86/include/asm/mach-xen"
+        fi
     fi
     if test -d "${kerneldir}/include/asm/mach-default"; then
         kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-default"
+    fi
+    if test -d "${kerneldir}/arch/x86/include/asm/mach-default"; then
+        kernelhdrspath="${kernelhdrspath}:${kerneldir}/arch/x86/include/asm/mach-default"
     fi
     if test "$type" = "xen"; then
         if test -d "${sourcedir}/include/asm/mach-xen"; then
             kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-xen"
         fi
+        if test -d "${sourcedir}/arch/x86/include/asm/mach-xen"; then
+            kernelhdrspath="${kernelhdrspath}:${sourcedir}/arch/x86/include/asm/mach-xen"
+        fi
     fi
     if test -d "${sourcedir}/include/asm/mach-default"; then
         kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-default"
+    fi
+    if test -d "${sourcedir}/arch/x86/include/asm/mach-default"; then
+        kernelhdrspath="${kernelhdrspath}:${sourcedir}/arch/x86/include/asm/mach-default"
     fi
     AC_MSG_RESULT([$kernelhdrspath])
 }
