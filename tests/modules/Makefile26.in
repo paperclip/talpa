@@ -5,6 +5,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
                 @debug@ \
 		@assert@ \
 		@bool@ \
+		@freetaskflag@ \
                 @dpath@ \
 		@dotruncatetype@ @dotruncateaddr@ \
 		@tasknewtty@ \

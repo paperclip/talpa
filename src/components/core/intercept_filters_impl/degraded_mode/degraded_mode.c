@@ -26,6 +26,7 @@
 #include "common/talpa.h"
 #include "degraded_mode.h"
 
+#include "platform/glue.h"
 #include "platform/alloc.h"
 
 /*
@@ -153,7 +154,7 @@ static inline bool checkDegraded(const void* self, IEvaluationReport* report)
             this->mActive = true;
             strcpy(this->mActiveConfigData.value, "true");
         }
-        if ( !current->uid )
+        if ( !current_uid() )
         {
             talpa_simple_unlock(&this->mLock);
             return true;

@@ -41,7 +41,9 @@
 static int attach(void* self, EConfigurationGroup group, const IConfigurable* item);
 static void detach(void* self, const IConfigurable* item);
 static void deleteProcfsConfigurator(struct tag_ProcfsConfigurator* object);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+static int ctlHandler(ctl_table* table, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen);
 #else
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen, void** context);
@@ -300,7 +302,9 @@ static void detach(void* self, const IConfigurable* item)
 /*
  * Internal.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+static int ctlHandler(ctl_table* table, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen)
 #else
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen, void** context)

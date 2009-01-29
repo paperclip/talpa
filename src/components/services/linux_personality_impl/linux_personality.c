@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 
 #include "common/talpa.h"
+#include "platforms/linux/glue.h"
 #include "platforms/linux/alloc.h"
 #include "linux_personality.h"
 
@@ -76,11 +77,11 @@ LinuxPersonality* newLinuxPersonality(void)
         memcpy(object, &template_LinuxPersonality, sizeof(template_LinuxPersonality));
         object->i_IPersonality.object = object;
 
-        object->mUID = current->uid;
-        object->mEUID = current->euid;
-        object->mFSUID = current->fsuid;
-        object->mGID = current->gid;
-        object->mEGID = current->egid;
+        object->mUID = current_uid();
+        object->mEUID = current_euid();
+        object->mFSUID = current_fsuid();
+        object->mGID = current_gid();
+        object->mEGID = current_egid();
     }
 
     return object;

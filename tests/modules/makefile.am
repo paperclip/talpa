@@ -89,7 +89,7 @@ clean-local :
 
 else
 
-modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @talpaversion@ @debug@ @hidden@ @execve@ @assert@ @pathlookup@ @newparent@ @dotruncatetype@ @dotruncateaddr@ @backportedprefetch@ @snprintf@ @xhack@ @binarysysctl@ ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE}
+modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @talpaversion@ @debug@ @hidden@ @execve@ @assert@ @freetaskflag@ @pathlookup@ @newparent@ @dotruncatetype@ @dotruncateaddr@ @backportedprefetch@ @snprintf@ @xhack@ @binarysysctl@ ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE}
 modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/../../include -I$(srcdir)/../../src -I$(srcdir)/../../src/ifaces @kernelincludes@
 MODULELINKCMD           =   $(MODULELINKER) -m elf_i386 -r -o $@
 

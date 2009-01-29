@@ -22,6 +22,7 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/sched.h>
 #include <linux/quotaops.h>
 #include <linux/smp_lock.h>
 #if defined TALPA_INODE_USES_MUTEXES
@@ -32,6 +33,7 @@
 
 #include "common/talpa.h"
 #include "linux_file.h"
+#include "platforms/linux/glue.h"
 #include "platforms/linux/alloc.h"
 
 
@@ -267,7 +269,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
        owning the file. Not doing permission checking for a read-only
        open when we own the file works around a problem with scanning a
        file created by user without permissions. */
-    if ( (acc_mode&MAY_WRITE) || (inode->i_uid != current->fsuid) )
+    if ( (acc_mode&MAY_WRITE) || (inode->i_uid != current_fsuid()) )
     {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
         error = inode_permission(inode, acc_mode);
@@ -282,7 +284,11 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
         }
     }
 
+#ifdef current_cred /* Introduced in 2.6.29. */
+    file = dentry_open(dget(dentry), mntget(mnt), flags, current_cred());
+#else
     file = dentry_open(dget(dentry), mntget(mnt), flags);
+#endif
     if ( unlikely(IS_ERR(file)) )
     {
         return PTR_ERR(file);
@@ -425,18 +431,21 @@ static loff_t seek(void* self, loff_t offset, int whence)
 
 static ssize_t read(void* self, void* data, size_t count)
 {
-    struct file* file;
+    struct file* file = this->mFile;
     mm_segment_t oldfs;
     ssize_t retval;
 
 
-    if ( unlikely(!this->mFile) )
+    if ( unlikely(!file) )
     {
         return -EBADF;
     }
 
-    file = this->mFile;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+    oldfs = get_fs(); set_fs(KERNEL_DS);
+    retval = vfs_read(file, data, count, &file->f_pos);
+    set_fs(oldfs);
+#else
     if ( !file->f_op || !file->f_op->read )
     {
         return -EINVAL;
@@ -445,24 +454,28 @@ static ssize_t read(void* self, void* data, size_t count)
     oldfs = get_fs(); set_fs(KERNEL_DS);
     retval = file->f_op->read(file, data, count, &file->f_pos);
     set_fs(oldfs);
+#endif
 
     return retval;
 }
 
 static ssize_t write(void* self, const void* data, size_t count)
 {
-    struct file* file;
+    struct file* file = this->mFile;
     mm_segment_t oldfs;
     ssize_t retval;
 
 
-    if ( unlikely(!this->mFile) )
+    if ( unlikely(!file) )
     {
         return -EBADF;
     }
 
-    file = this->mFile;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+    oldfs = get_fs(); set_fs(KERNEL_DS);
+    retval = vfs_write(file, data, count, &file->f_pos);
+    set_fs(oldfs);
+#else
     if ( !file->f_op || !file->f_op->write )
     {
         return -EINVAL;
@@ -471,6 +484,7 @@ static ssize_t write(void* self, const void* data, size_t count)
     oldfs = get_fs(); set_fs(KERNEL_DS);
     retval = file->f_op->write(file, data, count, &file->f_pos);
     set_fs(oldfs);
+#endif
 
     return retval;
 }

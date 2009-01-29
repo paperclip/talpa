@@ -61,12 +61,6 @@
 #endif
 
 
-/* FIXME: This is not really a fixme, but a reminder that
-          the avaibility of the constant below must be checked
-          in new kernels.
-          Last-known-good: 2.6.25 */
-#define PF_TALPA_INTERNAL    0x80000000
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 
 #define try_module_get(m) \
@@ -254,6 +248,32 @@ static inline void talpa_vfsmount_unlock(void)
 
 /* various helpers */
 #define flags_to_writable(f)   ((f)&(O_WRONLY|O_RDWR|O_APPEND|O_CREAT|O_TRUNC)?true:false)
+
+/* Task credentials */
+#define talpa_current(xxx)  \
+({                          \
+        current->xxx;       \
+})
+
+#ifndef current_uid
+#define current_uid() talpa_current(uid)
+#endif
+
+#ifndef current_euid
+#define current_euid() talpa_current(euid)
+#endif
+
+#ifndef current_gid
+#define current_gid() talpa_current(gid)
+#endif
+
+#ifndef current_egid
+#define current_egid() talpa_current(egid)
+#endif
+
+#ifndef current_fsuid
+#define current_fsuid() talpa_current(fsuid)
+#endif
 
 #endif
 

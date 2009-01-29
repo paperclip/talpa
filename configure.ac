@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.50)
+AC_INIT(talpa, 0.9.51)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -39,6 +39,7 @@ AC_PATH_PROG(SED, sed)
 AC_PATH_PROG(UNAME, uname)
 AC_PROG_LN_S
 AC_PATH_PROG(RM, rm)
+AC_PATH_PROG(XARGS, xargs)
 
 #
 # Options.
@@ -626,6 +627,25 @@ case $testinterceptor in
         AC_MSG_ERROR(Unknown interceptor)
         ;;
 esac
+
+TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
+AC_MSG_CHECKING([for unused task flag])
+task_flags=`${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h | ${EGREP} -o 0x[0-9]* | ${XARGS}`
+if test $? -eq 0; then
+    if ${CC} ${srcdir}/tests/configure/ffzb.c -o tests/configure/ffzb 2>&1; then
+        free_flag=`tests/configure/ffzb $task_flags`
+        if test $? -eq 0; then
+            AC_MSG_RESULT([$free_flag])
+            AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=$free_flag")
+        else
+            AC_MSG_ERROR([none free])
+        fi
+    else
+        AC_MSG_ERROR([compiler failure])
+    fi
+else
+    AC_MSG_ERROR([find failure])
+fi
 
 # Try to find the System.map file
 AC_MSG_CHECKING([for System.map])
@@ -1325,21 +1345,35 @@ if test $((kern_version_code)) -ge 132608; then
     AC_MSG_CHECKING([for securityfs support])
     if test "$auto_securityfs" = "yes"; then
         TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath, , , [quiet])
-        ${EGREP} securityfs_remove $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1
-        rc1=$?
-        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/security.c -o tests/configure/security
-        tests/configure/security
-        rc2=$?
-        ${RM} -f tests/configure/security
-        if test $rc1 -eq 0 -a $rc2 -eq 1; then
-            AC_MSG_RESULT([present])
-            AC_SUBST(buildsecurityfs, "yes")
-            AC_SUBST(securityfs, "-DTALPA_HAS_SECURITYFS")
-            AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
+        # Kernel knows about securityfs at all?
+        if ${EGREP} securityfs_remove $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1; then
+            if ${EGREP} CONFIG_SECURITYFS $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1; then
+                # Latest flavour with separate config option, is it enabled?
+                ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/securityfs.c -o tests/configure/securityfs
+                if ! tests/configure/securityfs; then
+                    AC_SUBST(buildsecurityfs, "yes")
+                else
+                    AC_MSG_RESULT([not enabled])
+                fi
+            else
+                # Security implies securityfs, is it enabled?
+                ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/security.c -o tests/configure/security
+                if ! tests/configure/security; then
+                    AC_SUBST(buildsecurityfs, "yes")
+                else
+                    AC_MSG_RESULT([not available])
+                fi
+            fi
+
+            if test "$buildsecurityfs" = "yes"; then
+                AC_MSG_RESULT([present])
+                AC_SUBST(securityfs, "-DTALPA_HAS_SECURITYFS")
+                AM_CONDITIONAL(BUILDSECURITYFS, test 1 -eq 1)
+            else
+                AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
+            fi
         else
-            AC_MSG_RESULT([not present <$rc1/$rc2>])
-            AC_SUBST(buildsecurityfs, "no")
-            AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
+            AC_MSG_RESULT([not present])
         fi
     else
         if test "$buildsecurityfs" = "yes"; then
@@ -1408,6 +1442,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
                 s/@bool@/${bool}/; \
+                s/@freetaskflag@/${freetaskflag}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
@@ -1449,6 +1484,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
                 s/@bool@/${bool}/; \
+                s/@freetaskflag@/${freetaskflag}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
