@@ -1373,6 +1373,7 @@ if test $((kern_version_code)) -ge 132608; then
                 AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
             fi
         else
+            AM_CONDITIONAL(BUILDSECURITYFS, test 0 -eq 1)
             AC_MSG_RESULT([not present])
         fi
     else
