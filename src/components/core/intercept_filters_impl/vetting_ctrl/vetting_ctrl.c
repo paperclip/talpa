@@ -418,13 +418,13 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                 /* Try opening with low-level filesystem objects first */
                 if ( details->fileInfo->fsObjects(details->fileInfo->object, &fsobj1, &fsobj2) )
                 {
-                    ret = details->file->openDentry(details->file->object, fsobj1, fsobj2, O_RDWR | O_LARGEFILE);
+                    ret = details->file->openDentry(details->file->object, fsobj1, fsobj2, O_RDWR | O_LARGEFILE, true);
                 }
 
                 /* If that failed or wasn't attempted try with opening via filename */
                 if ( ret && filename )
                 {
-                    ret = details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE);
+                    ret = details->file->open(details->file->object, filename, O_RDWR | O_LARGEFILE, true);
                 }
 
                 if ( (ret == 0) && (offset != 0) )
@@ -707,7 +707,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         /* If low-level filesystem objects are available open the file using them. */
         if ( likely( (operation != EFS_Exec) && (info->fsObjects(info, &fsobj1, &fsobj2) == true) ) )
         {
-            ret = details->file->openDentry(file->object, fsobj1, fsobj2, O_RDONLY | O_LARGEFILE);
+            ret = details->file->openDentry(file->object, fsobj1, fsobj2, O_RDONLY | O_LARGEFILE, operation != EFS_Close);
         }
 
         /* If open via fs object failed or wasn't attempted try opening via filename. */
@@ -731,7 +731,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
                 }
                 else
                 {
-                    ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE);
+                    ret = details->file->open(file->object, local_filename, O_RDONLY | O_LARGEFILE, operation != EFS_Close);
                     /* We cannot distinguish between open and exec with vfs interceptor
                     so it is possible that this failed because of the lack of read permission.
                     Try to with open_exec as a last resort. */

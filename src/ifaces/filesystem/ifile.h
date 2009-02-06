@@ -26,8 +26,8 @@
 typedef struct
 {
     void    (*get)          (void* self);
-    int     (*open)         (void* self, const char* filename, unsigned int flags);
-    int     (*openDentry)   (void* self, void* object1, void* object2, unsigned int flags);
+    int     (*open)         (void* self, const char* filename, unsigned int flags, bool check_permissions);
+    int     (*openDentry)   (void* self, void* object1, void* object2, unsigned int flags, bool check_permissions);
     int     (*openExec)     (void* self, const char* filename);
     bool    (*isOpen)       (const void* self);
     bool    (*isWritable)   (const void* self);

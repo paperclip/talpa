@@ -56,7 +56,7 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             ret = copy_from_user(&open, (void *)parm, sizeof(struct talpa_open));
             if ( !ret )
             {
-                ret = testfile->i_IFile.open(testfile, open.filename, open.flags);
+                ret = testfile->i_IFile.open(testfile, open.filename, open.flags, true);
             }
             else
             {

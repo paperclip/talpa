@@ -50,6 +50,8 @@ check_PROGRAMS +=   tlp-1-011 \
                     tlp-1-111 \
                     tlp-1-113 \
                     tlp-1-114 \
+                    tlp-1-115 \
+                    tlp-1-116 \
                     tlp-2-001 \
                     tlp-2-002 \
                     tlp-2-010 \
@@ -149,6 +151,8 @@ tlp_1_110_SOURCES = tlp-1-110.c
 tlp_1_111_SOURCES = tlp-1-111.c
 tlp_1_113_SOURCES = tlp-1-113.c
 tlp_1_114_SOURCES = tlp-1-114.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_1_115_SOURCES = tlp-1-115.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_1_116_SOURCES = tlp-1-116.c ../clients/vc-lib.c ../clients/talpa.c
 tlp_2_001_SOURCES = tlp-2-001.c
 tlp_2_002_SOURCES = tlp-2-002.c
 tlp_2_010_SOURCES = tlp-2-010.c
@@ -361,6 +365,8 @@ TESTS +=                  tlp-2-072.sh \
                             tlp-1-112.sh) \
                           tlp-1-113.sh \
                           tlp-1-114.sh \
+                          tlp-1-115.sh \
+                          tlp-1-116.sh \
                           tlp-1-120.sh \
                           tlp-1-121.sh \
                           tlp-1-122.sh \

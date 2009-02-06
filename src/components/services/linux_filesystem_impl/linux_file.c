@@ -41,8 +41,8 @@
 * Forward declare implementation methods.
 */
 static void    get          (void* self);
-static int     open         (void* self, const char* filename, unsigned int flags);
-static int     openDentry   (void* self, void* object1, void* object2, unsigned int flags);
+static int     open         (void* self, const char* filename, unsigned int flags, bool check_permissions);
+static int     openDentry   (void* self, void* object1, void* object2, unsigned int flags, bool check_permissions);
 static int     openExec     (void* self, const char* filename);
 static bool    isOpen       (const void* self);
 static bool    isWritable   (const void* self);
@@ -204,7 +204,7 @@ static int openExec(void* self, const char* filename)
   #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
 #endif
 
-static int openDentry(void* self, void* object1, void* object2, unsigned int flags)
+static int openDentry(void* self, void* object1, void* object2, unsigned int flags, bool check_permissions)
 {
     struct file *file;
     struct dentry *dentry = (struct dentry *)object1;
@@ -265,11 +265,13 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
         return -EISDIR;
     }
 
-    /* Do permission checking if we are requesting write access or not
-       owning the file. Not doing permission checking for a read-only
-       open when we own the file works around a problem with scanning a
-       file created by user without permissions. */
-    if ( (acc_mode&MAY_WRITE) || (inode->i_uid != current_fsuid()) )
+    /* Always do permission checking if we are requesting write access or
+       or also if caller has requested it and we do not own the file.
+       Not doing permission checking for a read-only open when we own the
+       file works around a problem with scanning a file created by user without
+       permissions. And requesting no permission checking makes sense when
+       opening a file for scanning when we know it has already been open (on close). */
+    if ( (acc_mode&MAY_WRITE) || (check_permissions && (inode->i_uid != current_fsuid())) )
     {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
         error = inode_permission(inode, acc_mode);
@@ -307,7 +309,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
     return 0;
 }
 
-static int open(void* self, const char* filename, unsigned int flags)
+static int open(void* self, const char* filename, unsigned int flags, bool check_permissions)
 {
     int ret;
     struct nameidata nd;
@@ -325,7 +327,7 @@ static int open(void* self, const char* filename, unsigned int flags)
         return ret;
     }
 
-    ret = openDentry(self, talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), flags);
+    ret = openDentry(self, talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), flags, check_permissions);
 
     talpa_path_release(&nd);
 
