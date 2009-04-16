@@ -692,8 +692,12 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     if ( unlikely( !file ) )
     {
         dbg("[intercepted %u-%u-%u] File object not available", processParentPID(current), current->tgid, current->pid);
-
-        goto file_create_failed;
+        report->setRecommendedAction(report->object, EIA_Error);
+        report->setErrorCode(report->object, -ret);
+        talpa_free(packet);
+        talpa_free(details);
+        threadInfo->delete(threadInfo);
+        return;
     }
 
     local_filename = (char *)filename;
@@ -749,7 +753,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
 
         if ( unlikely( ret != 0 ) )
         {
-            goto file_open_failed;
+            dbg("[intercepted %u-%u-%u] Open failed (%d), will have no stream", processParentPID(current), current->tgid, current->pid, ret);
         }
         else
         {
@@ -788,19 +792,6 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         destroy everything we have created. Since objects are reference counted
         it is safe to do so even if somebody else is still using them */
     destroyVettingDetails(details);
-
-    return;
-
-    file_open_failed:
-    dbg("[intercepted %u-%u-%u] Failed to open file %s \\ %s <%d>", processParentPID(current), current->tgid, current->pid, filename, local_filename, ret);
-    file->delete(file->object);
-
-    file_create_failed:
-    report->setRecommendedAction(report->object, EIA_Error);
-    report->setErrorCode(report->object, -ret);
-    talpa_free(packet);
-    talpa_free(details);
-    threadInfo->delete(threadInfo);
 
     return;
 }
