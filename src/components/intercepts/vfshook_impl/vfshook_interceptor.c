@@ -29,6 +29,7 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/dcache.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)

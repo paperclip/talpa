@@ -22,9 +22,10 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/types.h>
-#include <asm/page.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
+#include <linux/fs_struct.h>
+#include <asm/page.h>
 
 #include "common/talpa.h"
 #include "platforms/linux/glue.h"
@@ -92,7 +93,13 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
             init_fs = inittask->fs;
             if ( init_fs )
             {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+                write_lock(&init_fs->lock);
+                init_fs->users++;
+                write_unlock(&init_fs->lock);
+#else
                 atomic_inc(&init_fs->count);
+#endif
             }
             task_unlock(inittask);
 
@@ -105,7 +112,13 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
                 object->mDentry = dget(rootmnt->mnt_root);
                 spin_unlock(&dcache_lock);
                 read_unlock(&init_fs->lock);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+                write_lock(&init_fs->lock);
+                init_fs->users--;
+                write_unlock(&init_fs->lock);
+#else
                 atomic_dec(&init_fs->count);
+#endif
             }
         }
 

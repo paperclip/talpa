@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/tty.h>
+#include <linux/fs_struct.h>
 #include <asm/uaccess.h>
 
 #include "common/talpa.h"

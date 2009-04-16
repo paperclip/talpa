@@ -645,7 +645,11 @@ static int truncate(void* self, loff_t length)
 #endif
             static dotruncatefunc talpa_do_truncate = (dotruncatefunc)TALPA_DOTRUNCATE_ADDR;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+            vfs_dq_init(inode);
+#else
             DQUOT_INIT(inode);
+#endif
 #if defined TALPA_DOTRUNCATE_1
             error = talpa_do_truncate(file->f_dentry, length);
 #elif defined TALPA_DOTRUNCATE_2
