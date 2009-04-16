@@ -168,6 +168,19 @@ static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file)
     evalReport  = newEvaluationReportImpl(atomic_read(&this->mNumConsecutiveTimeouts));
     pFactory    = TALPA_Portability()->personalityFactory();
     userInfo    = pFactory->newPersonality(pFactory);
+    if ( unlikely((evalReport == NULL) || (userInfo == NULL)) )
+    {
+        /* Allow access on extreme memory pressure. */
+        if ( evalReport )
+        {
+            evalReport->delete(evalReport);
+        }
+        if ( userInfo )
+        {
+            userInfo->delete(userInfo);
+        }
+        return 0;
+    }
 
     /*
      * Perform evaluation - anything but Next halts all processing.
@@ -361,6 +374,19 @@ static int runAllowChain(const void* self, const IFileInfo* info)
     evalReport  = newEvaluationReportImpl(atomic_read(&this->mNumConsecutiveTimeouts));
     pFactory    = TALPA_Portability()->personalityFactory();
     userInfo    = pFactory->newPersonality(pFactory);
+    if ( unlikely((evalReport == NULL) || (userInfo == NULL)) )
+    {
+        /* Allow access on extreme memory pressure. */
+        if ( evalReport )
+        {
+            evalReport->delete(evalReport);
+        }
+        if ( userInfo )
+        {
+            userInfo->delete(userInfo);
+        }
+        return 0;
+    }
 
     /*
      * Traverse throught the allow chain and execute the filters.
@@ -440,6 +466,19 @@ static int examineFilesystemInfo(const void* self, const IFilesystemInfo* info)
     evalReport  = newEvaluationReportImpl(atomic_read(&this->mNumConsecutiveTimeouts));
     pFactory    = TALPA_Portability()->personalityFactory();
     userInfo    = pFactory->newPersonality(pFactory);
+    if ( unlikely((evalReport == NULL) || (userInfo == NULL)) )
+    {
+        /* Allow access on extreme memory pressure. */
+        if ( evalReport )
+        {
+            evalReport->delete(evalReport);
+        }
+        if ( userInfo )
+        {
+            userInfo->delete(userInfo);
+        }
+        return 0;
+    }
 
     /*
      * Perform evaluation - error halts all processing and returns.
