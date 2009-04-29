@@ -36,7 +36,7 @@
   #include <linux/ptrace.h>
   #include <linux/moduleparam.h>
 #endif
-#ifdef TALPA_HAS_RODATA
+#ifdef TALPA_NEED_MANUAL_RODATA
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #endif
@@ -159,7 +159,7 @@ static unsigned long syscall32_table;
 static unsigned long force;
 #endif
 
-#ifdef TALPA_HAS_RODATA
+#ifdef TALPA_NEED_MANUAL_RODATA
   #ifdef TALPA_RODATA_START
 static unsigned long rodata_start = TALPA_RODATA_START;
   #else
@@ -760,31 +760,46 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
-#ifndef TALPA_HAS_RODATA
+#if !defined(TALPA_HAS_RODATA)
 static void talpa_syscallhook_unro(int rw)
 {
     return;
 }
+#elif defined(TALPA_HAS_MARK_RODATA_RW)
+extern void mark_rodata_rw(void);
+extern void mark_rodata_ro(void);
+
+static void talpa_syscallhook_unro(int rw)
+{
+    if ( rw )
+    {
+        mark_rodata_rw();
+    }
+    else
+    {
+        mark_rodata_ro();
+    }
+}
 #else /* defined TALPA_HAS_RODATA */
 
-#ifdef TALPA_NEEDS_VA_CPA
+#  ifdef TALPA_NEEDS_VA_CPA
 
-#ifdef TALPA_NO_PA_SYMBOL
+#    ifdef TALPA_NO_PA_SYMBOL
 static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
 
-#define talpa_pa_symbol(x) \
+#      define talpa_pa_symbol(x) \
         ({unsigned long v;  \
           asm("" : "=r" (v) : "0" (x)); \
           ((v - __START_KERNEL_map) + (*talpa_phys_base)); })
-#else
-#define talpa_pa_symbol __pa_symbol
-#endif
+#    else
+#      define talpa_pa_symbol __pa_symbol
+#    endif
 
-#define talpa_ka_to_cpa(adr) ((unsigned long)__va(talpa_pa_symbol(adr)))
+#    define talpa_ka_to_cpa(adr) ((unsigned long)__va(talpa_pa_symbol(adr)))
 
-#else /* NEEDS_VA_CPA */
-#define talpa_ka_to_cpa(adr) ((unsigned long)adr)
-#endif /* NEEDS_VA_CPA */
+#  else /* NEEDS_VA_CPA */
+#    define talpa_ka_to_cpa(adr) ((unsigned long)adr)
+#  endif /* NEEDS_VA_CPA */
 
 static void talpa_syscallhook_unro(int rw)
 {
@@ -1314,7 +1329,7 @@ module_param(syscall32_table, ulong, 0400);
     #endif
 module_param(force, ulong, 0400);
   #endif
-  #ifdef TALPA_HAS_RODATA
+  #ifdef TALPA_NEED_MANUAL_RODATA
 module_param(rodata_start, ulong, 0400);
 module_param(rodata_end, ulong, 0400);
   #endif
@@ -1335,7 +1350,7 @@ MODULE_PARM(syscall32_table, "l");
     #endif
 MODULE_PARM(force, "l");
   #endif
-  #ifdef TALPA_HAS_RODATA
+  #ifdef TALPA_NEED_MANUAL_RODATA
 MODULE_PARM(rodata_start, "l");
 MODULE_PARM(rodata_end, "l");
   #endif
@@ -1354,7 +1369,7 @@ MODULE_PARM_DESC(syscall32_table, "ia32 emulation system call table address");
   #endif
 MODULE_PARM_DESC(force, "ignore system call table verfication results");
 #endif
-#ifdef TALPA_HAS_RODATA
+#ifdef TALPA_NEED_MANUAL_RODATA
 MODULE_PARM_DESC(rodata_start, "start of read-only data section");
 MODULE_PARM_DESC(rodata_end, "end of read-only data section");
 #endif

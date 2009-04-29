@@ -292,12 +292,6 @@ AC_ARG_WITH(stacker,
                 AM_CONDITIONAL(BUILDSTACKER, test 0 -eq 1)
               ])
 
-AC_ARG_ENABLE(syscallhook,
-              [  --enable-syscallhook           should talpa_syscallhook module be built depends on whether system call table is read-only or not [[autodetected]]],
-              [ auto_syscallhook=no
-                AC_SUBST(syscallhook, $enableval) ],
-              [ auto_syscallhook=yes])
-
 AC_ARG_ENABLE(same-file,
               [  --enable-same-file             should file being intercepted be directly used for stream interface operations or a new copy opened [[disabled]]],
               [ if test $enableval = "yes"; then
@@ -833,6 +827,12 @@ if test $((kern_version_code)) -ge 132608; then
         AC_SUBST(hidden,"${hidden} ${FIND_SYSCALL_TABLE_RESULT}")
     fi
 
+    DCACHE_SOURCE_FILE="$kerneldir/fs/dcache.c"
+    test -f "$DCACHE_SOURCE_FILE" || DCACHE_SOURCE_FILE="$sourcedir/fs/dcache.c"
+    test -f "$DCACHE_SOURCE_FILE" || DCACHE_SOURCE_FILE=""
+
+    CALLING_REAL_DPATH=0
+
     # Check for exported __d_path and prototype availablity
     if test "$auto_dpath" = "yes"; then
         TALPA_LOCATE_HEADER(linux/dcache.h, $kernelhdrspath)
@@ -840,21 +840,14 @@ if test $((kern_version_code)) -ge 132608; then
         if ${EGREP} "extern.*__d_path" $TALPA_HEADER_LOCATION/linux/dcache.h >/dev/null 2>&1; then
             AC_MSG_RESULT([available])
             AC_MSG_CHECKING([for exported __d_path])
-            if test -f "$kerneldir/fs/dcache.c"; then
-                ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $kerneldir/fs/dcache.c >/dev/null 2>&1
+            if test -f "$DCACHE_SOURCE_FILE"; then
+                ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; "$DCACHE_SOURCE_FILE" >/dev/null 2>&1
                 if test $? -ne 0; then
                     AC_MSG_RESULT([hidden])
                 else
-                    AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
+                    AC_SUBST(dpath,"-DTALPA_HAS_DPATH -DTALPA_HAS_DPATH_EXPORT")
                     AC_MSG_RESULT([exported])
-                fi
-            elif test -f "$sourcedir/fs/dcache.c"; then
-                ${EGREP} EXPORT_SYMBOL\\\(__d_path\\\)\; $sourcedir/fs/dcache.c >/dev/null 2>&1
-                if test $? -ne 0; then
-                    AC_MSG_RESULT([hidden])
-                else
-                    AC_SUBST(dpath,"-DTALPA_HAS_DPATH")
-                    AC_MSG_RESULT([exported])
+                    CALLING_REAL_DPATH=1
                 fi
             else
                 AC_MSG_RESULT([undetectable])
@@ -864,8 +857,37 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    ## Determine if we should take the dcache_lock outside the __d_path function
+    AC_MSG_CHECKING([for taking dcache_lock outside __d_path])
+    if test -f "$DCACHE_SOURCE_FILE" ; then
+        ${EGREP} -1 "spin_lock\(&vfsmount_lock\);" "$DCACHE_SOURCE_FILE" | ${EGREP} "spin_lock\(&dcache_lock\);" >/dev/null 2>&1
+        if test $? -ne 0; then
+            AC_MSG_RESULT([take lock])
+            AC_SUBST(dpath, "$dpath -DHOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH")
+        else
+            AC_MSG_RESULT([don't take lock])
+            ## We're not going to hold the lock - so we'd better be calling the real __d_path
+
+            if test "$CALLING_REAL_DPATH" -eq 0 ; then
+                AC_MSG_CHECKING([for __d_path address])
+                d_path_addr=`${EGREP} " __d_path" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                if test "$d_path_addr" != ""; then
+                    CALLING_REAL_DPATH=1
+                    AC_MSG_RESULT([0x$d_path_addr])
+                    AC_SUBST(dpath, "$dpath -DTALPA_HAS_DPATH -DTALPA_HAS_DPATH_ADDR -DTALPA_DPATH_ADDR=0x$d_path_addr")
+                else
+                    AC_MSG_ERROR([not found])
+                fi
+            fi
+        fi
+    else
+        AC_MSG_RESULT([undetectable: assume take lock])
+        AC_SUBST(dpath, "$dpath -DHOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH")
+    fi
+
+
     # If __d_path is exported determine it's prototype
-    if test "$dpath" = "-DTALPA_HAS_DPATH"; then
+    if test "$CALLING_REAL_DPATH" -eq 1 ; then
         TALPA_LOCATE_HEADER(linux/dcache.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
         AC_MSG_CHECKING([for __d_path type])
         let hitcnt=0
@@ -880,6 +902,12 @@ if test $((kern_version_code)) -ge 132608; then
             let hitcnt=($hitcnt)+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_SUSE103")
             AC_MSG_RESULT([suse103])
+        fi
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathsles11.c -o /dev/null 1>/dev/null 2>&1
+        if test $? -eq 0; then
+            let hitcnt=($hitcnt)+1
+            AC_SUBST(dpath, "$dpath -DTALPA_DPATH_SLES11")
+            AC_MSG_RESULT([sles11])
         fi
         if test $hitcnt -eq 0 ; then
             AC_MSG_ERROR([unknown])
@@ -1074,15 +1102,29 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    # Check whether to build syscallhook dependent modules
+    # Check how to build syscallhook dependent modules and if possible at all
     AC_MSG_CHECKING([for system call table hooking support])
-    if test "$auto_syscallhook" = "yes"; then
-        TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
-        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
-        tests/configure/rodata
-        if test $? -eq 0; then
-            AC_MSG_RESULT([yes])
-            AC_SUBST(syscallhook, "yes")
+    TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
+    ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
+    tests/configure/rodata
+    rodatarc=$?
+    if test $rodatarc -eq 0; then
+        AC_MSG_RESULT([yes])
+        AC_SUBST(syscallhook, "yes")
+    else
+        # Detect SLES11 kernels
+        kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$kfunc_mark_rodata_rw" != "" -a "$kfunc_mark_rodata_ro" != ""; then
+            # First SLES11 release on x86_64 does not work
+            if test "$kern_arch" = "x86_64" -a "$kern_uts_release" = "2.6.27.19-5-default"; then
+                AC_MSG_ERROR([unsupported kernel])
+            else
+                has_mark_rodata_rw="yes"
+                AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_HAS_MARK_RODATA_RW")
+                AC_SUBST(syscallhook, "yes")
+                AC_MSG_RESULT([yes, sles11])
+            fi
         elif test $((kern_version_code)) -ge 132633; then
             AC_MSG_ERROR([unsupported kernel])
         else
@@ -1093,7 +1135,7 @@ if test $((kern_version_code)) -ge 132608; then
                 if test "$start_rodata" != "" -a "$end_rodata" != ""; then
                     AC_MSG_RESULT([yes])
                     AC_SUBST(syscallhook, "yes")
-                    AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
+                    AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_NEED_MANUAL_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
                 else
                     AC_MSG_RESULT([no])
                     AC_SUBST(syscallhook, "no")
@@ -1101,82 +1143,76 @@ if test $((kern_version_code)) -ge 132608; then
             else
                 AC_MSG_RESULT([yes])
                 AC_SUBST(syscallhook, "yes")
-                AC_SUBST(rodata, "-DTALPA_HAS_RODATA")
+                AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_NEED_MANUAL_RODATA")
             fi
         fi
-        ${RM} -f tests/configure/rodata
+    fi
+    ${RM} -f tests/configure/rodata
 
-        if test "$syscallhook" = "yes" -a "$rodata" != ""; then
-            # Check whether to use set_page_XXX or change_page_attr functions
-            TALPA_LOCATE_HEADER(asm/cacheflush.h, $kernelhdrspath, , , [quiet])
-            AC_MSG_CHECKING([for set_pages/memory interface])
-            if ${EGREP} set_pages_rw $TALPA_HEADER_LOCATION/asm/cacheflush.h >/dev/null 2>&1; then
-                AC_MSG_RESULT([present])
-                if test "$kern_arch" = "x86_64"; then
-                    AC_MSG_CHECKING([for set_memory symbols])
-                    kfunc_set_memory_rw=`${EGREP} " set_memory_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    kfunc_set_memory_ro=`${EGREP} " set_memory_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    if test "$kfunc_set_memory_rw" != "" -a "$kfunc_set_memory_ro" != ""; then
-                        AC_MSG_RESULT([ok])
-                        AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_MEMORY_RW=0x$kfunc_set_memory_rw -DTALPA_KFUNC_SET_MEMORY_RO=0x$kfunc_set_memory_ro")
-                    else
-                        AC_MSG_ERROR([failed to get])
-                    fi
+    if test "$syscallhook" = "yes" -a "$has_mark_rodata_rw" = "" -a "$rodata" != ""; then
+        # Check whether to use set_page_XXX or change_page_attr functions
+        TALPA_LOCATE_HEADER(asm/cacheflush.h, $kernelhdrspath, , , [quiet])
+        AC_MSG_CHECKING([for set_pages/memory interface])
+        if ${EGREP} set_pages_rw $TALPA_HEADER_LOCATION/asm/cacheflush.h >/dev/null 2>&1; then
+            AC_MSG_RESULT([present])
+            if test "$kern_arch" = "x86_64"; then
+                AC_MSG_CHECKING([for set_memory symbols])
+                kfunc_set_memory_rw=`${EGREP} " set_memory_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfunc_set_memory_ro=`${EGREP} " set_memory_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                if test "$kfunc_set_memory_rw" != "" -a "$kfunc_set_memory_ro" != ""; then
+                    AC_MSG_RESULT([ok])
+                    AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_MEMORY_RW=0x$kfunc_set_memory_rw -DTALPA_KFUNC_SET_MEMORY_RO=0x$kfunc_set_memory_ro")
                 else
-                    AC_MSG_CHECKING([for set_pages symbols])
-                    kfunc_set_pages_rw=`${EGREP} " set_pages_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    kfunc_set_pages_ro=`${EGREP} " set_pages_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    if test "$kfunc_set_pages_rw" != "" -a "$kfunc_set_pages_ro" != ""; then
-                        AC_MSG_RESULT([ok])
-                        AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_PAGES_RW=0x$kfunc_set_pages_rw -DTALPA_KFUNC_SET_PAGES_RO=0x$kfunc_set_pages_ro")
-                    else
-                        AC_MSG_ERROR([failed to get])
-                    fi
+                    AC_MSG_ERROR([failed to get])
                 fi
-            else # old change_page_attr_addr interface
-                AC_MSG_RESULT([not present])
-                # Get change_page_attr_addr on x86_64
-                if test "$kern_arch" = "x86_64"; then
-                    AC_MSG_CHECKING([for change_page_attr_addr symbol])
-                    kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                    if test "$kfuncchpgattraddr" != ""; then
-                        AC_MSG_RESULT([ok])
-                        AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
-                    else
-                        AC_MSG_ERROR([failed to get])
-                    fi
-                    # Check for RHEL 5 kernels which need special handling
-                    AC_MSG_CHECKING([for type of addressed passed to change_page_attr_addr])
-                    TALPA_LOCATE_HEADER(asm/const.h, $kernelhdrspath, constheader=yes, constheader=no, [quiet])
-                    if test "$constheader" = "yes"; then
-                        AC_MSG_RESULT([virtual])
-                        AC_SUBST(needsvacpa, "-DTALPA_NEEDS_VA_CPA")
-                        AC_MSG_CHECKING([if __pa_symbol is available])
-                        TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
-                        if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
-                            AC_MSG_RESULT([no])
-                            AC_MSG_CHECKING([for phys_base address])
-                            phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                            if test "$phys_base" != ""; then
-                                AC_MSG_RESULT([ok])
-                                AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
-                            else
-                                AC_MSG_ERROR([error])
-                            fi
+            else
+                AC_MSG_CHECKING([for set_pages symbols])
+                kfunc_set_pages_rw=`${EGREP} " set_pages_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfunc_set_pages_ro=`${EGREP} " set_pages_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                if test "$kfunc_set_pages_rw" != "" -a "$kfunc_set_pages_ro" != ""; then
+                    AC_MSG_RESULT([ok])
+                    AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_PAGES_RW=0x$kfunc_set_pages_rw -DTALPA_KFUNC_SET_PAGES_RO=0x$kfunc_set_pages_ro")
+                else
+                    AC_MSG_ERROR([failed to get])
+                fi
+            fi
+        else # old change_page_attr_addr interface
+            AC_MSG_RESULT([not present])
+            # Get change_page_attr_addr on x86_64
+            if test "$kern_arch" = "x86_64"; then
+                AC_MSG_CHECKING([for change_page_attr_addr symbol])
+                kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                if test "$kfuncchpgattraddr" != ""; then
+                    AC_MSG_RESULT([ok])
+                    AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
+                else
+                    AC_MSG_ERROR([failed to get])
+                fi
+                # Check for RHEL 5 kernels which need special handling
+                AC_MSG_CHECKING([for type of addressed passed to change_page_attr_addr])
+                TALPA_LOCATE_HEADER(asm/const.h, $kernelhdrspath, constheader=yes, constheader=no, [quiet])
+                if test "$constheader" = "yes"; then
+                    AC_MSG_RESULT([virtual])
+                    AC_SUBST(needsvacpa, "-DTALPA_NEEDS_VA_CPA")
+                    AC_MSG_CHECKING([if __pa_symbol is available])
+                    TALPA_LOCATE_HEADER(asm/page.h, $kernelhdrspath, , , [quiet])
+                    if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
+                        AC_MSG_RESULT([no])
+                        AC_MSG_CHECKING([for phys_base address])
+                        phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                        if test "$phys_base" != ""; then
+                            AC_MSG_RESULT([ok])
+                            AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
                         else
-                            AC_MSG_RESULT([yes])
+                            AC_MSG_ERROR([error])
                         fi
                     else
-                        AC_MSG_RESULT([logical])
+                        AC_MSG_RESULT([yes])
                     fi
+                else
+                    AC_MSG_RESULT([logical])
                 fi
             fi
-        fi
-    else
-        if test "$syscallhook" = "yes"; then
-            AC_MSG_RESULT([manual yes])
-        else
-            AC_MSG_RESULT([manual no])
         fi
     fi
 
