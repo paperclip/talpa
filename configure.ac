@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.55)
+AC_INIT(talpa, 0.9.56)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -701,7 +701,7 @@ if test $hitcnt -eq 0 ; then
     AC_MSG_ERROR([unknown])
 fi
 if test $hitcnt -gt 1 ; then
-    AC_MSG_ERROR([ambigous])
+    AC_MSG_ERROR([ambiguous])
 fi
 
 # Check for vfs_unlink type
@@ -720,11 +720,17 @@ if test $? -eq 0; then
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_SUSE103")
     AC_MSG_RESULT([suse103])
 fi
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/unlinkvserver.c -o /dev/null 1>/dev/null 2>&1
+if test $? -eq 0; then
+    let hitcnt=($hitcnt)+1
+    AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_VSERVER")
+    AC_MSG_RESULT([vserver])
+fi
 if test $hitcnt -eq 0 ; then
     AC_MSG_ERROR([unknown])
 fi
 if test $hitcnt -gt 1 ; then
-    AC_MSG_ERROR([ambigous])
+    AC_MSG_ERROR([ambiguous])
 fi
 
 # Check for snprintf only for kernels older than 2.4.10
@@ -913,7 +919,7 @@ if test $((kern_version_code)) -ge 132608; then
             AC_MSG_ERROR([unknown])
         fi
         if test $hitcnt -gt 1 ; then
-            AC_MSG_ERROR([ambigous])
+            AC_MSG_ERROR([ambiguous])
         fi
     fi
 

@@ -541,6 +541,8 @@ static int unlink(void* self)
 #if defined TALPA_VFSUNLINK_SUSE103
     error = vfs_unlink(parenti, filed, mntget(this->mFile->f_vfsmnt));
     mntput(this->mFile->f_vfsmnt);
+#elif defined TALPA_VFSUNLINK_VSERVER
+    error = vfs_unlink(parenti, filed, NULL);
 #else
     error = vfs_unlink(parenti, filed);
 #endif
