@@ -54,9 +54,15 @@ static inline void talpa_quirk_vc_sleep_init(bool* status)
        This is also Linux specific code. */
     if ( *status )
     {
-        char c1 = current->comm[0];
-        char c2 = current->comm[1];
-        if ( likely( (c1 != 'X') || (c2 != 0 ) ) )
+        struct task_struct *cur = current;
+        const char xfree[] = "X";
+        const char xorg[] = "Xorg";
+        __u16 *p16 = (__u16 *)xfree;
+        __u16 *comm16 = (__u16 *)cur->comm;
+        __u32 *p32 = (__u32 *)xorg;
+        __u32 *comm32 = (__u32 *)cur->comm;
+
+        if ( likely( (*p16 != *comm16) && (*p32 != *comm32) ) )
         {
             *status = false;
         }
