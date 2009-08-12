@@ -78,6 +78,8 @@ do { \
     __ret; \
 })
 
+#define talpa_wait_event_killable_timeout talpa_wait_event_timeout
+
 #define __talpa_wait_event_interruptible_timeout(wq, condition, timeout, ret) \
 do { \
     unsigned long sleep = timeout; \
@@ -193,6 +195,50 @@ do { \
         __talpa_wait_event_interruptible_timeout(wq, condition, timeout, __ret); \
     __ret; \
 })
+
+#ifdef TASK_KILLABLE
+#define __talpa_wait_event_killable_timeout(wq, condition, timeout, ret) \
+do { \
+    unsigned long sleep = timeout; \
+    unsigned long start, elapsed; \
+    DEFINE_WAIT(__wait);                        \
+    ret = -ETIME; \
+\
+    for (;;) { \
+        prepare_to_wait(&wq, &__wait, TASK_KILLABLE);  \
+        if (condition) { \
+            ret = 0; \
+            break; \
+        } \
+        if (!fatal_signal_pending(current)) {             \
+            start = jiffies; \
+            schedule_timeout(sleep);                    \
+            elapsed = time_diff(start, jiffies); \
+            if ( elapsed >= sleep ) { \
+                break; \
+            } else { \
+                sleep -= elapsed; \
+            } \
+        } else { \
+            ret = -ERESTARTSYS;  \
+            break; \
+        } \
+    } \
+    finish_wait(&wq, &__wait);                  \
+} while(0)
+
+
+#define talpa_wait_event_killable_timeout(wq, condition, timeout) \
+({ \
+    long __ret = 0; \
+    if (!(condition)) \
+        __talpa_wait_event_killable_timeout(wq, condition, timeout, __ret); \
+    __ret; \
+})
+#else /* !TASK_KILLABLE */
+#define talpa_wait_event_killable_timeout talpa_wait_event_timeout
+#endif /* TASK_KILLABLE */
+
 
 #endif /* Kernel version */
 

@@ -66,6 +66,11 @@ typedef struct {
     char    value[VETCTRL_OPSDATASIZE];
 } VetCtrlOpsConfigData;
 
+typedef struct {
+    char    name[VETCTRL_CFGDATASIZE];
+    char    value[VETCTRL_CFGDATASIZE];
+} VetCtrlInterConfigData;
+
 typedef enum {
     FILESYSTEM = 1, /* Don't change this to zero! */
     PATH
@@ -97,6 +102,7 @@ typedef struct tag_VettingController
     VettingClientID           mNextClientID;
     VettingGroup              mGroups[VETTING_GROUPS];
     unsigned int              mFOPLookup[6];
+    bool                      mInterruptible;
     bool                      mXHack;
 
     talpa_rcu_lock_t          mConfigLock;
@@ -106,7 +112,7 @@ typedef struct tag_VettingController
     atomic_t                  mFSTimeout;
     char*                     mRoutingsSet;
 
-    PODConfigurationElement   mConfig[8];
+    PODConfigurationElement   mConfig[9];
     VetCtrlConfigData         mStateConfigData;
     VetCtrlConfigData         mTimeoutConfigData;
     VetCtrlConfigData         mFSTimeoutConfigData;
@@ -114,6 +120,7 @@ typedef struct tag_VettingController
     VetCtrlConfigData         mXHackConfigData;
     VetCtrlGroupsConfigData   mGroupsConfigData;
     VetCtrlOpsConfigData      mOpsConfigData;
+    VetCtrlInterConfigData    mInterruptibleConfigData;
 
     IFilesystemFactory*       mFilesystemFactory;
     IThreadAndProcessFactory* mThreadFactory;

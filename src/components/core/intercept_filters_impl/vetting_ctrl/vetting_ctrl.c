@@ -93,6 +93,7 @@ static void deleteObject(const void *self, VetCtrlConfigObject* obj);
 #define CFG_XHACK           "xsmartsched-fix"
 #define CFG_GROUPS          "groups"
 #define CFG_OPS             "ops"
+#define CFG_INTERRUPTIBLE   "interruptible"
 
 #define CFG_VALUE_ENABLED   "enabled"
 #define CFG_VALUE_DISABLED  "disabled"
@@ -172,6 +173,7 @@ static VettingController template_VettingController =
         { },
         { 0, TALPA_OPEN, TALPA_CLOSE, TALPA_EXEC, TALPA_MOUNT, TALPA_UMOUNT },
         true,
+        true,
 
         TALPA_RCU_UNLOCKED,
         TALPA_MUTEX_INIT,
@@ -192,6 +194,7 @@ static VettingController template_VettingController =
 #endif
             { NULL, NULL, VETCTRL_GROUPSDATASIZE, false, true },
             { NULL, NULL, VETCTRL_OPSDATASIZE, true, true },
+            { NULL, NULL, VETCTRL_CFGDATASIZE, true, true },
             { NULL, NULL, 0, false, false }
         },
         { CFG_STATUS, CFG_VALUE_ENABLED },
@@ -201,6 +204,7 @@ static VettingController template_VettingController =
         { CFG_XHACK, CFG_VALUE_ENABLED },
         { CFG_GROUPS, CFG_VALUE_DUMMY },
         { CFG_OPS, CFG_VALUE_DUMMY },
+        { CFG_INTERRUPTIBLE, CFG_VALUE_ENABLED },
 
         NULL,
         NULL
@@ -235,7 +239,7 @@ VettingController* newVettingController(void)
         talpa_rcu_lock_init(&object->mClientsLock);
         TALPA_INIT_LIST_HEAD(&object->mClients);
 
-        for ( group = 0; group < 8; group++ )
+        for ( group = 0; group < VETTING_GROUPS; group++ )
         {
             dbg("group %d (0x%p)", group, &object->mGroups[group]);
             talpa_group_lock_init(&object->mGroups[group].lock);
@@ -265,6 +269,8 @@ VettingController* newVettingController(void)
         object->mConfig[5].value = object->mGroupsConfigData.value;
         object->mConfig[6].name  = object->mOpsConfigData.name;
         object->mConfig[6].value = object->mOpsConfigData.value;
+        object->mConfig[7].name  = object->mInterruptibleConfigData.name;
+        object->mConfig[7].value = object->mInterruptibleConfigData.value;
     }
     return object;
 }
@@ -343,7 +349,7 @@ static inline VettingGroup* routeRequest(const void* self, const char* path, uns
 static inline void waitVettingResponse(const void* self, VettingGroup* group, VettingDetails* details, const char* filename, atomic_t* timeout)
 {
     int ret;
-    bool status = this->mXHack;
+    bool status = this->mInterruptible & this->mXHack;
 #ifdef DEBUG
     const char* actmsg;
     static char* actmsg_default = "EIA_Unknown";
@@ -363,9 +369,14 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         dbg("[intercepted %u-%u-%u] going to sleep", processParentPID(current), current->tgid, current->pid);
 
         talpa_quirk_vc_pre_sleep(&status, atomic_read(timeout));
-
-        ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, atomic_read(&details->complete) || atomic_read(&details->reopen), msecs_to_jiffies(atomic_read(timeout)));
-
+        if (this->mInterruptible)
+        {
+            ret = talpa_wait_event_interruptible_timeout(details->interceptedWaitQueue, atomic_read(&details->complete) || atomic_read(&details->reopen), msecs_to_jiffies(atomic_read(timeout)));
+        }
+        else
+        {
+            ret = talpa_wait_event_killable_timeout(details->interceptedWaitQueue, atomic_read(&details->complete) || atomic_read(&details->reopen), msecs_to_jiffies(atomic_read(timeout)));
+        }
         talpa_quirk_vc_post_sleep(&status);
 
         /* Woken up because intercept is complete? */
@@ -2491,6 +2502,19 @@ static void  setConfig(void* self, const char* name, const char* value)
     else if ( !strcmp(name, CFG_OPS) )
     {
         doSpecialString(this, value);
+    }
+    else if (strcmp(name, CFG_INTERRUPTIBLE) == 0)
+    {
+        if (strcmp(value, CFG_ACTION_ENABLE) == 0)
+        {
+            this->mInterruptible = true;
+            strcpy(this->mInterruptibleConfigData.value, CFG_VALUE_ENABLED);
+        }
+        else if (strcmp(value, CFG_ACTION_DISABLE) == 0)
+        {
+            this->mInterruptible = false;
+            strcpy(this->mInterruptibleConfigData.value, CFG_VALUE_DISABLED);
+        }
     }
 
     talpa_mutex_unlock(&this->mConfigSerialize);
