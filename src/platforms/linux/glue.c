@@ -124,6 +124,8 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
 #   if defined TALPA_DPATH_SLES11
     typedef char *(*d_path_func)(const struct path *, struct path *, char *, int, int);
+#   elif defined TALPA_DPATH_PATH
+    typedef char *(*d_path_func)(const struct path *, struct path *, char *, int);
 #   elif defined TALPA_DPATH_SUSE103
     typedef char *(*d_path_func)(struct dentry *, struct vfsmount *, struct dentry *, struct vfsmount *, char *buffer, int buflen, int flags);
 #   else
@@ -137,7 +139,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     d_path_func kernel_d_path = &__d_path;
 #   endif
 
-#   if defined TALPA_DPATH_SLES11
+#   if defined TALPA_DPATH_SLES11 || defined TALPA_DPATH_PATH
     struct path pathPath;
     struct path rootPath;
 #   endif
@@ -149,12 +151,17 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || (defined TALPA_HAS_DPATH)
     /* Calling the real __d_path */
-#   if defined TALPA_DPATH_SLES11
+#   if defined TALPA_DPATH_SLES11 || defined TALPA_DPATH_PATH
     pathPath.dentry = dentry;
     pathPath.mnt = vfsmnt;
     rootPath.dentry = root;
     rootPath.mnt = rootmnt;
+#endif
+
+#   if defined TALPA_DPATH_SLES11
     path = kernel_d_path(&pathPath, &rootPath, buffer, buflen, 0);
+#   elif defined TALPA_DPATH_PATH
+    path = kernel_d_path(&pathPath, &rootPath, buffer, buflen);
 #   elif defined TALPA_DPATH_SUSE103
     path = kernel_d_path(dentry, vfsmnt, root, rootmnt, buffer, buflen, 0);
 #   else

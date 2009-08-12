@@ -903,6 +903,12 @@ if test $((kern_version_code)) -ge 132608; then
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_STANDARD")
             AC_MSG_RESULT([standard])
         fi
+        ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathpath.c -o /dev/null 1>/dev/null 2>&1
+        if test $? -eq 0; then
+            let hitcnt=($hitcnt)+1
+            AC_SUBST(dpath, "$dpath -DTALPA_DPATH_PATH")
+            AC_MSG_RESULT([struct path])
+        fi
         ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathsuse103.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
             let hitcnt=($hitcnt)+1
