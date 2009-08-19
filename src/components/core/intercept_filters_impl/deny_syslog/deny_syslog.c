@@ -183,6 +183,15 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     char* opmsg;
     char* actmsg;
 
+
+    /* Don't log if interrupted by signal on close. */
+    if (    (!report->hasBeenExternallyVetted(report->object))
+         && (info->operation(info->object) == EFS_Close)
+         && (report->errorCode(report->object) == ERESTARTSYS) )
+    {
+        return;
+    }
+
     opmsg = operationString(info->operation(info));
     actmsg = actionString(report->recommendedAction(report));
 
