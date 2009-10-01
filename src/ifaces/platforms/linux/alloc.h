@@ -32,18 +32,7 @@
 
 static inline void *talpa_alloc(size_t bytes)
 {
-    unsigned int mask = GFP_KERNEL;
-
-
-#ifdef __GFP_NOWARN
-    mask |= __GFP_NOWARN;
-#endif
-
-#ifdef __GFP_NORETRY
-    mask |= __GFP_NORETRY;
-#endif
-
-    return kmalloc(bytes, mask);
+    return kmalloc(bytes, GFP_KERNEL);
 }
 
 static inline void *talpa_zalloc(size_t bytes)
@@ -85,13 +74,16 @@ static inline char *talpa_alloc_path_order(unsigned int order, size_t *size)
     unsigned int mask = GFP_KERNEL;
 
 
+    if ( unlikely(order > 0) )
+    {
 #ifdef __GFP_NOWARN
-    mask |= __GFP_NOWARN;
+        mask |= __GFP_NOWARN;
 #endif
 
 #ifdef __GFP_NORETRY
-    mask |= __GFP_NORETRY;
+        mask |= __GFP_NORETRY;
 #endif
+    }
 
     *size = PAGE_SIZE<<order;
 
@@ -110,12 +102,17 @@ static inline void talpa_free_path_order(char *buf, unsigned int order)
 
 static inline char *talpa_alloc_path(size_t *size)
 {
-    return talpa_alloc_path_order(0, size);
+    *size = PAGE_SIZE;
+
+    return (char *)__get_free_pages(GFP_KERNEL, 0);
 }
 
 static inline void talpa_free_path(char *buf)
 {
-    talpa_free_path_order(buf, 0);
+    if ( likely(buf != NULL) )
+    {
+        free_pages((unsigned long)buf, 0);
+    }
 }
 
 #endif
