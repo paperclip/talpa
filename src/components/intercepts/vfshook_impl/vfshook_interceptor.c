@@ -1755,11 +1755,7 @@ static void walkMountTree(void)
 
 
     talpa_tasklist_lock();
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-    inittask = find_task_by_vpid(1);
-#else
-    inittask = find_task_by_pid(1);
-#endif
+    inittask = talpa_find_task_by_pid(1);
     talpa_tasklist_unlock();
 
     if ( !inittask )

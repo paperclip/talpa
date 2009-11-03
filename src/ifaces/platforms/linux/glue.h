@@ -275,8 +275,21 @@ static inline void talpa_vfsmount_unlock(void)
 #define current_fsuid() talpa_current(fsuid)
 #endif
 
-#endif
 
+
+static inline struct task_struct *talpa_find_task_by_pid(pid_t pid)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+        return pid_task(find_pid_ns(1, &init_pid_ns), PIDTYPE_PID);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+        return find_task_by_vpid(1);
+#else
+        return find_task_by_pid(1);
+#endif
+}
+
+
+#endif
 /*
  * End of linux_glue.h
  */
