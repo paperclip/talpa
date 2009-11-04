@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.57)
+AC_INIT(talpa, 0.9.58)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -655,7 +655,7 @@ fi
 
 # Check for do_truncate address
 AC_MSG_CHECKING([for do_truncate address])
-tmp=`${EGREP} " do_truncate" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+tmp=`${EGREP} " do_truncate\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
 if test "$tmp" != ""; then
     AC_MSG_RESULT([0x$tmp])
     AC_SUBST(dotruncateaddr, "-DTALPA_DOTRUNCATE_ADDR=0x$tmp")
@@ -780,7 +780,7 @@ fi
 # Find tasklist_lock address if not exported
 if test "$notasklistlock" != ""; then
     AC_MSG_CHECKING([for tasklist_lock address])
-    tasklist_lock_addr=`${EGREP} " tasklist_lock" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    tasklist_lock_addr=`${EGREP} " tasklist_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
     if test "$tasklist_lock_addr" != ""; then
         AC_MSG_RESULT([0x$tasklist_lock_addr])
         AC_SUBST(notasklistlock, "$notasklistlock -DTALPA_TASKLIST_LOCK_ADDR=0x$tasklist_lock_addr")
@@ -791,14 +791,14 @@ fi
 
 function find_syscall_table
 {
-    sys_call_table=`${EGREP} " sys_call_table" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    sys_call_table=`${EGREP} " sys_call_table\$" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
     if test "$sys_call_table" = ""; then
         return 1
     fi
 
     march=`${UNAME} -m`
     if test "$march" = "x86_64"; then
-        sys_call_table32=`${EGREP} " ia32_sys_call_table" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        sys_call_table32=`${EGREP} " ia32_sys_call_table\$" "$1" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$sys_call_table32" = ""; then
             return 1
         fi
@@ -876,7 +876,7 @@ if test $((kern_version_code)) -ge 132608; then
 
             if test "$CALLING_REAL_DPATH" -eq 0 ; then
                 AC_MSG_CHECKING([for __d_path address])
-                d_path_addr=`${EGREP} " __d_path" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                d_path_addr=`${EGREP} " __d_path\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$d_path_addr" != ""; then
                     CALLING_REAL_DPATH=1
                     AC_MSG_RESULT([0x$d_path_addr])
@@ -932,7 +932,7 @@ if test $((kern_version_code)) -ge 132608; then
     # Find vfsmnt_lock address
     if test "$auto_vfsmntlock" = "yes" -a "$dpath" = ""; then
         AC_MSG_CHECKING([for vfsmount_lock address])
-        vfsmnt_lock_addr=`${EGREP} " vfsmount_lock" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        vfsmnt_lock_addr=`${EGREP} " vfsmount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$vfsmnt_lock_addr" != ""; then
             AC_MSG_RESULT([0x$vfsmnt_lock_addr])
             AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
@@ -959,7 +959,7 @@ if test $((kern_version_code)) -ge 132608; then
 
     # Attempt to fetch do_execve address if not exported
     if test "$execve" == ""; then
-        do_execve_addr=`${EGREP} " do_execve" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        do_execve_addr=`${EGREP} " do_execve\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$do_execve_addr" != ""; then
             AC_SUBST(execve, "-DTALPA_EXECVE_SUPPORT -DTALPA_HIDDEN_EXECVE -DTALPA_HIDDEN_EXECVE_ADDRESS=0x$do_execve_addr")
         fi
@@ -1125,8 +1125,8 @@ if test $((kern_version_code)) -ge 132608; then
         AC_SUBST(syscallhook, "yes")
     else
         # Detect SLES11 kernels
-        kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-        kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$kfunc_mark_rodata_rw" != "" -a "$kfunc_mark_rodata_ro" != ""; then
             # First SLES11 release on x86_64 does not work
             if test "$kern_arch" = "x86_64" -a "$kern_uts_release" = "2.6.27.19-5-default"; then
@@ -1142,8 +1142,8 @@ if test $((kern_version_code)) -ge 132608; then
         else
             # If passed through environment do nothing since makefile will handle that
             if test "$TALPA_RODATA_START" = "" -a "$TALPA_RODATA_END" = ""; then
-                start_rodata=`${EGREP} " __start_rodata" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                end_rodata=`${EGREP} " __end_rodata" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                start_rodata=`${EGREP} " __start_rodata\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                end_rodata=`${EGREP} " __end_rodata\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$start_rodata" != "" -a "$end_rodata" != ""; then
                     AC_MSG_RESULT([yes])
                     AC_SUBST(syscallhook, "yes")
@@ -1169,8 +1169,8 @@ if test $((kern_version_code)) -ge 132608; then
             AC_MSG_RESULT([present])
             if test "$kern_arch" = "x86_64"; then
                 AC_MSG_CHECKING([for set_memory symbols])
-                kfunc_set_memory_rw=`${EGREP} " set_memory_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                kfunc_set_memory_ro=`${EGREP} " set_memory_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfunc_set_memory_rw=`${EGREP} " set_memory_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfunc_set_memory_ro=`${EGREP} " set_memory_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$kfunc_set_memory_rw" != "" -a "$kfunc_set_memory_ro" != ""; then
                     AC_MSG_RESULT([ok])
                     AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_MEMORY_RW=0x$kfunc_set_memory_rw -DTALPA_KFUNC_SET_MEMORY_RO=0x$kfunc_set_memory_ro")
@@ -1179,8 +1179,8 @@ if test $((kern_version_code)) -ge 132608; then
                 fi
             else
                 AC_MSG_CHECKING([for set_pages symbols])
-                kfunc_set_pages_rw=`${EGREP} " set_pages_rw" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                kfunc_set_pages_ro=`${EGREP} " set_pages_ro" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfunc_set_pages_rw=`${EGREP} " set_pages_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfunc_set_pages_ro=`${EGREP} " set_pages_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$kfunc_set_pages_rw" != "" -a "$kfunc_set_pages_ro" != ""; then
                     AC_MSG_RESULT([ok])
                     AC_SUBST(hassetpages, "-DTALPA_HAS_SET_PAGES -DTALPA_KFUNC_SET_PAGES_RW=0x$kfunc_set_pages_rw -DTALPA_KFUNC_SET_PAGES_RO=0x$kfunc_set_pages_ro")
@@ -1193,7 +1193,7 @@ if test $((kern_version_code)) -ge 132608; then
             # Get change_page_attr_addr on x86_64
             if test "$kern_arch" = "x86_64"; then
                 AC_MSG_CHECKING([for change_page_attr_addr symbol])
-                kfuncchpgattraddr=`${EGREP} " change_page_attr_addr" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                kfuncchpgattraddr=`${EGREP} " change_page_attr_addr\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$kfuncchpgattraddr" != ""; then
                     AC_MSG_RESULT([ok])
                     AC_SUBST(kfuncchpgattraddr, "-DTALPA_KFUNC_CHANGE_PAGE_ATTR_ADDR=0x$kfuncchpgattraddr")
@@ -1211,7 +1211,7 @@ if test $((kern_version_code)) -ge 132608; then
                     if ${EGREP} "v - __START_KERNEL_map.*phys_base" $TALPA_HEADER_LOCATION/asm/page.h >/dev/null 2>&1; then
                         AC_MSG_RESULT([no])
                         AC_MSG_CHECKING([for phys_base address])
-                        phys_base=`${EGREP} " phys_base" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+                        phys_base=`${EGREP} " phys_base\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                         if test "$phys_base" != ""; then
                             AC_MSG_RESULT([ok])
                             AC_SUBST(nopasymbol, "-DTALPA_NO_PA_SYMBOL -DTALPA_PHYS_BASE=0x$phys_base")
