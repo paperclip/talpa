@@ -48,10 +48,12 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
 #else
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen, void** context);
 #endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp);
-#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+static int procHandler(ctl_table* table, int write, void* buffer, size_t* lenp, loff_t* ppos);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp, loff_t* ppos);
+#else
+static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp);
 #endif
 
 /*
@@ -383,15 +385,18 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
     return 1;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-#define PPOS filp->f_pos
-static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp)
-#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#define PPOS *ppos
+static int procHandler(ctl_table* table, int write, void* buffer, size_t* lenp, loff_t* ppos)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 #define PPOS *ppos
 static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp, loff_t* ppos)
+#else
+#define PPOS filp->f_pos
+static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp)
 #endif
 {
-    if (!table->data || !table->maxlen || !*lenp || (filp->f_pos && !write))
+    if (!table->data || !table->maxlen || !*lenp || (PPOS && !write))
     {
         *lenp = 0;
         return 0;
