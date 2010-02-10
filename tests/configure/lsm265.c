@@ -1,4 +1,4 @@
-#include "linux/autoconf.h"
+#include "autoconf.h"
 #include "linux/security.h"
 
 int sb_copy_data(const char *fstype, void *orig, void *copy)

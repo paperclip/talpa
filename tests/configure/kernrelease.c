@@ -1,8 +1,11 @@
 #include <stdio.h>
 
-#include "linux/autoconf.h"
 #ifdef SEPARATE_UTS_RELEASE
-#include "linux/utsrelease.h"
+  #ifdef GENERATED_UTS_RELEASE
+    #include "generated/utsrelease.h"
+  #else
+    #include "linux/utsrelease.h"
+  #endif
 #else
 #include "linux/version.h"
 #endif

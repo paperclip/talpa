@@ -1,4 +1,4 @@
-#include "linux/autoconf.h"
+#include "autoconf.h"
 #include "linux/security.h"
 
 static int inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)

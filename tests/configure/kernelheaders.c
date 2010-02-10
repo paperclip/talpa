@@ -2,7 +2,7 @@
 #define KBUILD_BASENAME "#kernelheaderstest"
 #endif
 
-#include <linux/autoconf.h>
+#include "autoconf.h"
 #include <asm/processor.h>
 
 int main()

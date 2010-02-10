@@ -2,7 +2,7 @@
 #define KBUILD_BASENAME "#securitytest"
 #endif
 
-#include <linux/autoconf.h>
+#include "autoconf.h"
 
 int main()
 {

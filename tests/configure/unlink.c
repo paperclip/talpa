@@ -2,7 +2,7 @@
 #define KBUILD_BASENAME "#unlinktest"
 #endif
 
-#include <linux/autoconf.h>
+#include "autoconf.h"
 #include <linux/fs.h>
 
 int main()

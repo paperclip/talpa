@@ -21,7 +21,6 @@
 
 #include <linux/kernel.h>
 #include <linux/version.h>
-#include <linux/autoconf.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/dcache.h>

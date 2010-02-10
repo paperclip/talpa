@@ -1,4 +1,4 @@
-#include "linux/autoconf.h"
+#include "autoconf.h"
 
 int main()
 {

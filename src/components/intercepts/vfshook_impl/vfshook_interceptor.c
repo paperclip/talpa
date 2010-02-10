@@ -463,7 +463,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 dbg("  storing original inode operations [0x%p]", patch->i_ops);
                 patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+                dbg("  storing original file operations [0x%p]", patch->f_ops);
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
                 dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
@@ -572,7 +572,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 dbg("  storing original inode operations [0x%p]", patch->i_ops);
                 patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                 patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-                dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
+                dbg("  storing original file operations [0x%p]", patch->f_ops);
                 patch->open = patch->f_ops->open;
                 patch->release = patch->f_ops->release;
                 dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
@@ -1990,6 +1990,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "romfs", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "binfmt_misc", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "aufs", true);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "mqueue", true);
 
     /* Filesystems not to be scanned immediately after mount */
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);

@@ -41,12 +41,14 @@
 static int attach(void* self, EConfigurationGroup group, const IConfigurable* item);
 static void detach(void* self, const IConfigurable* item);
 static void deleteProcfsConfigurator(struct tag_ProcfsConfigurator* object);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 static int ctlHandler(ctl_table* table, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+  #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen);
-#else
+  #else
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen, void** context);
+  #endif
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 static int procHandler(ctl_table* table, int write, void* buffer, size_t* lenp, loff_t* ppos);
@@ -239,7 +241,9 @@ static int attach(void* self, EConfigurationGroup group, const IConfigurable* it
         }
         elementSubItem->mode         = mode;
         elementSubItem->proc_handler = procHandler;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
         elementSubItem->strategy     = ctlHandler;
+#endif
         elementSubItem->extra1       = (void*)item;
     }
 
@@ -304,13 +308,14 @@ static void detach(void* self, const IConfigurable* item)
 /*
  * Internal.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 static int ctlHandler(ctl_table* table, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+  #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen)
-#else
+  #else
 static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, size_t* oldlenptr, void* newvalue, size_t newlen, void** context)
-#endif
+  #endif
 {
     if (!table->data || !table->maxlen)
     {
@@ -384,6 +389,7 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
     }
     return 1;
 }
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #define PPOS *ppos

@@ -21,7 +21,6 @@
 
 #include <linux/kernel.h>
 #include <linux/version.h>
-#include <linux/autoconf.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <asm/atomic.h>

@@ -2,7 +2,7 @@
 #define KBUILD_BASENAME "#lsmkeystest"
 #endif
 
-#include "linux/autoconf.h"
+#include "autoconf.h"
 #include "linux/security.h"
 
 struct key;

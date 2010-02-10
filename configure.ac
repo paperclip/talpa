@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.58)
+AC_INIT(talpa, 0.9.59)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -515,14 +515,35 @@ fi
 # Headers.
 #
 TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
-TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath)
 
 AC_MSG_CHECKING([for kernel configuration])
+TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
+if test "$autoconffound" = "yes"; then
+    autoconf_h=linux/autoconf.h
+    autoconf_h_path=$TALPA_HEADER_LOCATION/linux/autoconf.h
+    utsrelease_h=linux/utsrelease.h
+else
+    TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
+    if test "$autoconffound" = "yes"; then
+        autoconf_h=generated/autoconf.h
+        autoconf_h_path=$TALPA_HEADER_LOCATION/generated/autoconf.h
+        utsrelease_h=generated/utsrelease.h
+        ccgenerateduts="-DGENERATED_UTS_RELEASE"
+    else
+        AC_MSG_ERROR([autoconf.h not found])
+    fi
+fi
+cat <<EOF >tests/configure/autoconf.h
+#ifndef TALPA_AUTOCONF_H
+#define TALPA_AUTOCONF_H
+#include <$autoconf_h>
+#endif
+EOF
 kernccflags="-pipe -D__KERNEL__"
-tmp=`${EGREP} "CONFIG_X86.*_XEN " $TALPA_HEADER_LOCATION/linux/autoconf.h 2>/dev/null | ${CUT} -d ' ' -f 3`
+tmp=`${EGREP} "CONFIG_X86.*_XEN " $autoconf_h_path 2>/dev/null | ${CUT} -d ' ' -f 3`
 if test "$tmp" = "1"; then
     xen=1
-    tmp=`${EGREP} "CONFIG_XEN_INTERFACE_VERSION " $TALPA_HEADER_LOCATION/linux/autoconf.h 2>/dev/null | ${CUT} -d ' ' -f 3`
+    tmp=`${EGREP} "CONFIG_XEN_INTERFACE_VERSION " $autoconf_h_path 2>/dev/null | ${CUT} -d ' ' -f 3`
     if test "$tmp" != ""; then
         kernccflags="${kernccflags} -D__XEN_INTERFACE_VERSION__=${tmp}"
     fi
@@ -580,8 +601,8 @@ kern_version_code=`tests/configure/kernversion`
 AC_MSG_RESULT([${kern_version_code}])
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
-TALPA_LOCATE_HEADER(linux/utsrelease.h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
-${CC} ${kernccflags} ${cckernrelease} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernrelease.c -o tests/configure/kernrelease
+TALPA_LOCATE_HEADER($utsrelease_h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
+${CC} ${kernccflags} ${cckernrelease} ${ccgenerateduts} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/kernrelease.c -o tests/configure/kernrelease
 kern_uts_release=`tests/configure/kernrelease`
 AC_MSG_RESULT([${kern_uts_release}])
 ${RM} -f tests/configure/kernrelease
@@ -1116,7 +1137,7 @@ if test $((kern_version_code)) -ge 132608; then
 
     # Check how to build syscallhook dependent modules and if possible at all
     AC_MSG_CHECKING([for system call table hooking support])
-    TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
+    TALPA_LOCATE_HEADER($autoconf_h, $kernelhdrspath, , , [quiet])
     ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/rodata.c -o tests/configure/rodata
     tests/configure/rodata
     rodatarc=$?
@@ -1239,7 +1260,7 @@ if test $((kern_version_code)) -ge 132608; then
         # First check if LSM supports modules
         TALPA_LOCATE_HEADER(linux/security.h, $kernelhdrspath, , , [quiet])
         if ${EGREP} unregister_security $TALPA_HEADER_LOCATION/linux/security.h >/dev/null 2>&1; then
-            TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, , , [quiet])
+            TALPA_LOCATE_HEADER($autoconf_h, $kernelhdrspath, , , [quiet])
             ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) ${srcdir}/tests/configure/lsm.c -o tests/configure/lsm
             tests/configure/lsm
             if test $? -eq 0; then
@@ -1484,7 +1505,7 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     else
         # Kernels starting with 2.6.19 have it
-        AC_SUBST(mutexes,"-DTALPA_HAS_BOOL")
+        AC_SUBST(bool,"-DTALPA_HAS_BOOL")
     fi
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \

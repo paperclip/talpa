@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "linux/autoconf.h"
+#include "autoconf.h"
 #include "linux/version.h"
 
 int main()

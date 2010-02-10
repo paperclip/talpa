@@ -20,7 +20,6 @@
 #define H_LINUXLIST
 
 #include <linux/kernel.h>
-#include <linux/autoconf.h>
 #include <linux/list.h>
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
