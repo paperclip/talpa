@@ -226,10 +226,12 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
     }
 
     namei_flags = flags;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
     if ( (namei_flags+1) & O_ACCMODE )
     {
         namei_flags++;
     }
+#endif
 
     acc_mode = ACC_MODE(namei_flags);
 
