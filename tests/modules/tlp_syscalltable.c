@@ -37,13 +37,18 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #endif
+#ifdef TALPA_RODATA_MAP_WRITABLE
+#include <linux/vmalloc.h>
+#endif
 
 #define TALPA_SUBSYS "syscalltable"
 #include "common/talpa.h"
 
 static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 
-static void talpa_syscallhook_unro(int rw);
+#if defined(TALPA_HAS_RODATA) && !defined(TALPA_HAS_MARK_RODATA_RW)
+static void *talpa_syscallhook_unro(void *addr, size_t len, int rw);
+#endif
 
 #ifdef TALPA_HIDDEN_SYSCALLS
 static unsigned long syscall_table = TALPA_SYSCALL_TABLE;
@@ -61,24 +66,70 @@ static unsigned long rodata_end = TALPA_RODATA_END;
   #else
 static unsigned long rodata_end;
   #endif
+
+static long rwdata_offset;
 #endif
+
 
 #ifndef prevent_tail_call
 # define prevent_tail_call(ret) do { } while (0)
 #endif
 
-void talpa_syscallhook_modify_start(void)
+#ifdef TALPA_HAS_MARK_RODATA_RW
+extern void mark_rodata_rw(void);
+extern void mark_rodata_ro(void);
+#endif
+
+int talpa_syscallhook_modify_start(void)
 {
+#ifdef TALPA_HAS_RODATA
+  #ifdef TALPA_HAS_MARK_RODATA_RW
+    mark_rodata_rw();
+  #else
+    unsigned long rwshadow;
+
     lock_kernel();
-    talpa_syscallhook_unro(1);
+    rwshadow = (unsigned long)talpa_syscallhook_unro((void *)rodata_start, rodata_end - rodata_start, 1);
     unlock_kernel();
+    if (!rwshadow)
+    {
+        return 1;
+    }
+    rwdata_offset = rwshadow - rodata_start;
+  #endif
+#endif
+
+    return 0;
 }
 
 void talpa_syscallhook_modify_finish(void)
 {
+#ifdef TALPA_HAS_RODATA
+  #ifdef TALPA_HAS_MARK_RODATA_RW
+    mark_rodata_ro();
+  #else
     lock_kernel();
-    talpa_syscallhook_unro(0);
+    talpa_syscallhook_unro((void *)(rodata_start + rwdata_offset), rodata_end - rodata_start, 0);
     unlock_kernel();
+  #endif
+#endif
+}
+
+void *talpa_syscallhook_poke(void *addr, void *val)
+{
+    unsigned long target = (unsigned long)addr;
+
+
+#if defined(TALPA_RODATA_MAP_WRITABLE)
+    if (target >= rodata_start && target <= rodata_end)
+    {
+        target += rwdata_offset;
+    }
+#endif
+
+    *(void **)target = val;
+
+    return (void *)target;
 }
 
 static asmlinkage long talpa_mount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
@@ -268,27 +319,70 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
-#if !defined(TALPA_HAS_RODATA)
-static void talpa_syscallhook_unro(int rw)
+#if defined(TALPA_RODATA_MAP_WRITABLE)
+/*
+ * map_writable creates a shadow page mapping of the range
+ * [addr, addr + len) so that we can write to code mapped read-only.
+ *
+ * It is similar to a generalized version of x86's text_poke.  But
+ * because one cannot use vmalloc/vfree() inside stop_machine, we use
+ * map_writable to map the pages before stop_machine, then use the
+ * mapping inside stop_machine, and unmap the pages afterwards.
+ */
+static void *map_writable(void *addr, size_t len)
 {
-    return;
-}
-#elif defined(TALPA_HAS_MARK_RODATA_RW)
-extern void mark_rodata_rw(void);
-extern void mark_rodata_ro(void);
+        void *vaddr;
+        int nr_pages = DIV_ROUND_UP(offset_in_page(addr) + len, PAGE_SIZE);
+        struct page **pages = kmalloc(nr_pages * sizeof(*pages), GFP_KERNEL);
+        void *page_addr = (void *)((unsigned long)addr & PAGE_MASK);
+        int i;
 
-static void talpa_syscallhook_unro(int rw)
+        if (pages == NULL)
+                return NULL;
+
+        for (i = 0; i < nr_pages; i++) {
+                if (__module_address((unsigned long)page_addr) == NULL) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22) || !defined(CONFIG_X86_64)
+                        pages[i] = virt_to_page(page_addr);
+#else /* LINUX_VERSION_CODE < && CONFIG_X86_64 */
+/* e3ebadd95cb621e2c7436f3d3646447ac9d5c16d was after 2.6.21
+ * This works around a broken virt_to_page() from the RHEL 5 backport
+ * of x86-64 relocatable kernel support.
+ */
+                        pages[i] =
+                            pfn_to_page(__pa_symbol(page_addr) >> PAGE_SHIFT);
+#endif /* LINUX_VERSION_CODE || !CONFIG_X86_64 */
+                        WARN_ON(!PageReserved(pages[i]));
+                } else {
+                        pages[i] = vmalloc_to_page(addr);
+                }
+                if (pages[i] == NULL) {
+                        kfree(pages);
+                        return NULL;
+                }
+                page_addr += PAGE_SIZE;
+        }
+        vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
+        kfree(pages);
+        if (vaddr == NULL)
+                return NULL;
+        return vaddr + offset_in_page(addr);
+}
+
+static void *talpa_syscallhook_unro(void *addr, size_t len, int rw)
 {
     if ( rw )
     {
-        mark_rodata_rw();
+        return map_writable(addr, len);
     }
     else
     {
-        mark_rodata_ro();
+        vunmap((void *)((unsigned long)addr & PAGE_MASK));
+        return NULL;
     }
 }
-#else /* defined TALPA_HAS_RODATA */
+
+#elif defined(TALPA_NEED_MANUAL_RODATA)
 
 #  ifdef TALPA_NEEDS_VA_CPA
 
@@ -309,9 +403,9 @@ static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
 #    define talpa_ka_to_cpa(adr) ((unsigned long)adr)
 #  endif /* NEEDS_VA_CPA */
 
-static void talpa_syscallhook_unro(int rw)
+static void *talpa_syscallhook_unro(void *addr, size_t len, int rw)
 {
-    unsigned long nr_pages = (rodata_end - rodata_start) / PAGE_SIZE;
+    unsigned long nr_pages = len / PAGE_SIZE;
 
 
   #ifdef TALPA_HAS_SET_PAGES
@@ -329,7 +423,7 @@ static void talpa_syscallhook_unro(int rw)
         set_memory_rwro  = (kfunc)TALPA_KFUNC_SET_MEMORY_RO;
     }
 
-    set_memory_rwro(rodata_start, nr_pages);
+    set_memory_rwro(addr, nr_pages);
     #elif CONFIG_X86
     typedef int (*kfunc)(struct page *page, int numpages);
     kfunc set_pages_rwro;
@@ -344,7 +438,7 @@ static void talpa_syscallhook_unro(int rw)
         set_pages_rwro  = (kfunc)TALPA_KFUNC_SET_PAGES_RO;
     }
 
-    set_pages_rwro(virt_to_page(rodata_start), nr_pages);
+    set_pages_rwro(virt_to_page(addr), nr_pages);
     #endif
   #else /* HAS_SET_PAGES */
     #ifdef CONFIG_X86_64
@@ -353,25 +447,27 @@ static void talpa_syscallhook_unro(int rw)
 
     if ( rw )
     {
-        talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL);
+        talpa_change_page_attr_addr(talpa_ka_to_cpa(addr), nr_pages, PAGE_KERNEL);
     }
     else
     {
-        talpa_change_page_attr_addr(talpa_ka_to_cpa(rodata_start), nr_pages, PAGE_KERNEL_RO);
+        talpa_change_page_attr_addr(talpa_ka_to_cpa(addr), nr_pages, PAGE_KERNEL_RO);
     }
     #elif CONFIG_X86
     if ( rw )
     {
-        change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL);
+        change_page_attr(virt_to_page(addr), nr_pages, PAGE_KERNEL);
     }
     else
     {
-        change_page_attr(virt_to_page(rodata_start), nr_pages, PAGE_KERNEL_RO);
+        change_page_attr(virt_to_page(addr), nr_pages, PAGE_KERNEL_RO);
     }
     #endif
 
     global_flush_tlb();
   #endif
+
+    return addr;
 }
 #endif /* HAS_RODATA */
 
@@ -443,9 +539,11 @@ static void save_originals(void)
 #endif
 }
 
+#define patch_syscall(base, num, new) talpa_syscallhook_poke(&base[num], new)
+
 static void patch_table(void)
 {
-    sys_call_table[__NR_mount] = talpa_mount;
+    patch_syscall(sys_call_table, __NR_mount, talpa_mount);
 }
 
 static unsigned int check_table(void)
@@ -462,7 +560,7 @@ static unsigned int check_table(void)
 static void restore_table(void)
 {
 #if defined CONFIG_X86
-    sys_call_table[__NR_mount] = orig_mount;
+    patch_syscall(sys_call_table, __NR_mount, orig_mount);
 #endif
 }
 
@@ -486,7 +584,13 @@ static int __init talpa_syscallhook_init(void)
     fsync_dev(0);
 #endif
     save_originals();
-    talpa_syscallhook_modify_start();
+    ret = talpa_syscallhook_modify_start();
+    if (ret)
+    {
+        unlock_kernel();
+        err("Failed to unprotect read-only memory!");
+        return ret;
+    }
     patch_table();
     talpa_syscallhook_modify_finish();
     unlock_kernel();
@@ -498,6 +602,9 @@ static int __init talpa_syscallhook_init(void)
 
 static void __exit talpa_syscallhook_exit(void)
 {
+    int ret;
+
+
     lock_kernel();
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     fsync_dev(0);
@@ -518,7 +625,18 @@ static void __exit talpa_syscallhook_exit(void)
         schedule_timeout(HZ);
         lock_kernel();
     }
-    talpa_syscallhook_modify_start();
+    do
+    {
+        ret = talpa_syscallhook_modify_start();
+        if (ret)
+        {
+            unlock_kernel();
+            err("Failing to unprotect read-only memory!");
+            __set_current_state(TASK_UNINTERRUPTIBLE);
+            schedule_timeout(HZ);
+            lock_kernel();
+        }
+    } while (ret); /* Unfortunate but we can't possibly exit if we failed to restore original pointers. */
     restore_table();
     talpa_syscallhook_modify_finish();
     unlock_kernel();

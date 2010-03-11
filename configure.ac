@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.59)
+AC_INIT(talpa, 0.9.59-ksplice)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -1158,17 +1158,21 @@ if test $((kern_version_code)) -ge 132608; then
                 AC_SUBST(syscallhook, "yes")
                 AC_MSG_RESULT([yes, sles11])
             fi
-        elif test $((kern_version_code)) -ge 132633; then
-            AC_MSG_ERROR([unsupported kernel])
         else
             # If passed through environment do nothing since makefile will handle that
             if test "$TALPA_RODATA_START" = "" -a "$TALPA_RODATA_END" = ""; then
                 start_rodata=`${EGREP} " __start_rodata\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 end_rodata=`${EGREP} " __end_rodata\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
                 if test "$start_rodata" != "" -a "$end_rodata" != ""; then
-                    AC_MSG_RESULT([yes])
                     AC_SUBST(syscallhook, "yes")
                     AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_NEED_MANUAL_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
+                    if test $((kern_version_code)) -ge 132633; then
+                        AC_SUBST(rodata, "$rodata -DTALPA_RODATA_MAP_WRITABLE")
+                        AC_SUBST(map_writable, yes)
+                        AC_MSG_RESULT([yes; shadow mapping])
+                    else
+                        AC_MSG_RESULT([yes])
+                    fi
                 else
                     AC_MSG_RESULT([no])
                     AC_SUBST(syscallhook, "no")
@@ -1182,7 +1186,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
     ${RM} -f tests/configure/rodata
 
-    if test "$syscallhook" = "yes" -a "$has_mark_rodata_rw" = "" -a "$rodata" != ""; then
+    if test "$syscallhook" = "yes" -a "$has_mark_rodata_rw" = "" -a "$map_writable" = "" -a "$rodata" != ""; then
         # Check whether to use set_page_XXX or change_page_attr functions
         TALPA_LOCATE_HEADER(asm/cacheflush.h, $kernelhdrspath, , , [quiet])
         AC_MSG_CHECKING([for set_pages/memory interface])

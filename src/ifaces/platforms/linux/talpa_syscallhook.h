@@ -20,8 +20,8 @@
 #define H_TALPASYSCALLHOOK
 
 
-#define TALPA_SYSCALLHOOK_IFACE_VERSION (1)
-#define TALPA_SYSCALLHOOK_IFACE_VERSION_STR "1"
+#define TALPA_SYSCALLHOOK_IFACE_VERSION (2)
+#define TALPA_SYSCALLHOOK_IFACE_VERSION_STR "2"
 
 /*
  * All strings are in userspace except for execve.
@@ -34,9 +34,9 @@ struct talpa_syscall_operations
     long    (*uselib_pre)   (const char* library);
     int     (*execve_pre)   (const char* name);
     long    (*mount_pre)    (char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-    void    (*mount_post)   (int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-    void    (*umount_pre)   (char* name, int flags);
-    void    (*umount_post)  (int err, char* name, int flags);
+    long    (*mount_post)   (int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
+    void    (*umount_pre)   (char* name, int flags, void** ctx);
+    void    (*umount_post)  (int err, char* name, int flags, void* ctx);
 };
 
 /*
@@ -61,14 +61,23 @@ void talpa_syscallhook_unregister(struct talpa_syscall_operations* ops);
  * Call when you want to write to potentialy read-only kernel
  * memory. modify_finish must be called after modifications are
  * done. Calls cannot be nested.
+ * Returns non-zero on error which means modification cannot be
+ * made following the call and talpa_syscallhook_modify_finish
+ * should not be called.
  */
-void talpa_syscallhook_modify_start(void);
+int talpa_syscallhook_modify_start(void);
 
 /*
  * Call when you are done writing to potentialy read-only kernel
  * memory.
  */
 void talpa_syscallhook_modify_finish(void);
+
+/*
+ * Use to modify pointers in potentialy read-only memory.
+ * Returns address written to.
+ */
+void *talpa_syscallhook_poke(void *addr, void *val);
 
 #endif
 

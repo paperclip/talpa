@@ -56,17 +56,17 @@ static long talpaDummyPreMount(char* dev_name, char* dir_name, char* type, unsig
     return 0;
 }
 
-static void talpaDummyPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
+static long talpaDummyPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
+{
+    return 0;
+}
+
+static void talpaDummyPreUmount(char* name, int flags, void** ctx)
 {
     return;
 }
 
-static void talpaDummyPreUmount(char* name, int flags)
-{
-    return;
-}
-
-static void talpaDummyPostUmount(int err, char* name, int flags)
+static void talpaDummyPostUmount(int err, char* name, int flags, void* ctx)
 {
     return;
 }

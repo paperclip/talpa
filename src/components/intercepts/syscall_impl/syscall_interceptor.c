@@ -52,9 +52,9 @@ static void talpaCloseHook(unsigned int fd);
 static long talpaUselibHook(const char* library);
 static int  talpaExecveHook(const char* name);
 static long talpaMountHook(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-static void talpaMountDummy(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-static void talpaUmountHook(char* name, int flags);
-static void talpaUmountDummy(int err, char* name, int flags);
+static long talpaMountDummy(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
+static void talpaUmountHook(char* name, int flags, void** ctx);
+static void talpaUmountDummy(int err, char* name, int flags, void *ctx);
 
 static bool hook(void* self);
 static bool unhook(void* self);
@@ -538,12 +538,12 @@ static long talpaMountHook(char* dev_name, char* dir_name, char* type, unsigned 
     return decision;
 }
 
-static void talpaMountDummy(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
+static long talpaMountDummy(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
-    return;
+    return 0;
 }
 
-static void talpaUmountHook(char* name, int flags)
+static void talpaUmountHook(char* name, int flags, void** ctx)
 {
     if ( unlikely( !(GL_object.mHookingMask & HOOK_UMOUNT) ) )
     {
@@ -553,7 +553,7 @@ static void talpaUmountHook(char* name, int flags)
     examineUmount(name, flags);
 }
 
-static void talpaUmountDummy(int err, char* name, int flags)
+static void talpaUmountDummy(int err, char* name, int flags, void* ctx)
 {
     return;
 }
