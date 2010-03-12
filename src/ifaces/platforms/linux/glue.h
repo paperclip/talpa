@@ -64,13 +64,13 @@
 
 #define try_module_get(m) \
 ({ \
-    MOD_INC_USE_COUNT; \
+    __MOD_INC_USE_COUNT(m); \
     1; \
 })
 
 #define module_put(m) \
 ({ \
-    MOD_DEC_USE_COUNT; \
+    __MOD_DEC_USE_COUNT(m); \
     1; \
 })
 

@@ -1121,9 +1121,18 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     return 0;
 }
 
-static void patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
+static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     dbg("Patching filesystem %s", mnt->mnt_sb->s_type->name);
+    /* Grab reference to a module (if not builtin) so we are safe elsewhere
+       it cannot go away while we use it. For example before post_umount. */
+    if ( patch->fstype->owner )
+    {
+        if ( !try_module_get(patch->fstype->owner) )
+        {
+            return -1;
+        }
+    }
 
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
@@ -1143,6 +1152,8 @@ static void patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool sm
         talpa_syscallhook_poke(&patch->i_ops->lookup, talpaInodeLookup);
         talpa_syscallhook_poke(&patch->i_ops->create, talpaInodeCreate);
     }
+
+    return 0;
 }
 
 static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
@@ -1270,6 +1281,11 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
             talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
             patch->create = NULL;
         }
+    }
+
+    if ( patch->fstype->owner )
+    {
+        module_put(patch->fstype->owner);
     }
 
     return 0;
@@ -1405,12 +1421,20 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
            instance of the existing one) */
         if ( patch == newpatch )
         {
-            dbg("refcnt for %s = %d", fsname, atomic_read(&patch->refcnt));
-            talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
-            atomic_inc(&patch->usecnt);
-            dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
-            /* Actually patch the filesystem */
-            patchFilesystem(mnt, reg, smbfs, patch);
+            /* Patch the filesystem */
+            ret = patchFilesystem(mnt, reg, smbfs, patch);
+            if ( !ret )
+            {
+                dbg("refcnt for %s = %d", fsname, atomic_read(&patch->refcnt));
+                talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
+                atomic_inc(&patch->usecnt);
+                dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
+            }
+            else
+            {
+                warn("Failed to process filesystem due to inability to patch! (%d)", ret);
+                talpa_free(newpatch);
+            }
         }
         else
         {
@@ -1432,7 +1456,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     }
     else
     {
-        /* Free newly allocated patch if patching failed */
+        /* Free newly allocated patch if preparing to patch failed */
         if ( patch == newpatch )
         {
             talpa_free(newpatch);
