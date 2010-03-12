@@ -1717,9 +1717,15 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
             } while ( atomic_read(&patch->refcnt) > 0 );
             talpa_free(patch);
         }
+        else
+        {
+            talpa_rcu_write_unlock(&GL_object.mPatchLock);
+        }
     }
-
-    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+    else
+    {
+        talpa_rcu_write_unlock(&GL_object.mPatchLock);
+    }
 
     /* Free list showed to userspace so it will be regenerated on next read */
     destroyStringSet(&GL_object, &GL_object.mPatchListSet);
