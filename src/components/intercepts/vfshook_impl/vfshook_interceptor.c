@@ -449,6 +449,10 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
+                    struct patchedFilesystem*   spatch = patch;
+                    struct patchedFilesystem*   p;
+
+
                     dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
                     talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
@@ -465,11 +469,40 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                     patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                     dbg("  storing original file operations [0x%p]", patch->f_ops);
-                    patch->open = patch->f_ops->open;
-                    patch->release = patch->f_ops->release;
-                    dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
-                    talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
-                    talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+                    /* Sometimes filesystems share operation tables in which case we
+                    want to store real pointers for restore. */
+                    talpa_rcu_write_lock(&GL_object.mPatchLock);
+                    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+                    {
+                        if ( p != patch && p->f_ops == patch->f_ops )
+                        {
+                            dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                            spatch = p;
+                            break;
+                        }
+                    }
+                    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+                    if ( spatch )
+                    {
+                        patch->open = spatch->open;
+                        patch->release = spatch->release;
+                    }
+                    else
+                    {
+                        patch->open = patch->f_ops->open;
+                        patch->release = patch->f_ops->release;
+                    }
+                    dbg("Patching file operations 0x%p", patch->f_ops);
+                    if ( patch->f_ops->open != talpaOpen )
+                    {
+                        dbg("     open 0x%p", patch->open);
+                        talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
+                    }
+                    if ( patch->f_ops->release != talpaRelease )
+                    {
+                        dbg("     release 0x%p", patch->release);
+                        talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+                    }
                     talpa_syscallhook_modify_finish();
                 }
                 else
@@ -564,6 +597,10 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
+                    struct patchedFilesystem*   spatch = patch;
+                    struct patchedFilesystem*   p;
+
+
                     dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
                     talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
@@ -580,11 +617,40 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                     patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                     patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
                     dbg("  storing original file operations [0x%p]", patch->f_ops);
-                    patch->open = patch->f_ops->open;
-                    patch->release = patch->f_ops->release;
-                    dbg("Patching file operations 0x%p 0x%p", patch->open, patch->release);
-                    talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
-                    talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+                    /* Sometimes filesystems share operation tables in which case we
+                    want to store real pointers for restore. */
+                    talpa_rcu_write_lock(&GL_object.mPatchLock);
+                    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+                    {
+                        if ( p != patch && p->f_ops == patch->f_ops )
+                        {
+                            dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                            spatch = p;
+                            break;
+                        }
+                    }
+                    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+                    if ( spatch )
+                    {
+                        patch->open = spatch->open;
+                        patch->release = spatch->release;
+                    }
+                    else
+                    {
+                        patch->open = patch->f_ops->open;
+                        patch->release = patch->f_ops->release;
+                    }
+                    dbg("Patching file operations 0x%p", patch->f_ops);
+                    if ( patch->f_ops->open != talpaOpen )
+                    {
+                        dbg("     open 0x%p", patch->open);
+                        talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
+                    }
+                    if ( patch->f_ops->release != talpaRelease )
+                    {
+                        dbg("     release 0x%p", patch->release);
+                        talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+                    }
                     talpa_syscallhook_modify_finish();
                 }
                 else
@@ -1059,6 +1125,10 @@ exit1:
 
 static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
+    struct patchedFilesystem*   spatch = patch;
+    struct patchedFilesystem*   p;
+
+
     if ( !mnt )
     {
         err("No vfsmount object!");
@@ -1083,8 +1153,27 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         dbg("  storing original inode operations [0x%p]", patch->i_ops);
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-        patch->open = patch->f_ops->open;
-        patch->release = patch->f_ops->release;
+        /* Sometimes filesystems share operation tables in which case we
+           want to store real pointers for restore. */
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+        {
+            if ( p != patch && p->f_ops == patch->f_ops )
+            {
+                dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                spatch = p;
+                break;
+            }
+        }
+        if ( spatch )
+        {
+            patch->open = spatch->open;
+            patch->release = spatch->release;
+        }
+        else
+        {
+            patch->open = patch->f_ops->open;
+            patch->release = patch->f_ops->release;
+        }
         dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
     }
     /* If called directly from smbfs mount prepare for ioctl patching (we never have regular file here) */
@@ -1104,8 +1193,27 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         }
 
         patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
-        patch->lookup = patch->i_ops->lookup;
-        patch->create = patch->i_ops->create;
+        /* Sometimes filesystems share operation tables in which case we
+           want to store real pointers for restore. */
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+        {
+            if ( p != patch && p->i_ops == patch->i_ops )
+            {
+                dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                spatch = p;
+                break;
+            }
+        }
+        if ( spatch )
+        {
+            patch->lookup = spatch->lookup;
+            patch->create = spatch->create;
+        }
+        else
+        {
+            patch->lookup = patch->i_ops->lookup;
+            patch->create = patch->i_ops->create;
+        }
         dbg("  storing original inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
 
     }
@@ -1137,9 +1245,17 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
-        dbg("  patching file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
-        talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
-        talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+        dbg("  patching file operations 0x%p", patch->f_ops);
+        if ( patch->f_ops->open != talpaOpen )
+        {
+            dbg("     open 0x%p", patch->open);
+            talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
+        }
+        if ( patch->f_ops->release != talpaRelease )
+        {
+            dbg("     release 0x%p", patch->release);
+            talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+        }
     }
     else if ( dentry && smbfs )
     {
@@ -1148,9 +1264,17 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     }
     else
     {
-        dbg("  patching inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
-        talpa_syscallhook_poke(&patch->i_ops->lookup, talpaInodeLookup);
-        talpa_syscallhook_poke(&patch->i_ops->create, talpaInodeCreate);
+        dbg("  patching inode operations 0x%p", patch->i_ops);
+        if ( patch->i_ops->lookup != talpaInodeLookup )
+        {
+            dbg("     lookup 0x%p", patch->lookup);
+            talpa_syscallhook_poke(&patch->i_ops->lookup, talpaInodeLookup);
+        }
+        if ( patch->i_ops->create != talpaInodeCreate )
+        {
+            dbg("     create 0x%p", patch->create);
+            talpa_syscallhook_poke(&patch->i_ops->create, talpaInodeCreate);
+        }
     }
 
     return 0;
@@ -1159,6 +1283,8 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
 static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     bool shouldinc = true;
+    struct patchedFilesystem*   spatch = patch;
+    struct patchedFilesystem*   p;
 
 
     /* No-op if already patched */
@@ -1196,12 +1322,39 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
         }
 
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-        patch->open = patch->f_ops->open;
-        patch->release = patch->f_ops->release;
+        /* Sometimes filesystems share operation tables in which case we
+           want to store real pointers for restore. */
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+        {
+            if ( p != patch && p->f_ops == patch->f_ops )
+            {
+                dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                spatch = p;
+                break;
+            }
+        }
+        if ( spatch )
+        {
+            patch->open = spatch->open;
+            patch->release = spatch->release;
+        }
+        else
+        {
+            patch->open = patch->f_ops->open;
+            patch->release = patch->f_ops->release;
+        }
         dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
-        dbg("  patching file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
-        talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
-        talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+        dbg("  patching file operations 0x%p", patch->f_ops);
+        if ( patch->f_ops->open != talpaOpen )
+        {
+            dbg("     open 0x%p", patch->open);
+            talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
+        }
+        if ( patch->f_ops->release != talpaRelease )
+        {
+            dbg("     release 0x%p", patch->release);
+            talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
+        }
     }
     else if ( smbfs )
     {
@@ -1249,6 +1402,10 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
 
 static int restoreFilesystem(struct patchedFilesystem* patch)
 {
+    struct patchedFilesystem*   spatch = NULL;
+    struct patchedFilesystem*   p;
+
+
     if ( !(patch->sf_ops || patch->f_ops || patch->i_ops) )
     {
         err("Restore on an unpatched filesystem!");
@@ -1263,23 +1420,53 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
 
     if ( patch->f_ops )
     {
-        dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
-        talpa_syscallhook_poke(&patch->f_ops->open, patch->open);
-        talpa_syscallhook_poke(&patch->f_ops->release, patch->release);
+        /* We must not restore when filesystem share operation tables
+           until the call to restore the last one. */
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+        {
+            if ( p != patch && p->f_ops == patch->f_ops )
+            {
+                dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                spatch = p;
+                break;
+            }
+        }
+        /* Only restore if last instance of this file operations. */
+        if ( !spatch )
+        {
+            dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
+            talpa_syscallhook_poke(&patch->f_ops->open, patch->open);
+            talpa_syscallhook_poke(&patch->f_ops->release, patch->release);
+        }
     }
     else if ( patch->i_ops )
     {
-        if ( patch->i_ops->lookup == talpaInodeLookup )
+        /* We must not restore when filesystem share operation tables
+           until the call to restore the last one. */
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
         {
-            dbg("Restoring lookup inode operation 0x%p", patch->lookup);
-            talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
-            patch->lookup = NULL;
+            if ( p != patch && p->i_ops == patch->i_ops )
+            {
+                dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                spatch = p;
+                break;
+            }
         }
-        if ( patch->i_ops->create == talpaInodeCreate )
+        /* Only restore if last instance of this file operations. */
+        if ( !spatch )
         {
-            dbg("Restoring create inode operation 0x%p", patch->create);
-            talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
-            patch->create = NULL;
+            if ( patch->i_ops->lookup == talpaInodeLookup )
+            {
+                dbg("Restoring lookup inode operation 0x%p", patch->lookup);
+                talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
+                patch->lookup = NULL;
+            }
+            if ( patch->i_ops->create == talpaInodeCreate )
+            {
+                dbg("Restoring create inode operation 0x%p", patch->create);
+                talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
+                patch->create = NULL;
+            }
         }
     }
 
