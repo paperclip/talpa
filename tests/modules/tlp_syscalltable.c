@@ -259,27 +259,7 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 {
     void **limit = ptr + 0xa000;
     void **table = NULL;
-#ifdef DEBUG
-    unsigned int i;
 
-    dbg_start();
-    dbg_cont("unique: ");
-    for ( i = 0; i < num_unique_syscalls; i++ )
-    {
-        dbg_cont("%u ", unique_syscalls[i]);
-    }
-    dbg_end();
-
-    dbg_start();
-    dbg_cont("zapped: ");
-    for ( i = 0; i < num_zapped_syscalls; i++ )
-    {
-        dbg_cont("%u ", zapped_syscalls[i]);
-    }
-    dbg_end();
-
-    dbg("scan from 0x%p to 0x%p", ptr, limit);
-#endif
 
     lower_bound = (void*)((unsigned long)lower_bound & ~0xfffff);
     dbg("lower bound 0x%p", lower_bound);
@@ -595,7 +575,7 @@ static int __init talpa_syscallhook_init(void)
     talpa_syscallhook_modify_finish();
     unlock_kernel();
 
-    dbg("Hooked [%s]", hook_mask);
+    dbg("Hooked");
 
     return 0;
 }
