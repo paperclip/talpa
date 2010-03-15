@@ -471,7 +471,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     dbg("  storing original file operations [0x%p]", patch->f_ops);
                     /* Sometimes filesystems share operation tables in which case we
                     want to store real pointers for restore. */
-                    talpa_rcu_write_lock(&GL_object.mPatchLock);
+                    talpa_rcu_read_lock(&GL_object.mPatchLock);
                     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
                     {
                         if ( p != patch && p->f_ops == patch->f_ops )
@@ -481,7 +481,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                             break;
                         }
                     }
-                    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+                    talpa_rcu_read_unlock(&GL_object.mPatchLock);
                     if ( spatch )
                     {
                         patch->open = spatch->open;
@@ -619,7 +619,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                     dbg("  storing original file operations [0x%p]", patch->f_ops);
                     /* Sometimes filesystems share operation tables in which case we
                     want to store real pointers for restore. */
-                    talpa_rcu_write_lock(&GL_object.mPatchLock);
+                    talpa_rcu_read_lock(&GL_object.mPatchLock);
                     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
                     {
                         if ( p != patch && p->f_ops == patch->f_ops )
@@ -629,7 +629,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                             break;
                         }
                     }
-                    talpa_rcu_write_unlock(&GL_object.mPatchLock);
+                    talpa_rcu_read_unlock(&GL_object.mPatchLock);
                     if ( spatch )
                     {
                         patch->open = spatch->open;
