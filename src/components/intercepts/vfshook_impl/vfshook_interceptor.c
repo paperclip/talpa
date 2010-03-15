@@ -1125,7 +1125,7 @@ exit1:
 
 static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
-    struct patchedFilesystem*   spatch = patch;
+    struct patchedFilesystem*   spatch = NULL;
     struct patchedFilesystem*   p;
 
 
@@ -1283,7 +1283,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
 static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     bool shouldinc = true;
-    struct patchedFilesystem*   spatch = patch;
+    struct patchedFilesystem*   spatch = NULL;
     struct patchedFilesystem*   p;
 
 
