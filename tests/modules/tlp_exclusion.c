@@ -74,17 +74,15 @@ static ISystemRoot* systemRoot(void)
 FilesystemExclusionProcessor *exclusion;
 EvaluationReportImpl *erep;
 static ProcfsConfigurator*  mConfig;
+static struct talpa_file tf;
+static struct talpa_filesystem tfs;
 
 int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long parm)
 {
     int ret = -ENOTTY;
 
     LinuxPersonality *pers;
-
-    struct talpa_file tf;
     LinuxFileInfo *fi;
-
-    struct talpa_filesystem tfs;
     LinuxFilesystemInfo *fsi;
 
     pers = newLinuxPersonality();

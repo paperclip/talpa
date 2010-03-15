@@ -235,19 +235,17 @@ static void purgeDenyFilters(StandardInterceptProcessor* mProcessor)
     return;
 }
 
+static struct talpa_file tf;
+static struct talpa_filesystem tfs;
+
 /*
  * Test ioctl interface.
  */
 int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long parm)
 {
     int ret = -ENOTTY;
-
-    struct talpa_file tf;
     LinuxFileInfo *fi;
-
-    struct talpa_filesystem tfs;
     LinuxFilesystemInfo *fsi;
-
     TestFilter* filter;
 
     switch ( cmd )
