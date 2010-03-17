@@ -449,7 +449,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
-                    struct patchedFilesystem*   spatch = patch;
+                    struct patchedFilesystem*   spatch = NULL;
                     struct patchedFilesystem*   p;
 
 
@@ -597,7 +597,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
-                    struct patchedFilesystem*   spatch = patch;
+                    struct patchedFilesystem*   spatch = NULL;
                     struct patchedFilesystem*   p;
 
 
