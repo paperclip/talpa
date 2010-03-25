@@ -355,6 +355,7 @@ for searchdir in `echo $2 | ${SED} 's/:/ /g'`
     if test -f $searchdir/$1; then
         file_found="true"
         TALPA_FILE_LOCATION=$searchdir
+        break
     fi
   done
 if test "$file_found" = "false"; then
@@ -387,6 +388,7 @@ for hdrdir in `echo $2 | ${SED} 's/:/ /g'`
     if test -f $hdrdir/$1; then
         hdr_found="true"
         TALPA_HEADER_LOCATION=$hdrdir
+        break
     fi
   done
 if test "$hdr_found" = "false"; then
