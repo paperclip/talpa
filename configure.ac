@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.60)
+AC_INIT(talpa, 0.9.61)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -448,6 +448,19 @@ fi
 #
 # Kernel headers autodetection
 #
+function append_path
+{
+    local full=$1
+    local path=$2
+
+
+    if test "$full" = ""; then
+        echo "$path"
+    else
+        echo "$full:$path"
+    fi
+}
+
 function check_headers_layout
 {
     local type=$1
@@ -456,52 +469,48 @@ function check_headers_layout
     AC_MSG_CHECKING([for kernel headers layout])
     if test "$type" = "xen"; then
         if test -d "${kerneldir}/include2/asm/mach-xen"; then
-            kernelhdrspath="${kerneldir}/include2/asm/mach-xen:"
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include2/asm/mach-xen"`
+        fi
+        if test -d "${kerneldir}/include/asm/mach-xen"; then
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include/asm/mach-xen"`
+        fi
+        if test -d "${kerneldir}/arch/x86/include/asm/mach-xen"; then
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include/asm/mach-xen"`
+        fi
+        if test -d "${sourcedir}/include/asm/mach-xen"; then
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/include/asm/mach-xen"`
+        fi
+        if test -d "${sourcedir}/arch/x86/include/asm/mach-xen"; then
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/arch/x86/include/asm/mach-xen"`
         fi
     fi
-    kernelhdrspath="${kernelhdrspath}${kerneldir}/include"
+    kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include"`
     if test -d "${kerneldir}/arch/x86/include/asm"; then
-        kernelhdrspath="${kernelhdrspath}:${kerneldir}/arch/x86/include"
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include"`
     fi
     if test -d "${kerneldir}/include2"; then
-        kernelhdrspath="${kernelhdrspath}:${kerneldir}/include2"
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include2"`
         if test -d "${kerneldir}/include2/asm/mach-default"; then
-            kernelhdrspath="${kernelhdrspath}:${kerneldir}/include2/asm/mach-default"
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include2/asm/mach-default"`
         fi
     fi
     if test -d "${sourcedir}"; then
-        kernelhdrspath="${kernelhdrspath}:${sourcedir}/include"
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/include"`
         if test -d "${sourcedir}/arch/x86/include/asm"; then
-            kernelhdrspath="${kernelhdrspath}:${sourcedir}/arch/x86/include"
-        fi
-    fi
-    if test "$type" = "xen"; then
-        if test -d "${kerneldir}/include/asm/mach-xen"; then
-            kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-xen"
-        fi
-        if test -d "${kerneldir}/arch/x86/include/asm/mach-xen"; then
-            kernelhdrspath="${kernelhdrspath}:${kerneldir}/arch/x86/include/asm/mach-xen"
+            kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/arch/x86/include"`
         fi
     fi
     if test -d "${kerneldir}/include/asm/mach-default"; then
-        kernelhdrspath="${kernelhdrspath}:${kerneldir}/include/asm/mach-default"
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include/asm/mach-default"`
     fi
     if test -d "${kerneldir}/arch/x86/include/asm/mach-default"; then
-        kernelhdrspath="${kernelhdrspath}:${kerneldir}/arch/x86/include/asm/mach-default"
-    fi
-    if test "$type" = "xen"; then
-        if test -d "${sourcedir}/include/asm/mach-xen"; then
-            kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-xen"
-        fi
-        if test -d "${sourcedir}/arch/x86/include/asm/mach-xen"; then
-            kernelhdrspath="${kernelhdrspath}:${sourcedir}/arch/x86/include/asm/mach-xen"
-        fi
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include/asm/mach-default"`
     fi
     if test -d "${sourcedir}/include/asm/mach-default"; then
-        kernelhdrspath="${kernelhdrspath}:${sourcedir}/include/asm/mach-default"
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/include/asm/mach-default"`
     fi
     if test -d "${sourcedir}/arch/x86/include/asm/mach-default"; then
-        kernelhdrspath="${kernelhdrspath}:${sourcedir}/arch/x86/include/asm/mach-default"
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/arch/x86/include/asm/mach-default"`
     fi
     AC_MSG_RESULT([$kernelhdrspath])
 }
