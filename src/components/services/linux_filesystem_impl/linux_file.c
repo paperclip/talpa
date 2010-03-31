@@ -620,7 +620,9 @@ static int truncate(void* self, loff_t length)
     if (error)
         goto out;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34)
+    error = break_lease(inode, O_WRONLY);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     error = break_lease(inode, FMODE_WRITE);
 #else
     error = get_lease(inode, FMODE_WRITE);
@@ -650,7 +652,9 @@ static int truncate(void* self, loff_t length)
             static dotruncatefunc talpa_do_truncate = (dotruncatefunc)TALPA_DOTRUNCATE_ADDR;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+  #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34)
             vfs_dq_init(inode);
+  #endif
 #else
             DQUOT_INIT(inode);
 #endif
