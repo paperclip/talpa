@@ -26,9 +26,11 @@ dd if=/dev/zero of=${tmpdir}/fs1.img bs=1M count=4 >/dev/null 2>&1
 dd if=/dev/zero of=${tmpdir}/fs2.img bs=1M count=4 >/dev/null 2>&1
 
 mkfs='/sbin/mkfs.minix'
+mkfs_args=4096
 fs=minix
 if [ ! -x "$mkfs" ]; then
     mkfs='/sbin/mkfs.vfat'
+    mkfs_args=
     fs=vfat
     if [ ! -x "$mkfs" ]; then
         mkfs=''
@@ -39,8 +41,8 @@ if [ "$mkfs" = "" ]; then
     exit 77
 fi
 
-${mkfs} ${tmpdir}/fs1.img >/dev/null
-${mkfs} ${tmpdir}/fs2.img >/dev/null
+${mkfs} ${tmpdir}/fs1.img ${mkfs_args} >/dev/null
+${mkfs} ${tmpdir}/fs2.img ${mkfs_args} >/dev/null
 
 # We can't be sure we'll have all we need to run this test so skip if anything fails
 if ! mount -t $fs ${tmpdir}/fs1.img ${tmpdir}/mnt1 -o loop; then
