@@ -30,6 +30,9 @@
 #else
 #include <asm/semaphore.h>
 #endif
+#ifdef CONFIG_IMA
+#include <linux/ima.h>
+#endif
 
 #include "common/talpa.h"
 #include "linux_file.h"
@@ -287,6 +290,22 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
             return error;
         }
     }
+
+#ifdef CONFIG_IMA
+    {
+        struct path path = {mnt, dentry};
+
+
+        error = ima_path_check(&path, acc_mode ?
+                               acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
+                               ACC_MODE(flags) & (MAY_READ | MAY_WRITE),
+                               IMA_COUNT_UPDATE);
+        if ( unlikely( error != 0 ) )
+        {
+            return error;
+        }
+    }
+#endif
 
 #ifdef current_cred /* Introduced in 2.6.29. */
     file = dentry_open(dget(dentry), mntget(mnt), flags, current_cred());

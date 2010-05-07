@@ -2175,6 +2175,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     /* Known good filesystems */
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "ext2", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "ext3", false);
+    appendObject(&GL_object, &GL_object.mGoodFilesystems, "ext4", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "jfs", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "xfs", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "reiserfs", false);
@@ -2220,6 +2221,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "binfmt_misc", false);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "aufs", true);
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "mqueue", true);
+    appendObject(&GL_object, &GL_object.mSkipFilesystems, "cgroup", false);
 
     /* Filesystems not to be scanned immediately after mount */
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
