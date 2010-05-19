@@ -651,7 +651,11 @@ static void **get_start_addr(void)
 {
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
     #ifdef CONFIG_SMP
+      #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+    return (void **)&_lock_kernel;
+      #else
     return (void **)&lock_kernel;
+      #endif
     #else
       #include <linux/mutex.h>
       #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -674,7 +678,11 @@ static void **get_start_addr_ia32(void)
 {
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
       #ifdef CONFIG_SMP
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+    return (void **)&_lock_kernel;
+        #else
     return (void **)&lock_kernel;
+        #endif
       #else
         #include <linux/mutex.h>
     return (void **)&mutex_lock;
