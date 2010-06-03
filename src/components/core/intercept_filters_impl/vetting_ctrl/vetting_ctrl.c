@@ -1787,11 +1787,11 @@ static struct TalpaProtocolHeader* obtainVettingDetails(void* self, VettingClien
                 talpa_group_unlock(&group->lock);
                 if ( client->timeout_ms == 0 )
                 {
-                    ret = wait_event_interruptible(client->group->clientWaitQueue, checkVettingQueue(group));
+                    ret = talpa_wait_event_interruptible_exclusive(client->group->clientWaitQueue, checkVettingQueue(group));
                 }
                 else
                 {
-                    ret = talpa_wait_event_interruptible_timeout(client->group->clientWaitQueue, checkVettingQueue(group), client->timeout_ms);
+                    ret = talpa_wait_event_interruptible_exclusive_timeout(client->group->clientWaitQueue, checkVettingQueue(group), client->timeout_ms);
                 }
 
                 if ( !ret )

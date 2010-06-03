@@ -121,6 +121,76 @@ do { \
     __ret; \
 })
 
+#define __talpa_wait_event_interruptible_exclusive(wq, condition, ret) \
+do { \
+        wait_queue_t __wait; \
+        init_waitqueue_entry(&__wait, current); \
+\
+        add_wait_queue_exclusive(&wq, &__wait); \
+        for (;;) { \
+                set_current_state(TASK_INTERRUPTIBLE); \
+                if (condition) \
+                        break; \
+                if (!signal_pending(current)) { \
+                        schedule(); \
+                        continue; \
+                } \
+                ret = -ERESTARTSYS; \
+                break; \
+        } \
+        current->state = TASK_RUNNING; \
+        remove_wait_queue(&wq, &__wait); \
+} while (0)
+
+#define talpa_wait_event_interruptible_exclusive(wq, condition) \
+({ \
+    long __ret = 0; \
+    if (!(condition)) \
+        __talpa_wait_event_interruptible_exclusive(wq, condition, __ret); \
+    __ret; \
+})
+
+#define __talpa_wait_event_interruptible_exclusive_timeout(wq, condition, timeout, ret) \
+do { \
+    unsigned long sleep = timeout; \
+    unsigned long start, elapsed; \
+    wait_queue_t __wait; \
+    init_waitqueue_entry(&__wait, current); \
+    ret = -ETIME; \
+\
+    add_wait_queue_exclusive(&wq, &__wait); \
+    for (;;) { \
+        set_current_state(TASK_INTERRUPTIBLE); \
+        if (condition) { \
+            ret = 0; \
+            break; \
+        } \
+        if (!signal_pending(current)) {             \
+            start = jiffies; \
+            schedule_timeout(sleep);                    \
+            elapsed = time_diff(start, jiffies); \
+            if ( elapsed >= sleep ) { \
+                break; \
+            } else { \
+                sleep -= elapsed; \
+            } \
+        } else { \
+            ret = -ERESTARTSYS;  \
+            break; \
+        } \
+    } \
+    current->state = TASK_RUNNING; \
+    remove_wait_queue(&wq, &__wait); \
+} while(0)
+
+#define talpa_wait_event_interruptible_exclusive_timeout(wq, condition, timeout) \
+({ \
+    long __ret = 0; \
+    if (!(condition)) \
+        __talpa_wait_event_interruptible_exclusive_timeout(wq, condition, timeout, __ret); \
+    __ret; \
+})
+
 #else /* 2.4 above, 2.6 below */
 
 #define __talpa_wait_event_timeout(wq, condition, timeout, ret) \
@@ -238,6 +308,69 @@ do { \
 #define talpa_wait_event_killable_timeout talpa_wait_event_timeout
 #endif /* TASK_KILLABLE */
 
+#define __talpa_wait_event_interruptible_exclusive(wq, condition, ret) \
+do { \
+    DEFINE_WAIT(__wait); \
+\
+    for (;;) { \
+        prepare_to_wait_exclusive(&wq, &__wait, TASK_INTERRUPTIBLE); \
+        if (condition) \
+            break; \
+        if (!signal_pending(current)) { \
+            schedule(); \
+        } else { \
+            ret = -ERESTARTSYS; \
+            break; \
+        } \
+    } \
+    finish_wait(&wq, &__wait); \
+} while(0)
+
+#define talpa_wait_event_interruptible_exclusive(wq, condition) \
+({ \
+    long __ret = 0; \
+    if (!(condition)) \
+        __talpa_wait_event_interruptible_exclusive(wq, condition, __ret); \
+    __ret; \
+})
+
+#define __talpa_wait_event_interruptible_exclusive_timeout(wq, condition, timeout, ret) \
+do { \
+    unsigned long sleep = timeout; \
+    unsigned long start, elapsed; \
+    DEFINE_WAIT(__wait);                        \
+    ret = -ETIME; \
+\
+    for (;;) { \
+        prepare_to_wait_exclusive(&wq, &__wait, TASK_INTERRUPTIBLE);  \
+        if (condition) { \
+            ret = 0; \
+            break; \
+        } \
+        if (!signal_pending(current)) {             \
+            start = jiffies; \
+            schedule_timeout(sleep);                    \
+            elapsed = time_diff(start, jiffies); \
+            if ( elapsed >= sleep ) { \
+                break; \
+            } else { \
+                sleep -= elapsed; \
+            } \
+        } else { \
+            ret = -ERESTARTSYS;  \
+            break; \
+        } \
+    } \
+    finish_wait(&wq, &__wait);                  \
+} while(0)
+
+#define talpa_wait_event_interruptible_exclusive_timeout(wq, condition, timeout) \
+({ \
+    long __ret = 0; \
+    if (!(condition)) \
+        __talpa_wait_event_interruptible_exclusive_timeout(wq, condition, timeout, __ret); \
+    __ret; \
+})
 
 #endif /* Kernel version */
 
