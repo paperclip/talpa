@@ -373,7 +373,7 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
             {
                 if ( !err )
                 {
-                    err = processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_flags, false);
+                    err = processMount(filp->f_vfsmnt, filp->f_vfsmnt->mnt_sb->s_flags, false);
                 }
                 else
                 {
@@ -1625,10 +1625,10 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         }
         else
         {
-            /* Re-patch filesystem, increase usecnt if repatch thinks we should
-               but never for re-mounts. */
+            /* Re-patch filesystem and increase usecnt if repatch thinks we should, but not
+               for re-mounts, unless flag incorrectly appears in an already mounted filesystem. */
             shouldinc = repatchFilesystem(mnt, reg, smbfs, patch);
-            if ( shouldinc && !(flags & MS_REMOUNT) )
+            if ( shouldinc && !(fromMount && (flags & MS_REMOUNT)) )
             {
                 atomic_inc(&patch->usecnt);
                 dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
@@ -1975,9 +1975,9 @@ static int walkMountTree(void)
     mnt = mntget(rootmnt);
     do
     {
-        dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_type->name);
+        dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, flags: 0x%x, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_flags, mnt->mnt_sb->s_type->name);
 
-        ret = processMount(mnt, mnt->mnt_flags, false);
+        ret = processMount(mnt, mnt->mnt_sb->s_flags, false);
         if (ret)
         {
             break;
