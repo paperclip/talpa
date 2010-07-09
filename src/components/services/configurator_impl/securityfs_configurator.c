@@ -315,6 +315,7 @@ static ssize_t securityfsWrite(struct file *file, const char __user *buf, size_t
 }
 
 static struct file_operations securityfsOps = {
+    .owner =    THIS_MODULE,
     .open =     securityfsOpen,
     .read =     securityfsRead,
     .write =    securityfsWrite,
