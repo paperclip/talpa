@@ -387,13 +387,9 @@ static unsigned long *talpa_phys_base = (unsigned long *)TALPA_PHYS_BASE;
 #    define talpa_ka_to_cpa(adr) ((unsigned long)adr)
 #  endif /* NEEDS_VA_CPA */
 
-#ifndef DIV_ROUND_UP
-  #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
-#endif
-
 static void *talpa_syscallhook_unro(void *addr, size_t len, int rw)
 {
-    unsigned long nr_pages = DIV_ROUND_UP(((unsigned long)addr & (PAGE_SIZE - 1)) + len, PAGE_SIZE);
+    unsigned long nr_pages = len / PAGE_SIZE;
 
 
   #ifdef TALPA_HAS_SET_PAGES
