@@ -1157,8 +1157,12 @@ if test $((kern_version_code)) -ge 132608; then
         AC_SUBST(syscallhook, "yes")
     else
         # Detect SLES11 kernels
-        kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-        kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        # Blacklist openSUSE 11.3 release
+        kern_release=`$UNAME -r`
+        if test "$kernel_release" != "2.6.34-12-desktop"; then
+            kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+            kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        fi
         if test "$kfunc_mark_rodata_rw" != "" -a "$kfunc_mark_rodata_ro" != ""; then
             # First SLES11 release on x86_64 does not work
             if test "$kern_arch" = "x86_64" -a "$kern_uts_release" = "2.6.27.19-5-default"; then
