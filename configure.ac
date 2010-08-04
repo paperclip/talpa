@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.65)
+AC_INIT(talpa, 0.9.66)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2008 Sophos PLC)
 
@@ -685,6 +685,16 @@ else
     AC_MSG_RESULT([$system_map])
 fi
 
+# Check for printk address
+AC_MSG_CHECKING([for printk address])
+tmp=`${EGREP} " printk\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+if test "$tmp" != ""; then
+    AC_MSG_RESULT([0x$tmp])
+    AC_SUBST(printkaddr, "-DTALPA_PRINTK_ADDR=0x$tmp")
+else
+    AC_MSG_ERROR([not found])
+fi
+
 # Check for do_truncate address
 AC_MSG_CHECKING([for do_truncate address])
 tmp=`${EGREP} " do_truncate\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
@@ -1159,7 +1169,7 @@ if test $((kern_version_code)) -ge 132608; then
         # Detect SLES11 kernels
         # Blacklist openSUSE 11.3 release
         kern_release=`$UNAME -r`
-        if test "$kernel_release" != "2.6.34-12-desktop"; then
+        if test "$kern_release" != "2.6.34-12-desktop"; then
             kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
             kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         fi
@@ -1534,6 +1544,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@freetaskflag@/${freetaskflag}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
+                s/@printkaddr@/${printkaddr}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
                 s/@dotruncateaddr@/${dotruncateaddr}/; \
                 s/@vfsunlink@/${vfsunlink}/; \
@@ -1576,6 +1587,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@freetaskflag@/${freetaskflag}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
+                s/@printkaddr@/${printkaddr}/; \
                 s/@dotruncatetype@/${dotruncatetype}/; \
                 s/@dotruncateaddr@/${dotruncateaddr}/; \
                 s/@vfsunlink@/${vfsunlink}/; \

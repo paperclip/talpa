@@ -624,6 +624,25 @@ static asmlinkage long talpa_umount2(char* name, int flags)
 /*
  * System call table helpers
  */
+#ifndef CONFIG_RELOCATABLE
+void* talpa_get_symbol(const char* name, const void* ptr)
+{
+    (void)name;
+
+
+    return ptr;
+}
+#else
+void* talpa_get_symbol(const char* name, const void* ptr)
+{
+    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
+
+
+    (void)name;
+
+    return (void *)ptr + offset;
+}
+#endif
 
 #ifdef TALPA_HIDDEN_SYSCALLS
 static void **sys_call_table;
@@ -1357,6 +1376,19 @@ static int __init talpa_syscallhook_init(void)
 {
     int ret;
 
+
+    /* Relocate addresses (if needed) embedded at compile time. */
+#ifdef TALPA_HIDDEN_SYSCALLS
+    syscall_table = (unsigned long)talpa_get_symbol("sys_call_table", (void *)syscall_table);
+  #ifdef CONFIG_IA32_EMULATION
+    syscall32_table = (unsigned long)talpa_get_symbol("ia32_sys_call_table", (void *)syscall32_table);
+  #endif
+#endif
+
+#ifdef TALPA_NEED_MANUAL_RODATA
+   rodata_start = (unsigned long)talpa_get_symbol("__start_rodata", (void *)rodata_start);
+   rodata_end = (unsigned long)talpa_get_symbol("__end_rodata", (void *)rodata_end);
+#endif
 
     ret = find_syscall_table();
     if ( ret < 0 )

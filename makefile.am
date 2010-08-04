@@ -34,7 +34,7 @@ if KBUILDUSEM
 kbuildenv := M
 else !KBUILDUSEM
 kbuildenv := SUBDIRS
-endif !KBUILDUSEM  
+endif !KBUILDUSEM
 
 EXTRA_DIST += $(shell find src -type f -name "*.h")
 
@@ -47,7 +47,7 @@ TALPAMODULES := \
 				talpa_syscallhook.ko \
 				talpa_syscallhookprobe.ko \
 				talpa_syscall.ko \
-				talpa_vfshook.ko 
+				talpa_vfshook.ko
 
 if BUILDLSM
 
@@ -96,7 +96,7 @@ clean-local :
 
 else !KBUILD26
 
-modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @talpaversion@ @debug@ @assert@ @freetaskflag@ @pathlookup@ @newparent@ @dotruncatetype@ @dotruncateaddr@ @backportedprefetch@ @snprintf@ @xhack@ @binarysysctl@ ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE}
+modules_SYMS            =   -D__KERNEL__ -DMODULE -DEXPORT_SYMTAB @talpaversion@ @debug@ @assert@ @freetaskflag@ @pathlookup@ @newparent@ @printkaddr@ @dotruncatetype@ @dotruncateaddr@ @backportedprefetch@ @snprintf@ @xhack@ @binarysysctl@ ${TALPA_ID} ${TALPA_SYSCALL_TABLE} ${TALPA_SYSCALL32_TABLE}
 modules_CFLAGS          =   $(modules_SYMS) -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -mpreferred-stack-boundary=2 -Wall -I$(srcdir)/src -I$(srcdir)/src/ifaces -I$(srcdir)/include @kernelincludes@
 MODULELINKCMD           =   $(MODULELINKER) -m elf_i386 -r -o $@
 modulesdir              =   $(libdir)

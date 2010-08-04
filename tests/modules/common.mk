@@ -158,7 +158,8 @@ tlpDegrModeSOURCES    =  tlp_degrmode.c \
 tlpDegrModeOBJS       =  $(tlpDegrModeSOURCES:.c=.o)
 
 tlpFileSOURCES    =  tlp_file.c \
-                   src/components/services/linux_filesystem_impl/linux_file.c
+                     src/platforms/linux/glue.c \
+                     src/components/services/linux_filesystem_impl/linux_file.c
 
 tlpFileOBJS       =  $(tlpFileSOURCES:.c=.o)
 

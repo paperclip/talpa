@@ -191,19 +191,8 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
  * tasklist_lock un-export handling
  */
 #ifdef TALPA_NO_TASKLIST_LOCK
-static inline void talpa_tasklist_lock(void)
-{
-    rwlock_t* talpa_tasklist_lock_addr = (rwlock_t *)TALPA_TASKLIST_LOCK_ADDR;
-
-    read_lock(talpa_tasklist_lock_addr);
-}
-
-static inline void talpa_tasklist_unlock(void)
-{
-    rwlock_t* talpa_tasklist_lock_addr = (rwlock_t *)TALPA_TASKLIST_LOCK_ADDR;
-
-    read_unlock(talpa_tasklist_lock_addr);
-}
+void talpa_tasklist_lock(void);
+void talpa_tasklist_unlock(void);
 #else
 static inline void talpa_tasklist_lock(void)
 {
@@ -220,19 +209,8 @@ static inline void talpa_tasklist_unlock(void)
  * hidden vfsmnt_lock handling
  */
 #ifdef TALPA_USE_VFSMOUNT_LOCK
-static inline void talpa_vfsmount_lock(void)
-{
-    spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)TALPA_VFSMOUNT_LOCK_ADDR;
-
-    spin_lock(talpa_vfsmount_lock_addr);
-}
-
-static inline void talpa_vfsmount_unlock(void)
-{
-    spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)TALPA_VFSMOUNT_LOCK_ADDR;
-
-    spin_unlock(talpa_vfsmount_lock_addr);
-}
+void talpa_vfsmount_lock(void);
+void talpa_vfsmount_unlock(void);
 #else
 static inline void talpa_vfsmount_lock(void)
 {
@@ -287,6 +265,7 @@ static inline struct task_struct *talpa_find_task_by_pid(pid_t pid)
 #endif
 }
 
+void* talpa_get_symbol(const char* name, const void* ptr);
 
 #endif
 /*

@@ -29,6 +29,7 @@
 
 #include "platforms/linux/glue.h"
 
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && (!defined TALPA_HAS_DPATH)
 /**
  * d_path - return the path of a dentry
@@ -134,7 +135,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
 
 #   if defined TALPA_HAS_DPATH_ADDR
-    d_path_func kernel_d_path = (d_path_func)TALPA_DPATH_ADDR;
+    d_path_func kernel_d_path = (d_path_func)talpa_get_symbol("__d_path", (void *)TALPA_DPATH_ADDR);
 #   else
     d_path_func kernel_d_path = &__d_path;
 #   endif
@@ -183,6 +184,72 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
     return path;
 }
+
+/*
+ * tasklist_lock un-export handling
+ */
+#ifdef TALPA_NO_TASKLIST_LOCK
+void talpa_tasklist_lock(void)
+{
+    rwlock_t* talpa_tasklist_lock_addr = (rwlock_t *)talpa_get_symbol("tasklist_lock", (void *)TALPA_TASKLIST_LOCK_ADDR);
+
+
+    read_lock(talpa_tasklist_lock_addr);
+}
+
+void talpa_tasklist_unlock(void)
+{
+    rwlock_t* talpa_tasklist_lock_addr = (rwlock_t *)talpa_get_symbol("tasklist_lock", (void *)TALPA_TASKLIST_LOCK_ADDR);
+
+
+    read_unlock(talpa_tasklist_lock_addr);
+}
+#endif
+
+/*
+ * hidden vfsmnt_lock handling
+ */
+#ifdef TALPA_USE_VFSMOUNT_LOCK
+void talpa_vfsmount_lock(void)
+{
+    spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)talpa_get_symbol("vfmount_lock", (void *)TALPA_VFSMOUNT_LOCK_ADDR);
+
+
+    spin_lock(talpa_vfsmount_lock_addr);
+}
+
+void talpa_vfsmount_unlock(void)
+{
+    spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)talpa_get_symbol("vfmount_lock", (void *)TALPA_VFSMOUNT_LOCK_ADDR);
+
+
+    spin_unlock(talpa_vfsmount_lock_addr);
+}
+#endif
+
+
+/*
+ * Relocatable hidden kernel symbol support.
+ */
+#ifndef CONFIG_RELOCATABLE
+void* talpa_get_symbol(const char* name, const void* ptr)
+{
+    (void)name;
+
+
+    return ptr;
+}
+#else
+void* talpa_get_symbol(const char* name, const void* ptr)
+{
+    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
+
+
+    (void)name;
+
+    return (void *)ptr + offset;
+}
+#endif
 
 /*
 * End of linux_glue.c

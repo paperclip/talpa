@@ -292,6 +292,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
     }
 
 #ifdef CONFIG_IMA
+  #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,32)
     {
         struct path path = {mnt, dentry};
 
@@ -305,6 +306,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
             return error;
         }
     }
+  #endif
 #endif
 
 #ifdef current_cred /* Introduced in 2.6.29. */
@@ -668,7 +670,7 @@ static int truncate(void* self, loff_t length)
 #else
   #error "Truncate type not defined!"
 #endif
-            static dotruncatefunc talpa_do_truncate = (dotruncatefunc)TALPA_DOTRUNCATE_ADDR;
+            dotruncatefunc talpa_do_truncate = (dotruncatefunc)talpa_get_symbol("do_truncate", (void *)TALPA_DOTRUNCATE_ADDR);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
   #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34)
