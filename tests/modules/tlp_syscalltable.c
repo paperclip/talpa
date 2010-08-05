@@ -579,9 +579,6 @@ static int __init talpa_syscallhook_init(void)
     /* Relocate addresses (if needed) embedded at compile time. */
 #ifdef TALPA_HIDDEN_SYSCALLS
     syscall_table = (unsigned long)talpa_get_symbol("sys_call_table", (void *)syscall_table);
-  #ifdef CONFIG_IA32_EMULATION
-    syscall32_table = (unsigned long)talpa_get_symbol("ia32_sys_call_table", (void *)syscall32_table);
-  #endif
 #endif
 
 #ifdef TALPA_NEED_MANUAL_RODATA
