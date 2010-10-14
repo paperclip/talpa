@@ -1885,7 +1885,19 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
         return;
     }
 
-    talpa_rcu_write_lock(&GL_object.mPatchLock);
+	/* Unprotect read-only memory outside locks held. */
+	do
+	{
+		ret = talpa_syscallhook_modify_start();
+		if (ret)
+		{
+			info("Waiting for memory unprotection.");
+			__set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(HZ);
+		}
+	} while (ret);
+
+	talpa_rcu_write_lock(&GL_object.mPatchLock);
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
@@ -1903,18 +1915,7 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
     {
         if ( atomic_dec_and_test(&patch->usecnt) )
         {
-            do
-            {
-                ret = talpa_syscallhook_modify_start();
-                if (ret)
-                {
-                    info("Waiting for memory unprotection.");
-                    __set_current_state(TASK_UNINTERRUPTIBLE);
-                    schedule_timeout(HZ);
-                }
-            } while (ret);
             restoreFilesystem(patch);
-            talpa_syscallhook_modify_finish();
             talpa_list_del_rcu(&patch->head);
             talpa_rcu_write_unlock(&GL_object.mPatchLock);
             atomic_dec(&patch->refcnt);
@@ -1937,6 +1938,8 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
     {
         talpa_rcu_write_unlock(&GL_object.mPatchLock);
     }
+
+	talpa_syscallhook_modify_finish();
 
     /* Free list showed to userspace so it will be regenerated on next read */
     destroyStringSet(&GL_object, &GL_object.mPatchListSet);
@@ -2099,29 +2102,25 @@ next_token:
 static void purgePatches(void* self)
 {
     struct patchedFilesystem *p;
-    unsigned int count = 0;
     int ret;
 
 
-    talpa_rcu_write_lock(&this->mPatchLock);
-    if ( !list_empty(&this->mPatches) )
-    {
-        do
-        {
-            ret = talpa_syscallhook_modify_start();
-            if (ret)
-            {
-                info("Waiting to unprotect memory.");
-                __set_current_state(TASK_UNINTERRUPTIBLE);
-                schedule_timeout(HZ);
-            }
-        } while (ret);
-    }
+	/* Unprotect read-only memory outside locks held. */
+	do
+	{
+		ret = talpa_syscallhook_modify_start();
+		if (ret)
+		{
+			info("Waiting to unprotect memory.");
+			__set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(HZ);
+		}
+	} while (ret);
 
 nextpatch:
+	talpa_rcu_write_lock(&this->mPatchLock);
     talpa_list_for_each_entry_rcu(p, &this->mPatches, head)
     {
-        count++;
         dbg("Restoring %s", p->fstype->name);
         restoreFilesystem(p);
         talpa_list_del_rcu(&p->head);
@@ -2133,15 +2132,11 @@ nextpatch:
             dbg("purgePatches: refcnt for %s = %d after sync", p->fstype->name, atomic_read(&p->refcnt));
         } while ( atomic_read(&p->refcnt) > 0 );
         talpa_free(p);
-        talpa_rcu_write_lock(&this->mPatchLock);
         goto nextpatch;
     }
     talpa_rcu_write_unlock(&this->mPatchLock);
 
-    if ( count > 0 )
-    {
-        talpa_syscallhook_modify_finish();
-    }
+    talpa_syscallhook_modify_finish();
 }
 
 VFSHookInterceptor* newVFSHookInterceptor(void)

@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)
     #include <linux/syscalls.h>
@@ -182,6 +183,10 @@ static unsigned long rodata_end;
 static long rwdata_offset;
 #endif
 
+#if defined(TALPA_HAS_RODATA) && !defined(TALPA_RODATA_MAP_WRITABLE)
+/* Only need the mutex if we have to unprotect/reprotect around each access */
+DEFINE_MUTEX(rodata_lock);
+#endif
 
 /*
  * Exported interface
@@ -238,40 +243,93 @@ extern void mark_rodata_rw(void);
 extern void mark_rodata_ro(void);
 #endif
 
-int talpa_syscallhook_modify_start(void)
-{
+
 #ifdef TALPA_HAS_RODATA
+
+static int _talpa_syscallhook_modify_start(void)
+{
+  #ifndef TALPA_RODATA_MAP_WRITABLE
+    /* Don't need a lock if we are using shadow mappings */
+    mutex_lock(&rodata_lock);
+  #endif
+  
   #ifdef TALPA_HAS_MARK_RODATA_RW
     mark_rodata_rw();
   #else
     unsigned long rwshadow;
 
-    lock_kernel();
     rwshadow = (unsigned long)talpa_syscallhook_unro((void *)rodata_start, rodata_end - rodata_start, 1);
-    unlock_kernel();
     if (!rwshadow)
     {
         return 1;
     }
     rwdata_offset = rwshadow - rodata_start;
   #endif
-#endif
 
+    return 0;
+}
+
+static void _talpa_syscallhook_modify_finish(void)
+{
+  #ifdef TALPA_HAS_MARK_RODATA_RW
+    mark_rodata_ro();
+  #else
+    talpa_syscallhook_unro((void *)(rodata_start + rwdata_offset), rodata_end - rodata_start, 0);
+  #endif
+
+  #ifndef TALPA_RODATA_MAP_WRITABLE
+    /* Don't need a lock if we are using shadow mappings */
+    mutex_unlock(&rodata_lock);
+  #endif 
+}
+
+  #ifdef TALPA_RODATA_MAP_WRITABLE
+int talpa_syscallhook_modify_start(void)
+{
+    /* External functions don't need to do anything */
     return 0;
 }
 
 void talpa_syscallhook_modify_finish(void)
 {
-#ifdef TALPA_HAS_RODATA
-  #ifdef TALPA_HAS_MARK_RODATA_RW
-    mark_rodata_ro();
-  #else
-    lock_kernel();
-    talpa_syscallhook_unro((void *)(rodata_start + rwdata_offset), rodata_end - rodata_start, 0);
-    unlock_kernel();
-  #endif
-#endif
+    /* External functions don't need to do anything */
+    return;
 }
+  #else
+int talpa_syscallhook_modify_start(void)
+{
+    return _talpa_syscallhook_modify_start();
+}
+
+void talpa_syscallhook_modify_finish(void)
+{
+    _talpa_syscallhook_modify_finish();
+}
+  #endif
+#else /* TALPA_HAS_RODATA */
+
+/* Don't need any implementation if the structures are writable anyway */
+
+static int _talpa_syscallhook_modify_start(void)
+{
+    return 0;
+}
+
+int talpa_syscallhook_modify_start(void)
+{
+    return 0;
+}
+
+static void _talpa_syscallhook_modify_finish(void)
+{
+}
+
+void talpa_syscallhook_modify_finish(void)
+{
+}
+#endif
+
+
 
 void *talpa_syscallhook_poke(void *addr, void *val)
 {
@@ -1401,7 +1459,8 @@ static int __init talpa_syscallhook_init(void)
     fsync_dev(0);
 #endif
     save_originals();
-    ret = talpa_syscallhook_modify_start();
+    /* For shadow mapping this creates the mapping */
+    ret = _talpa_syscallhook_modify_start();
     if (ret)
     {
         unlock_kernel();
@@ -1409,6 +1468,7 @@ static int __init talpa_syscallhook_init(void)
         return ret;
     }
     patch_table();
+    /* For shadow mapping this is a noop */
     talpa_syscallhook_modify_finish();
     unlock_kernel();
 
@@ -1460,6 +1520,7 @@ static void __exit talpa_syscallhook_exit(void)
     }
     do
     {
+        /* For shadow mapping this is a noop */
         ret = talpa_syscallhook_modify_start();
         if (ret)
         {
@@ -1471,7 +1532,8 @@ static void __exit talpa_syscallhook_exit(void)
         }
     } while (ret); /* Unfortunate but we can't possibly exit if we failed to restore original pointers. */
     restore_table();
-    talpa_syscallhook_modify_finish();
+    /* With shadow mapping, this will actually free the shadow mapping */
+    _talpa_syscallhook_modify_finish();
     unlock_kernel();
 
     /* Now wait for a last caller to exit */
