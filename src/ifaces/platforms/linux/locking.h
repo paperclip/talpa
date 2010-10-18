@@ -40,6 +40,7 @@
 
 typedef struct mutex talpa_mutex_t;
 
+#define TALPA_DEFINE_MUTEX      DEFINE_MUTEX
 #define TALPA_MUTEX_INIT        { }
 #define TALPA_STATIC_MUTEX(x)   __MUTEX_INITIALIZER(x)
 #define talpa_mutex_init        mutex_init
@@ -56,6 +57,7 @@ typedef struct mutex talpa_mutex_t;
 
 typedef struct semaphore talpa_mutex_t;
 
+#define TALPA_DEFINE_MUTEX      DECLARE_MUTEX
 #define TALPA_MUTEX_INIT        { }
 #define TALPA_STATIC_MUTEX(x)   __MUTEX_INITIALIZER(x)
 #define talpa_mutex_init        init_MUTEX

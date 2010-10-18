@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/fs.h>
-#include <linux/mutex.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)
     #include <linux/syscalls.h>
@@ -45,6 +44,7 @@
 #include <linux/vmalloc.h>
 #endif
 
+#include "platforms/linux/locking.h"
 
 #include "platforms/linux/talpa_syscallhook.h"
 
@@ -185,7 +185,7 @@ static long rwdata_offset;
 
 #if defined(TALPA_HAS_RODATA) && !defined(TALPA_RODATA_MAP_WRITABLE)
 /* Only need the mutex if we have to unprotect/reprotect around each access */
-DEFINE_MUTEX(rodata_lock);
+TALPA_DEFINE_MUTEX(rodata_lock);
 #endif
 
 /*
@@ -250,9 +250,9 @@ static int _talpa_syscallhook_modify_start(void)
 {
   #ifndef TALPA_RODATA_MAP_WRITABLE
     /* Don't need a lock if we are using shadow mappings */
-    mutex_lock(&rodata_lock);
+    talpa_mutex_lock(&rodata_lock);
   #endif
-  
+
   #ifdef TALPA_HAS_MARK_RODATA_RW
     mark_rodata_rw();
   #else
@@ -279,8 +279,8 @@ static void _talpa_syscallhook_modify_finish(void)
 
   #ifndef TALPA_RODATA_MAP_WRITABLE
     /* Don't need a lock if we are using shadow mappings */
-    mutex_unlock(&rodata_lock);
-  #endif 
+    talpa_mutex_unlock(&rodata_lock);
+  #endif
 }
 
   #ifdef TALPA_RODATA_MAP_WRITABLE
