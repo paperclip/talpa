@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.67)
+AC_INIT(talpa, 0.9.68)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2010 Sophos Group)
 
@@ -654,23 +654,31 @@ case $testinterceptor in
         ;;
 esac
 
-TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
-AC_MSG_CHECKING([for unused task flag])
-task_flags=`${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h | ${EGREP} -o 0x[0-9]* | ${XARGS}`
-if test $? -eq 0; then
-    if ${CC} ${srcdir}/tests/configure/ffzb.c -o tests/configure/ffzb 2>&1; then
-        free_flag=`tests/configure/ffzb $task_flags`
-        if test $? -eq 0; then
-            AC_MSG_RESULT([$free_flag])
-            AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=$free_flag")
+
+# On 2.6.36 we use unused PF_ALIGNWARN task flag
+if test $((kern_version_code)) -eq 132644; then
+    AC_MSG_CHECKING([for unused task flag])
+    AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=0x1")
+    AC_MSG_RESULT([0x1 (2.6.36)])
+else
+    TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
+    AC_MSG_CHECKING([for unused task flag])
+    task_flags=`${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h | ${EGREP} -o 0x[0-9]* | ${XARGS}`
+    if test $? -eq 0; then
+        if ${CC} ${srcdir}/tests/configure/ffzb.c -o tests/configure/ffzb 2>&1; then
+            free_flag=`tests/configure/ffzb $task_flags`
+            if test $? -eq 0; then
+                AC_MSG_RESULT([$free_flag])
+                AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=$free_flag")
+            else
+                AC_MSG_ERROR([none free])
+            fi
         else
-            AC_MSG_ERROR([none free])
+            AC_MSG_ERROR([compiler failure])
         fi
     else
-        AC_MSG_ERROR([compiler failure])
+        AC_MSG_ERROR([find failure])
     fi
-else
-    AC_MSG_ERROR([find failure])
 fi
 
 # Try to find the System.map file

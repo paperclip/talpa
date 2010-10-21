@@ -74,7 +74,11 @@ struct patchedFilesystem
     struct file_operations  *sf_ops; /* smbfs file_operations */
     int                     (*open)(struct inode *, struct file *);
     int                     (*release)(struct inode *, struct file *);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+    long                    (*ioctl)(struct file *filp, unsigned int cmd, unsigned long arg);
+#else
     int                     (*ioctl)(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     int                     (*create)(struct inode *,struct dentry *,int, struct nameidata *);
     struct dentry*          (*lookup)(struct inode *,struct dentry *, struct nameidata *);

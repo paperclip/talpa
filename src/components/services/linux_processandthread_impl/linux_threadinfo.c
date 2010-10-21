@@ -147,10 +147,18 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
             atomic_dec(&mm->mm_users);
         }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+        spin_lock(&proc->fs->lock);
+#else
         read_lock(&proc->fs->lock);
+#endif
         object->mRootMount = mntget(talpa_task_root_mnt(proc));
         object->mRootDentry = dget(talpa_task_root_dentry(proc));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+        spin_unlock(&proc->fs->lock);
+#else
         read_unlock(&proc->fs->lock);
+#endif
     }
 
     return object;

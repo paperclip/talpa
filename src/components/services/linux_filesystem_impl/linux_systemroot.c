@@ -90,9 +90,17 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
             if ( init_fs )
             {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+                spin_lock(&init_fs->lock);
+  #else
                 write_lock(&init_fs->lock);
+  #endif
                 init_fs->users++;
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+                spin_unlock(&init_fs->lock);
+  #else
                 write_unlock(&init_fs->lock);
+  #endif
 #else
                 atomic_inc(&init_fs->count);
 #endif
@@ -101,19 +109,25 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
 
             if ( init_fs )
             {
-                read_lock(&init_fs->lock);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+                spin_lock(&init_fs->lock);
+#else
+                write_lock(&init_fs->lock);
+#endif
                 spin_lock(&dcache_lock);
                 for (rootmnt = talpa_fs_mnt(init_fs); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
                 object->mMnt = mntget(rootmnt);
                 object->mDentry = dget(rootmnt->mnt_root);
                 spin_unlock(&dcache_lock);
-                read_unlock(&init_fs->lock);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-                write_lock(&init_fs->lock);
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
                 init_fs->users--;
-                write_unlock(&init_fs->lock);
-#else
+  #else
                 atomic_dec(&init_fs->count);
+  #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+                spin_unlock(&init_fs->lock);
+#else
+                write_unlock(&init_fs->lock);
 #endif
             }
         }

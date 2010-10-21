@@ -265,7 +265,28 @@ static inline struct task_struct *talpa_find_task_by_pid(pid_t pid)
 #endif
 }
 
-void* talpa_get_symbol(const char* name, const void* ptr);
+/*
+ * Relocatable hidden kernel symbol support.
+ */
+#ifndef CONFIG_RELOCATABLE
+static __inline const void* talpa_get_symbol(const char* name, const void* ptr)
+{
+    (void)name;
+
+
+    return ptr;
+}
+#else
+static __inline const void* talpa_get_symbol(const char* name, const void* ptr)
+{
+    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
+
+
+    (void)name;
+
+    return (void *)ptr + offset;
+}
+#endif
 
 #endif
 /*

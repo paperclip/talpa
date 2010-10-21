@@ -227,30 +227,6 @@ void talpa_vfsmount_unlock(void)
 }
 #endif
 
-
-/*
- * Relocatable hidden kernel symbol support.
- */
-#ifndef CONFIG_RELOCATABLE
-void* talpa_get_symbol(const char* name, const void* ptr)
-{
-    (void)name;
-
-
-    return ptr;
-}
-#else
-void* talpa_get_symbol(const char* name, const void* ptr)
-{
-    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
-
-
-    (void)name;
-
-    return (void *)ptr + offset;
-}
-#endif
-
 /*
 * End of linux_glue.c
 */

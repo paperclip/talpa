@@ -82,6 +82,13 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx);
 
 static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMount);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+  #define smbfs_ioctl unlocked_ioctl
+#else
+  #define smbfs_ioctl ioctl
+#endif
+
+
 /*
  * Constants
  */
@@ -340,7 +347,11 @@ static int talpaRelease(struct inode *inode, struct file *file)
     hookExitRv(ret);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+static long talpaIoctl(struct file *filp, unsigned int cmd, unsigned long arg)
+#else
 static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+#endif
 {
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
@@ -353,7 +364,11 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+        if ( filp->f_dentry->d_inode->i_fop == p->sf_ops )
+#else
         if ( inode->i_fop == p->sf_ops )
+#endif
         {
             patch = getPatch(p);
             dbg("ioctl on %s", patch->fstype->name);
@@ -367,7 +382,11 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
     {
         if ( patch->ioctl )
         {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+            err = patch->ioctl(filp, cmd, arg);
+#else
             err = patch->ioctl(inode, filp, cmd, arg);
+#endif
 
             if ( cmd == SMB_IOC_NEWCONN )
             {
@@ -458,10 +477,10 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
                     patch->lookup = NULL;
                     patch->create = NULL;
-                    if ( patch->sf_ops && patch->sf_ops->ioctl == talpaIoctl )
+                    if ( patch->sf_ops && patch->sf_ops->smbfs_ioctl == talpaIoctl )
                     {
                         dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
-                        talpa_syscallhook_poke(&patch->sf_ops->ioctl, patch->ioctl);
+                        talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
                         patch->sf_ops = NULL;
                         patch->ioctl = NULL;
                     }
@@ -606,10 +625,10 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
                     patch->lookup = NULL;
                     patch->create = NULL;
-                    if ( patch->sf_ops && patch->sf_ops->ioctl == talpaIoctl )
+                    if ( patch->sf_ops && patch->sf_ops->smbfs_ioctl == talpaIoctl )
                     {
                         dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
-                        talpa_syscallhook_poke(&patch->sf_ops->ioctl, patch->ioctl);
+                        talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
                         patch->sf_ops = NULL;
                         patch->ioctl = NULL;
                     }
@@ -1180,7 +1199,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     else if ( dentry && smbfs )
     {
         patch->sf_ops = (struct file_operations *)dentry->d_inode->i_fop;
-        patch->ioctl = patch->sf_ops->ioctl;
+        patch->ioctl = patch->sf_ops->smbfs_ioctl;
         dbg("  storing original smbfs file operations [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
     }
     /* Otherwise prepare for inode_operations patching */
@@ -1260,7 +1279,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     else if ( dentry && smbfs )
     {
         dbg("  patching smbfs ioctl [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
-        talpa_syscallhook_poke(&patch->sf_ops->ioctl, talpaIoctl);
+        talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, talpaIoctl);
     }
     else
     {
@@ -1311,11 +1330,11 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
             patch->create = NULL;
         }
 
-        if ( patch->sf_ops && (patch->sf_ops->ioctl == talpaIoctl) )
+        if ( patch->sf_ops && (patch->sf_ops->smbfs_ioctl == talpaIoctl) )
         {
             /* Never happens on mount, we can have regular file only when smbfs ioctl calls processMount */
             dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
-            talpa_syscallhook_poke(&patch->sf_ops->ioctl, patch->ioctl);
+            talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
             patch->sf_ops = NULL;
             patch->ioctl = NULL;
             shouldinc = false;
@@ -1415,7 +1434,7 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     if ( patch->sf_ops )
     {
         dbg("Restoring smbfs file operations 0x%p 0x%p", patch->sf_ops, patch->ioctl);
-        talpa_syscallhook_poke(&patch->sf_ops->ioctl, patch->ioctl);
+        talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
     }
 
     if ( patch->f_ops )
@@ -1965,7 +1984,11 @@ static int walkMountTree(void)
         return -1;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+    spin_lock(&inittask->fs->lock);
+#else
     read_lock(&inittask->fs->lock);
+#endif
     spin_lock(&dcache_lock);
     talpa_vfsmount_lock();
     /* Find system root */
@@ -1973,7 +1996,11 @@ static int walkMountTree(void)
     rootmnt = mntget(rootmnt);
     talpa_vfsmount_unlock();
     spin_unlock(&dcache_lock);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+    spin_unlock(&inittask->fs->lock);
+#else
     read_unlock(&inittask->fs->lock);
+#endif
 
     mnt = mntget(rootmnt);
     do

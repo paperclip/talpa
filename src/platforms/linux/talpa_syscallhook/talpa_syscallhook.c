@@ -44,6 +44,7 @@
 #include <linux/vmalloc.h>
 #endif
 
+#include "platforms/linux/glue.h"
 #include "platforms/linux/locking.h"
 
 #include "platforms/linux/talpa_syscallhook.h"
@@ -682,26 +683,6 @@ static asmlinkage long talpa_umount2(char* name, int flags)
 /*
  * System call table helpers
  */
-#ifndef CONFIG_RELOCATABLE
-void* talpa_get_symbol(const char* name, const void* ptr)
-{
-    (void)name;
-
-
-    return ptr;
-}
-#else
-void* talpa_get_symbol(const char* name, const void* ptr)
-{
-    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
-
-
-    (void)name;
-
-    return (void *)ptr + offset;
-}
-#endif
-
 #ifdef TALPA_HIDDEN_SYSCALLS
 static void **sys_call_table;
 

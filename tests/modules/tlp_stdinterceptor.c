@@ -241,7 +241,11 @@ static struct talpa_filesystem tfs;
 /*
  * Test ioctl interface.
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+long talpa_ioctl(struct file *file, unsigned int cmd, unsigned long parm)
+#else
 int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long parm)
+#endif
 {
     int ret = -ENOTTY;
     LinuxFileInfo *fi;
@@ -345,8 +349,11 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
 struct file_operations talpa_fops =
 {
     owner:  THIS_MODULE,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+    unlocked_ioctl:  talpa_ioctl
+#else
     ioctl:  talpa_ioctl
-
+#endif
 };
 
 static int __init talpa_test_init(void)

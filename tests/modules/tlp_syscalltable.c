@@ -44,6 +44,9 @@
 #define TALPA_SUBSYS "syscalltable"
 #include "common/talpa.h"
 
+#include "platforms/linux/glue.h"
+
+
 static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 
 #if defined(TALPA_HAS_RODATA) && !defined(TALPA_HAS_MARK_RODATA_RW)
@@ -143,26 +146,6 @@ static asmlinkage long talpa_mount(char* dev_name, char* dir_name, char* type, u
 /*
  * System call table helpers
  */
-#ifndef CONFIG_RELOCATABLE
-void* talpa_get_symbol(const char* name, const void* ptr)
-{
-    (void)name;
-
-
-    return ptr;
-}
-#else
-void* talpa_get_symbol(const char* name, const void* ptr)
-{
-    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
-
-
-    (void)name;
-
-    return (void *)ptr + offset;
-}
-#endif
-
 #ifdef TALPA_HIDDEN_SYSCALLS
 static void **sys_call_table;
 
