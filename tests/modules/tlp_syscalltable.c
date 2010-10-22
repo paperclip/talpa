@@ -267,13 +267,10 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
     void **table = NULL;
 
 
-    lower_bound = (void*)((unsigned long)lower_bound & ~0xfffff);
-    dbg("lower bound 0x%p", lower_bound);
-
     for ( ; ptr < limit && table == NULL; ptr++ )
     {
-        int ok = 1;
-        int i;
+        unsigned int ok = 1;
+        unsigned int i;
 
 
         for ( i = 0; i < 222; i++ )
@@ -291,11 +288,6 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
             table = ptr;
             break;
         }
-    }
-
-    if ( table == NULL )
-    {
-        return NULL;
     }
 
     return table;
@@ -467,7 +459,20 @@ static void **look_around(void **p, const unsigned int unique_syscalls[], const 
 
     for ( ;start_addr < end_addr; start_addr++ )
     {
-        if ( verify((void **)start_addr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup) )
+        unsigned int ok = 1;
+        unsigned int i;
+
+
+        for ( i = 0; i < 222; i++ )
+        {
+            if ( !looks_good((void *)start_addr + i) )
+            {
+                ok = 0;
+                break;
+            }
+        }
+
+        if ( ok && verify((void **)start_addr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup) )
         {
             info("At offset %ld", start_addr - orig_addr);
             return (void **)start_addr;
@@ -502,6 +507,8 @@ static int find_syscall_table(void)
 {
     unsigned int num_unique_syscalls;
     unsigned int num_zapped_syscalls;
+
+
   #ifdef CONFIG_X86_64
     const unsigned int unique_syscalls[] = { __NR_read, __NR_dup, __NR_open, __NR_close, __NR_mmap, __NR_exit, __NR_kill };
     const unsigned int zapped_syscalls[] = { __NR_create_module, __NR_get_kernel_syms, __NR_security, __NR_get_thread_area, __NR_epoll_wait_old, __NR_vserver, 0 };
@@ -610,8 +617,11 @@ static int __init talpa_syscallhook_init(void)
     int ret;
 
 
-    /* Relocate addresses (if needed) embedded at compile time. */
 #ifdef TALPA_HIDDEN_SYSCALLS
+    lower_bound = (void*)((unsigned long)lower_bound & ~0xfffff);
+    dbg("lower bound 0x%p", lower_bound);
+
+    /* Relocate addresses (if needed) embedded at compile time. */
     syscall_table = (unsigned long)talpa_get_symbol("sys_call_table", (void *)syscall_table);
 #endif
 
