@@ -458,6 +458,46 @@ static void *talpa_syscallhook_unro(void *addr, size_t len, int rw)
 #endif /* HAS_RODATA */
 
 #ifdef TALPA_HIDDEN_SYSCALLS
+static void **look_around(void **p, const unsigned int unique_syscalls[], const unsigned int num_unique_syscalls, const unsigned int zapped_syscalls[], const unsigned int num_zapped_syscalls, int symlookup)
+{
+    unsigned char* orig_addr = (unsigned char *)p;
+    unsigned char* start_addr = orig_addr - sizeof(void *) * 2;
+    unsigned char* end_addr = orig_addr + sizeof(void *) * 2;
+
+
+    for ( ;start_addr < end_addr; start_addr++ )
+    {
+        if ( verify((void **)start_addr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup) )
+        {
+            info("At offset %ld", start_addr - orig_addr);
+            return (void **)start_addr;
+        }
+    }
+
+    return NULL;
+}
+
+static void **find_around(void **p, const unsigned int unique_syscalls[], const unsigned int num_unique_syscalls, const unsigned int zapped_syscalls[], const unsigned int num_zapped_syscalls, int symlookup)
+{
+    unsigned char* orig_addr = (unsigned char *)p;
+    unsigned char* start_addr = orig_addr - sizeof(void *) * 2;
+    unsigned char* end_addr = orig_addr + sizeof(void *) * 2;
+    void **res;
+
+
+    for ( ;start_addr < end_addr; start_addr++ )
+    {
+        res = talpa_find_syscall_table((void **)start_addr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup);
+        if ( res )
+        {
+            info("Found with offset %ld", start_addr - orig_addr);
+            return res;
+        }
+    }
+
+    return NULL;
+}
+
 static int find_syscall_table(void)
 {
     unsigned int num_unique_syscalls;
@@ -484,7 +524,13 @@ static int find_syscall_table(void)
         else
         {
             dbg("not a sys_call_table at 0x%p", sys_call_table);
-            syscall_table = 0UL;
+            /* Look around specified address before giving up. */
+            sys_call_table = look_around(sys_call_table, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+            if ( !sys_call_table )
+            {
+                dbg("no sys_call_table around 0x%lx", syscall_table);
+            }
+            syscall_table = (unsigned long)sys_call_table;
         }
     }
 
@@ -492,10 +538,15 @@ static int find_syscall_table(void)
     if ( !syscall_table )
     {
         sys_call_table = talpa_find_syscall_table(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
-        /* There was a case when start_addr and sys_call_table were not on the same byte allignment, so retry with toggled bit zero */
         if ( !sys_call_table )
         {
-            sys_call_table = talpa_find_syscall_table((void **)((unsigned long)get_start_addr()^1), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+            dbg("no sys_call_table found");
+            /* Look around specified address before giving up. */
+            sys_call_table = find_around(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+            if ( !sys_call_table )
+            {
+                dbg("no sys_call_table found");
+            }
         }
         syscall_table = (unsigned long)sys_call_table;
     }
