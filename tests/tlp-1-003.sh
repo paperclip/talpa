@@ -22,11 +22,14 @@ tlp_insmod modules/tlp-filesysteminfo.${ko}
 if test $? -eq 77; then
     ./tlp-1-003 /dev/sda /mnt ext2 4
     if test $? -eq 77; then
-        ./tlp-1-003 /dev/md0 /mnt ext2 4
+        ./tlp-1-003 /dev/vda /mnt ext2 4
         if test $? -eq 77; then
-            ./tlp-1-003 `find /dev/ide/ -name "disc" | head -n 1` /mnt ext2 4
+            ./tlp-1-003 /dev/md0 /mnt ext2 4
             if test $? -eq 77; then
-                ./tlp-1-003 `find /dev/scsi/ -name "disc" | head -n 1` /mnt ext2 4
+                ./tlp-1-003 `find /dev/ide/ -name "disc" | head -n 1` /mnt ext2 4
+                if test $? -eq 77; then
+                    ./tlp-1-003 `find /dev/scsi/ -name "disc" | head -n 1` /mnt ext2 4
+                fi
             fi
         fi
     fi
