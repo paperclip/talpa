@@ -4,16 +4,12 @@
 
 int main(int argc, char *argv[])
 {
-    unsigned int result = 0;
-    unsigned int value;
+    unsigned int result = PF_TALPA_ALL;
     int i;
 
-    for (i = 1; i < argc; i++) {
-        value = (unsigned int)strtoul(argv[i], NULL, 16);
-        if (!value)
-            return 1;
-        result |= value;
-    }
+
+    if (!result)
+        return 2;
 
     for (i = 0; i < INTBITS; i++) {
         if (!(result&(1<<i))) {

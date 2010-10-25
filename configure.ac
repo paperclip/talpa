@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.68)
+AC_INIT(talpa, 0.9.69)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2010 Sophos Group)
 
@@ -34,6 +34,7 @@ AM_MAINTAINER_MODE
 AC_PROG_CC
 AC_CHECK_TOOL(MODULELINKER, ld, :)
 AC_PROG_EGREP
+AC_PATH_PROG(CAT, cat)
 AC_PATH_PROG(CUT, cut)
 AC_PATH_PROG(SED, sed)
 AC_PATH_PROG(UNAME, uname)
@@ -663,21 +664,30 @@ if test $((kern_version_code)) -eq 132644; then
 else
     TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
     AC_MSG_CHECKING([for unused task flag])
-    task_flags=`${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h | ${EGREP} -o 0x[0-9]* | ${XARGS}`
-    if test $? -eq 0; then
-        if ${CC} ${srcdir}/tests/configure/ffzb.c -o tests/configure/ffzb 2>&1; then
-            free_flag=`tests/configure/ffzb $task_flags`
-            if test $? -eq 0; then
-                AC_MSG_RESULT([$free_flag])
-                AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=$free_flag")
-            else
-                AC_MSG_ERROR([none free])
-            fi
-        else
-            AC_MSG_ERROR([compiler failure])
-        fi
+    ${RM} -f ${srcdir}/tests/configure/ffzb_local.c
+    if ! ${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h > ${srcdir}/tests/configure/ffzb_local.c; then
+        AC_MSG_ERROR([grep error])
+    fi
+    echo "#define PF_TALPA_ALL \\" >> ${srcdir}/tests/configure/ffzb_local.c
+    for taskflag in `${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h | ${CUT} -f1 | ${CUT} -d' ' -f2`; do
+        echo $taskflag \| \\ >> ${srcdir}/tests/configure/ffzb_local.c
+    done
+    echo "0x0" >> ${srcdir}/tests/configure/ffzb_local.c
+    if ! ${CAT} ${srcdir}/tests/configure/ffzb.c >> ${srcdir}/tests/configure/ffzb_local.c; then
+        AC_MSG_ERROR([cat error])
+    fi
+    if ! ${CC} ${srcdir}/tests/configure/ffzb_local.c -o tests/configure/ffzb_local 2>&1; then
+        AC_MSG_ERROR([compiler failure])
+    fi
+    tests/configure/ffzb_local
+    rc=$?
+    if test $rc -eq 0; then
+        AC_MSG_RESULT([$free_flag])
+        AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=$free_flag")
+    elif test $rc -eq 2; then
+        AC_MSG_ERROR([find error])
     else
-        AC_MSG_ERROR([find failure])
+        AC_MSG_ERROR([none free])
     fi
 fi
 
