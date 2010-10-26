@@ -679,15 +679,15 @@ else
     if ! ${CC} ${srcdir}/tests/configure/ffzb_local.c -o tests/configure/ffzb_local 2>&1; then
         AC_MSG_ERROR([compiler failure])
     fi
-    tests/configure/ffzb_local
+    free_flag=`tests/configure/ffzb_local`
     rc=$?
-    if test $rc -eq 0; then
+    if test $rc -eq 0 && test -n $free_flag; then
         AC_MSG_RESULT([$free_flag])
         AC_SUBST(freetaskflag, "-DPF_TALPA_INTERNAL=$free_flag")
     elif test $rc -eq 2; then
         AC_MSG_ERROR([find error])
     else
-        AC_MSG_ERROR([none free])
+        AC_MSG_ERROR([none free ($rc)])
     fi
 fi
 
