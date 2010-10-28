@@ -32,6 +32,7 @@ AM_MAINTAINER_MODE
 # Programs.
 #
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_CHECK_TOOL(MODULELINKER, ld, :)
 AC_PROG_EGREP
 AC_PATH_PROG(CAT, cat)
@@ -729,31 +730,31 @@ AC_MSG_CHECKING([for do_truncate type])
 let hitcnt=0
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncate1.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_1")
     AC_MSG_RESULT([type 1])
 fi
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncate2.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_2")
     AC_MSG_RESULT([type 2])
 fi
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncate3.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_3")
     AC_MSG_RESULT([type 3])
 fi
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncaterh4.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_RH4")
     AC_MSG_RESULT([type rh4])
 fi
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dotruncatesuse103.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_SUSE103")
     AC_MSG_RESULT([type suse103])
 fi
@@ -770,19 +771,19 @@ AC_MSG_CHECKING([for vfs_unlink type])
 let hitcnt=0
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/unlink.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_STANDARD")
     AC_MSG_RESULT([standard])
 fi
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/unlinksuse103.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_SUSE103")
     AC_MSG_RESULT([suse103])
 fi
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/unlinkvserver.c -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
-    let hitcnt=($hitcnt)+1
+    let hitcnt=$hitcnt+1
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_VSERVER")
     AC_MSG_RESULT([vserver])
 fi
@@ -959,25 +960,25 @@ if test $((kern_version_code)) -ge 132608; then
         let hitcnt=0
         ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpath.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
-            let hitcnt=($hitcnt)+1
+            let hitcnt=$hitcnt+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_STANDARD")
             AC_MSG_RESULT([standard])
         fi
         ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathpath.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
-            let hitcnt=($hitcnt)+1
+            let hitcnt=$hitcnt+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_PATH")
             AC_MSG_RESULT([struct path])
         fi
         ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathsuse103.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
-            let hitcnt=($hitcnt)+1
+            let hitcnt=$hitcnt+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_SUSE103")
             AC_MSG_RESULT([suse103])
         fi
         ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -c ${srcdir}/tests/configure/dpathsles11.c -o /dev/null 1>/dev/null 2>&1
         if test $? -eq 0; then
-            let hitcnt=($hitcnt)+1
+            let hitcnt=$hitcnt+1
             AC_SUBST(dpath, "$dpath -DTALPA_DPATH_SLES11")
             AC_MSG_RESULT([sles11])
         fi
