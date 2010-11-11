@@ -25,6 +25,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@execve@ \
 		@xhack@ \
 		@hrtimers@ \
+		@imapathcheck@ \
 		@rodata@ \
 		@hassetpages@ \
 		@needsvacpa@ \

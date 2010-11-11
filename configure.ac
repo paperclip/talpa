@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.69)
+AC_INIT(talpa, 0.9.70)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2010 Sophos Group)
 
@@ -1556,6 +1556,23 @@ if test $((kern_version_code)) -ge 132608; then
         AC_SUBST(bool,"-DTALPA_HAS_BOOL")
     fi
 
+    # Check for IMA with ima_path_check API
+    AC_MSG_CHECKING([for IMA])
+    TALPA_LOCATE_HEADER(linux/ima.h, $kernelhdrspath, imapresent=yes, imapresent=no , [quiet])
+    if test "$imapresent" = "yes"; then
+        AC_MSG_RESULT([present])
+        AC_MSG_CHECKING([for ima_path_check])
+        ${EGREP} "ima_path_check" $TALPA_HEADER_LOCATION/linux/ima.h >/dev/null 2>&1
+        if test $? -eq 0; then
+            AC_MSG_RESULT([present])
+            AC_SUBST(imapathcheck,"-DTALPA_IMA_HAS_PATH_CHECK")
+        else
+            AC_MSG_RESULT([not present])
+        fi
+    else
+        AC_MSG_RESULT([not present])
+    fi
+
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
@@ -1585,6 +1602,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@execve@/${execve}/; \
                 s/@xhack@/${xhack}/; \
                 s/@hrtimers@/${hrtimers}/; \
+                s/@imapathcheck@/${imapathcheck}/; \
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \
@@ -1628,6 +1646,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@execve@/${execve}/; \
                 s/@xhack@/${xhack}/; \
                 s/@hrtimers@/${hrtimers}/; \
+                s/@imapathcheck@/${imapathcheck}/; \
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
                 s/@rodata@/${rodata}/; \

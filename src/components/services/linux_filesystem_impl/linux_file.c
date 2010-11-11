@@ -292,7 +292,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
     }
 
 #ifdef CONFIG_IMA
-  #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,32)
+  #ifdef TALPA_IMA_HAS_PATH_CHECK
     {
         struct path path = {mnt, dentry};
 
