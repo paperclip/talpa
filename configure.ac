@@ -665,22 +665,22 @@ if test $((kern_version_code)) -eq 132644; then
 else
     TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
     AC_MSG_CHECKING([for unused task flag])
-    ${RM} -f ${srcdir}/tests/configure/ffzb_local.c
-    if ! ${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h > ${srcdir}/tests/configure/ffzb_local.c; then
+    ${RM} -f ffzb_local.c ffzb_local
+    if ! ${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h > ffzb_local.c; then
         AC_MSG_ERROR([grep error])
     fi
-    echo "#define PF_TALPA_ALL \\" >> ${srcdir}/tests/configure/ffzb_local.c
+    echo "#define PF_TALPA_ALL \\" >> ffzb_local.c
     for taskflag in `${EGREP} "#define PF_" $TALPA_HEADER_LOCATION/linux/sched.h | ${CUT} -f1 | ${CUT} -d' ' -f2`; do
-        echo $taskflag \| \\ >> ${srcdir}/tests/configure/ffzb_local.c
+        echo $taskflag \| \\ >> ffzb_local.c
     done
-    echo "0x0" >> ${srcdir}/tests/configure/ffzb_local.c
-    if ! ${CAT} ${srcdir}/tests/configure/ffzb.c >> ${srcdir}/tests/configure/ffzb_local.c; then
+    echo "0x0" >> ffzb_local.c
+    if ! ${CAT} ${srcdir}/tests/configure/ffzb.c >> ffzb_local.c; then
         AC_MSG_ERROR([cat error])
     fi
-    if ! ${CC} ${srcdir}/tests/configure/ffzb_local.c -o tests/configure/ffzb_local 2>&1; then
+    if ! ${CC} ffzb_local.c -o ffzb_local 2>&1; then
         AC_MSG_ERROR([compiler failure])
     fi
-    free_flag=`tests/configure/ffzb_local`
+    free_flag=`./ffzb_local`
     rc=$?
     if test $rc -eq 0 && test -n $free_flag; then
         AC_MSG_RESULT([$free_flag])
