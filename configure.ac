@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.70)
+AC_INIT(talpa, 0.9.71)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2010 Sophos Group)
 
@@ -1175,6 +1175,16 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    # Detect whether smbfs is present
+    AC_MSG_CHECKING([for smbfs])
+    TALPA_LOCATE_HEADER(linux/smb_fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
+    if test $? -eq 0; then
+        AC_MSG_RESULT([present])
+        AC_SUBST(smbfs,"-DTALPA_HAS_SMBFS")
+    else
+        AC_MSG_RESULT([not present])
+    fi
+
     # Check how to build syscallhook dependent modules and if possible at all
     AC_MSG_CHECKING([for system call table hooking support])
     TALPA_LOCATE_HEADER($autoconf_h, $kernelhdrspath, , , [quiet])
@@ -1592,6 +1602,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@signalbackport@/${signalbackport}/; \
                 s/@jiffiesbackport@/${jiffiesbackport}/; \
                 s/@filldirbackport@/${filldirbackport}/; \
+                s/@smbfs@/${smbfs}/; \
                 s/@buildlsm@/${lsm}/; \
                 s/@lsm265@/${lsm265}/; \
                 s/@lsm266@/${lsm266}/; \
@@ -1636,6 +1647,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@signalbackport@/${signalbackport}/; \
                 s/@jiffiesbackport@/${jiffiesbackport}/; \
                 s/@filldirbackport@/${filldirbackport}/; \
+                s/@smbfs@/${smbfs}/; \
                 s/@buildlsm@/${lsm}/; \
                 s/@lsm265@/${lsm265}/; \
                 s/@lsm266@/${lsm266}/; \

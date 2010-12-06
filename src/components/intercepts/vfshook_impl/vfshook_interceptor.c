@@ -38,8 +38,9 @@
 #include <linux/namei.h>
 #include <linux/moduleparam.h>
 #endif
+#ifdef TALPA_HAS_SMBFS
 #include <linux/smb_fs.h>
-
+#endif
 
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -82,10 +83,12 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx);
 
 static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMount);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-  #define smbfs_ioctl unlocked_ioctl
-#else
-  #define smbfs_ioctl ioctl
+#ifdef TALPA_HAS_SMBFS
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+    #define smbfs_ioctl unlocked_ioctl
+  #else
+    #define smbfs_ioctl ioctl
+  #endif
 #endif
 
 
@@ -347,11 +350,12 @@ static int talpaRelease(struct inode *inode, struct file *file)
     hookExitRv(ret);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+#ifdef TALPA_HAS_SMBFS
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 static long talpaIoctl(struct file *filp, unsigned int cmd, unsigned long arg)
-#else
+  #else
 static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
-#endif
+  #endif
 {
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
@@ -364,11 +368,11 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
         if ( filp->f_dentry->d_inode->i_fop == p->sf_ops )
-#else
+  #else
         if ( inode->i_fop == p->sf_ops )
-#endif
+  #endif
         {
             patch = getPatch(p);
             dbg("ioctl on %s", patch->fstype->name);
@@ -382,11 +386,11 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
     {
         if ( patch->ioctl )
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
             err = patch->ioctl(filp, cmd, arg);
-#else
+  #else
             err = patch->ioctl(inode, filp, cmd, arg);
-#endif
+  #endif
 
             if ( cmd == SMB_IOC_NEWCONN )
             {
@@ -415,6 +419,7 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 
     hookExitRv(err);
 }
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd)
@@ -477,6 +482,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
                     patch->lookup = NULL;
                     patch->create = NULL;
+#ifdef TALPA_HAS_SMBFS
                     if ( patch->sf_ops && patch->sf_ops->smbfs_ioctl == talpaIoctl )
                     {
                         dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
@@ -484,6 +490,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                         patch->sf_ops = NULL;
                         patch->ioctl = NULL;
                     }
+#endif
                     dbg("  storing original inode operations [0x%p]", patch->i_ops);
                     patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                     patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
@@ -625,6 +632,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
                     patch->lookup = NULL;
                     patch->create = NULL;
+#ifdef TALPA_HAS_SMBFS
                     if ( patch->sf_ops && patch->sf_ops->smbfs_ioctl == talpaIoctl )
                     {
                         dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
@@ -632,6 +640,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                         patch->sf_ops = NULL;
                         patch->ioctl = NULL;
                     }
+#endif
                     dbg("  storing original inode operations [0x%p]", patch->i_ops);
                     patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
                     patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
@@ -1195,6 +1204,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         }
         dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
     }
+#ifdef TALPA_HAS_SMBFS
     /* If called directly from smbfs mount prepare for ioctl patching (we never have regular file here) */
     else if ( dentry && smbfs )
     {
@@ -1202,6 +1212,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         patch->ioctl = patch->sf_ops->smbfs_ioctl;
         dbg("  storing original smbfs file operations [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
     }
+#endif
     /* Otherwise prepare for inode_operations patching */
     else
     {
@@ -1238,7 +1249,9 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     }
 
     if (        patch->open == talpaOpen || patch->release == talpaRelease
+#ifdef TALPA_HAS_SMBFS
             ||  patch->ioctl == talpaIoctl
+#endif
             ||  patch->lookup == talpaInodeLookup || patch->create == talpaInodeCreate )
     {
         err("Double patching detected on %s!", mnt->mnt_sb->s_type->name);
@@ -1276,11 +1289,13 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
             talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
         }
     }
+#ifdef TALPA_HAS_SMBFS
     else if ( dentry && smbfs )
     {
         dbg("  patching smbfs ioctl [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
         talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, talpaIoctl);
     }
+#endif
     else
     {
         dbg("  patching inode operations 0x%p", patch->i_ops);
@@ -1330,6 +1345,7 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
             patch->create = NULL;
         }
 
+#ifdef TALPA_HAS_SMBFS
         if ( patch->sf_ops && (patch->sf_ops->smbfs_ioctl == talpaIoctl) )
         {
             /* Never happens on mount, we can have regular file only when smbfs ioctl calls processMount */
@@ -1339,6 +1355,7 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
             patch->ioctl = NULL;
             shouldinc = false;
         }
+#endif
 
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
         /* Sometimes filesystems share operation tables in which case we
@@ -1390,12 +1407,14 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
 
         if ( patch->i_ops )
         {
+#ifdef TALPA_HAS_SMBFS
             if ( patch->sf_ops )
             {
                 /* Don't increase usecnt since this is a post smbfs ioctl path. */
                 shouldinc = false;
                 dbg("Not increasing usecnt for post ioctl smbfs mounts.");
             }
+#endif
 
             if ( (patch->i_ops->lookup != talpaInodeLookup)
                  || (patch->i_ops->create != talpaInodeCreate) )
@@ -1425,6 +1444,7 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     struct patchedFilesystem*   p;
 
 
+#ifdef TALPA_HAS_SMBFS
     if ( !(patch->sf_ops || patch->f_ops || patch->i_ops) )
     {
         err("Restore on an unpatched filesystem!");
@@ -1436,6 +1456,13 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         dbg("Restoring smbfs file operations 0x%p 0x%p", patch->sf_ops, patch->ioctl);
         talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
     }
+#else
+    if ( !(patch->f_ops || patch->i_ops) )
+    {
+        err("Restore on an unpatched filesystem!");
+        return 0;
+    }
+#endif
 
     if ( patch->f_ops )
     {
@@ -1567,11 +1594,13 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     if ( fromMount && onNoScanList(fsname) )
     {
         reg = dget(mnt->mnt_root);
+#ifdef TALPA_HAS_SMBFS
         /* Special patching workaround for smbfs is required */
         if ( !strcmp(fsname, "smbfs") )
         {
             smbfs = true;
         }
+#endif
     }
     else
     {
@@ -1778,11 +1807,13 @@ out:
 static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
     struct nameidata nd;
-    struct nameidata nd2;
     char* dir;
+#ifdef TALPA_HAS_SMBFS
+    struct nameidata nd2;
     char* path;
     size_t path_size;
     char* dir2;
+#endif
     int ret = 0;
 
 
@@ -1801,22 +1832,27 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
         if ( !IS_ERR(dir) )
         {
             ret = talpa_path_lookup(dir, TALPA_LOOKUP, &nd);
+            putname(dir);
             if ( !ret )
             {
+#ifndef TALPA_HAS_SMBFS
+                ret = processMount(talpa_nd_mnt(&nd), flags, true);
+                talpa_path_release(&nd);
+
+                return ret;
+#else
                 path = talpa_alloc_path(&path_size);
                 if ( path )
                 {
                     /* Double path resolve. Makes smbmount way of mounting work. */
                     dir2 = talpa_d_path(talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), path, path_size);
+                    talpa_path_release(&nd);
                     if ( !IS_ERR(dir2) )
                     {
                         ret = talpa_path_lookup(dir2, TALPA_LOOKUP, &nd2);
+                        talpa_free_path(path);
                         if ( !ret )
                         {
-                            talpa_free_path(path);
-                            talpa_path_release(&nd);
-                            putname(dir);
-
                             ret = processMount(talpa_nd_mnt(&nd2), flags, true);
                             talpa_path_release(&nd2);
 
@@ -1826,19 +1862,16 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                     else
                     {
                         ret = PTR_ERR(dir2);
+                        talpa_free_path(path);
                     }
-
-                    talpa_free_path(path);
                 }
                 else
                 {
+                    talpa_path_release(&nd);
                     ret = -ENOMEM;
                 }
-
-                talpa_path_release(&nd);
+#endif
             }
-
-            putname(dir);
         }
         else
         {
@@ -2203,7 +2236,9 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "reiserfs", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "tmpfs", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "minix", false);
+#ifdef TALPA_HAS_SMBFS
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "smbfs", false);
+#endif
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "cifs", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "nfs", false);
     appendObject(&GL_object, &GL_object.mGoodFilesystems, "nfs4", false);
@@ -2246,7 +2281,9 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mSkipFilesystems, "cgroup", false);
 
     /* Filesystems not to be scanned immediately after mount */
+#ifdef TALPA_HAS_SMBFS
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "smbfs", true);
+#endif
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuseblk", true);
 
@@ -2527,10 +2564,12 @@ try_alloc:
         {
             fss = 'F';
         }
+#ifdef TALPA_HAS_SMBFS
         else if ( patch->sf_ops )
         {
             fss = 'S';
         }
+#endif
         else if ( patch->i_ops )
         {
             fss = 'I';
