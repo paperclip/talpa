@@ -35,7 +35,7 @@ function testone
         testpath=${talpafs}/${testproc}/${testvar}
 
         echo ${testval} >${testpath}
-        read <${testpath} status
+        status=`cat ${testpath}`
         if test "$status" != "$testres"; then
             exit $inc
         fi
