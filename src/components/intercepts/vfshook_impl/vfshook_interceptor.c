@@ -83,6 +83,8 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx);
 
 static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMount);
 
+static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch);
+
 #ifdef TALPA_HAS_SMBFS
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
     #define smbfs_ioctl unlocked_ioctl
@@ -473,62 +475,22 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
-                    struct patchedFilesystem*   spatch = NULL;
-                    struct patchedFilesystem*   p;
+                    bool smbfs = false;
 
 
-                    dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
-                    talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
-                    talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
-                    patch->lookup = NULL;
-                    patch->create = NULL;
 #ifdef TALPA_HAS_SMBFS
-                    if ( patch->sf_ops && patch->sf_ops->smbfs_ioctl == talpaIoctl )
+                    if ( !strcmp(patch->fstype->name, "smbfs") )
                     {
-                        dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
-                        talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
-                        patch->sf_ops = NULL;
-                        patch->ioctl = NULL;
+                        smbfs = true;
                     }
 #endif
-                    dbg("  storing original inode operations [0x%p]", patch->i_ops);
-                    patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
-                    patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-                    dbg("  storing original file operations [0x%p]", patch->f_ops);
-                    /* Sometimes filesystems share operation tables in which case we
-                    want to store real pointers for restore. */
+                    /* repatchFilesystem needs patch list lock held... */
                     talpa_rcu_read_lock(&GL_object.mPatchLock);
-                    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
-                    {
-                        if ( p != patch && p->f_ops == patch->f_ops )
-                        {
-                            dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
-                            spatch = p;
-                            break;
-                        }
-                    }
+                    /* ... and patch lock itself. */
+                    talpa_simple_lock(&patch->lock);
+                    (void)repatchFilesystem(dentry, smbfs, patch); /* Ref count has already been increased when i_ops were patched */
+                    talpa_simple_unlock(&patch->lock);
                     talpa_rcu_read_unlock(&GL_object.mPatchLock);
-                    if ( spatch )
-                    {
-                        patch->open = spatch->open;
-                        patch->release = spatch->release;
-                    }
-                    else
-                    {
-                        patch->open = patch->f_ops->open;
-                        patch->release = patch->f_ops->release;
-                    }
-                    dbg("Patching file operations 0x%p", patch->f_ops);
-                    if ( patch->f_ops->open != talpaOpen )
-                    {
-                        dbg("     open 0x%p", patch->open);
-                        talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
-                    }
-                    if ( patch->f_ops->release != talpaRelease )
-                    {
-                        dbg("     release 0x%p", patch->release);
-                        talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
-                    }
                     talpa_syscallhook_modify_finish();
                 }
                 else
@@ -623,62 +585,22 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
-                    struct patchedFilesystem*   spatch = NULL;
-                    struct patchedFilesystem*   p;
+                    bool smbfs = false;
 
 
-                    dbg("  restoring inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
-                    talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
-                    talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
-                    patch->lookup = NULL;
-                    patch->create = NULL;
 #ifdef TALPA_HAS_SMBFS
-                    if ( patch->sf_ops && patch->sf_ops->smbfs_ioctl == talpaIoctl )
+                    if ( !strcmp(patch->fstype->name, "smbfs") )
                     {
-                        dbg("  restoring smbfs ioctl operation [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
-                        talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, patch->ioctl);
-                        patch->sf_ops = NULL;
-                        patch->ioctl = NULL;
+                        smbfs = true;
                     }
 #endif
-                    dbg("  storing original inode operations [0x%p]", patch->i_ops);
-                    patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
-                    patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-                    dbg("  storing original file operations [0x%p]", patch->f_ops);
-                    /* Sometimes filesystems share operation tables in which case we
-                    want to store real pointers for restore. */
+                    /* repatchFilesystem needs patch list lock held... */
                     talpa_rcu_read_lock(&GL_object.mPatchLock);
-                    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
-                    {
-                        if ( p != patch && p->f_ops == patch->f_ops )
-                        {
-                            dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
-                            spatch = p;
-                            break;
-                        }
-                    }
+                    /* ... and patch lock itself. */
+                    talpa_simple_lock(&patch->lock);
+                    (void)repatchFilesystem(dentry, smbfs, patch); /* Ref count has already been increased when i_ops were patched */
+                    talpa_simple_unlock(&patch->lock);
                     talpa_rcu_read_unlock(&GL_object.mPatchLock);
-                    if ( spatch )
-                    {
-                        patch->open = spatch->open;
-                        patch->release = spatch->release;
-                    }
-                    else
-                    {
-                        patch->open = patch->f_ops->open;
-                        patch->release = patch->f_ops->release;
-                    }
-                    dbg("Patching file operations 0x%p", patch->f_ops);
-                    if ( patch->f_ops->open != talpaOpen )
-                    {
-                        dbg("     open 0x%p", patch->open);
-                        talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
-                    }
-                    if ( patch->f_ops->release != talpaRelease )
-                    {
-                        dbg("     release 0x%p", patch->release);
-                        talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
-                    }
                     talpa_syscallhook_modify_finish();
                 }
                 else
@@ -1196,13 +1118,14 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             patch->open = spatch->open;
             patch->release = spatch->release;
+            dbg("  storing shared file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         }
         else
         {
             patch->open = patch->f_ops->open;
             patch->release = patch->f_ops->release;
+            dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         }
-        dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
     }
 #ifdef TALPA_HAS_SMBFS
     /* If called directly from smbfs mount prepare for ioctl patching (we never have regular file here) */
@@ -1238,14 +1161,14 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             patch->lookup = spatch->lookup;
             patch->create = spatch->create;
+            dbg("  storing shared inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
         }
         else
         {
             patch->lookup = patch->i_ops->lookup;
             patch->create = patch->i_ops->create;
+            dbg("  storing original inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
         }
-        dbg("  storing original inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
-
     }
 
     if (        patch->open == talpaOpen || patch->release == talpaRelease
@@ -1314,7 +1237,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     return 0;
 }
 
-static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
+static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     bool shouldinc = true;
     struct patchedFilesystem*   spatch = NULL;
@@ -1324,7 +1247,7 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
     /* No-op if already patched */
     if ( patch->f_ops && (patch->f_ops->open == talpaOpen) )
     {
-        dbg("Filesystem %s already patched, no repatching necessary", mnt->mnt_sb->s_type->name);
+        dbg("Filesystem %s already patched, no repatching necessary", patch->fstype->name);
         return true;
     }
 
@@ -1373,13 +1296,14 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
         {
             patch->open = spatch->open;
             patch->release = spatch->release;
+            dbg("  storing shared file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         }
         else
         {
             patch->open = patch->f_ops->open;
             patch->release = patch->f_ops->release;
+            dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         }
-        dbg("  storing original file operations [0x%p][0x%p 0x%p]", patch->f_ops, patch->open, patch->release);
         dbg("  patching file operations 0x%p", patch->f_ops);
         if ( patch->f_ops->open != talpaOpen )
         {
@@ -1433,7 +1357,7 @@ static bool repatchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool 
         }
     }
 
-    dbg("Re-patched filesystem %s", mnt->mnt_sb->s_type->name);
+    dbg("Re-patched filesystem %s", patch->fstype->name);
 
     return shouldinc;
 }
@@ -1646,7 +1570,11 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         atomic_set(&patch->usecnt, 0);
         atomic_set(&patch->refcnt, 1);
         patch->fstype = mnt->mnt_sb->s_type;
+        talpa_simple_init(&patch->lock);
     }
+
+    /* Lock patch record for manipulation */
+    talpa_simple_lock(&patch->lock);
 
     /* prepareFilesystem knows how to handle different situations */
     ret = prepareFilesystem(mnt, reg, smbfs, patch);
@@ -1661,8 +1589,9 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             if ( !ret )
             {
                 dbg("refcnt for %s = %d", fsname, atomic_read(&patch->refcnt));
-                talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
                 atomic_inc(&patch->usecnt);
+                talpa_simple_unlock(&patch->lock);
+                talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
                 dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
             }
             else
@@ -1675,7 +1604,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         {
             /* Re-patch filesystem and increase usecnt if repatch thinks we should, but not
                for re-mounts, unless flag incorrectly appears in an already mounted filesystem. */
-            shouldinc = repatchFilesystem(mnt, reg, smbfs, patch);
+            shouldinc = repatchFilesystem(reg, smbfs, patch);
             if ( shouldinc && !(fromMount && (flags & MS_REMOUNT)) )
             {
                 atomic_inc(&patch->usecnt);
@@ -1685,12 +1614,15 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             {
                 dbg("usecnt for %s stayed %d", fsname, atomic_read(&patch->usecnt));
             }
+            talpa_simple_unlock(&patch->lock);
         }
         /* Free list showed to userspace so it will be regenerated on next read */
         destroyStringSet(&GL_object, &GL_object.mPatchListSet);
     }
     else
     {
+        talpa_simple_unlock(&patch->lock);
+
         /* Free newly allocated patch if preparing to patch failed */
         if ( patch == newpatch )
         {
@@ -1967,7 +1899,9 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
     {
         if ( atomic_dec_and_test(&patch->usecnt) )
         {
+            talpa_simple_lock(&patch->lock);
             restoreFilesystem(patch);
+            talpa_simple_unlock(&patch->lock);
             talpa_list_del_rcu(&patch->head);
             talpa_rcu_write_unlock(&GL_object.mPatchLock);
             atomic_dec(&patch->refcnt);
@@ -2182,7 +2116,9 @@ nextpatch:
     talpa_list_for_each_entry_rcu(p, &this->mPatches, head)
     {
         dbg("Restoring %s", p->fstype->name);
+        talpa_simple_lock(&p->lock);
         restoreFilesystem(p);
+        talpa_simple_unlock(&p->lock);
         talpa_list_del_rcu(&p->head);
         talpa_rcu_write_unlock(&this->mPatchLock);
         atomic_dec(&p->refcnt);
