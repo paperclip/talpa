@@ -27,6 +27,10 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 
+#ifdef TALPA_VFSMOUNT_LOCK_BRLOCK
+#include <linux/lglock.h>
+#endif
+
 #include "platforms/linux/glue.h"
 
 
@@ -206,26 +210,46 @@ void talpa_tasklist_unlock(void)
 }
 #endif
 
+#ifdef TALPA_VFSMOUNT_LOCK_BRLOCK
+DECLARE_BRLOCK(vfsmount_lock);
+#endif
+
 /*
  * hidden vfsmnt_lock handling
  */
-#ifdef TALPA_USE_VFSMOUNT_LOCK
 void talpa_vfsmount_lock(void)
 {
+#ifdef TALPA_USE_VFSMOUNT_LOCK
+#    ifdef TALPA_VFSMOUNT_LOCK_BRLOCK
+    br_read_lock(vfsmount_lock);
+#    else
     spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)talpa_get_symbol("vfmount_lock", (void *)TALPA_VFSMOUNT_LOCK_ADDR);
 
 
     spin_lock(talpa_vfsmount_lock_addr);
+#    endif
+#else
+    // On 2.4 we don't have vfsmount_lock - we use dcache_lock instead
+    spin_lock(&dcache_lock);
+#endif
 }
 
 void talpa_vfsmount_unlock(void)
 {
+#ifdef TALPA_USE_VFSMOUNT_LOCK
+#    ifdef TALPA_VFSMOUNT_LOCK_BRLOCK
+    br_read_unlock(vfsmount_lock);
+#    else
     spinlock_t* talpa_vfsmount_lock_addr = (spinlock_t *)talpa_get_symbol("vfmount_lock", (void *)TALPA_VFSMOUNT_LOCK_ADDR);
 
 
     spin_unlock(talpa_vfsmount_lock_addr);
-}
+#    endif
+#else
+    // On 2.4 we don't have vfsmount_lock - we use dcache_lock instead
+    spin_unlock(&dcache_lock);
 #endif
+}
 
 /*
 * End of linux_glue.c

@@ -1956,13 +1956,11 @@ static int walkMountTree(void)
 #else
     read_lock(&inittask->fs->lock);
 #endif
-    spin_lock(&dcache_lock);
-    talpa_vfsmount_lock();
+    talpa_vfsmount_lock(); // locks dcache_lock on 2.4
     /* Find system root */
     for (rootmnt = talpa_task_root_mnt(inittask); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
     rootmnt = mntget(rootmnt);
-    talpa_vfsmount_unlock();
-    spin_unlock(&dcache_lock);
+    talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
     spin_unlock(&inittask->fs->lock);
 #else
@@ -1980,8 +1978,7 @@ static int walkMountTree(void)
             break;
         }
 
-        spin_lock(&dcache_lock);
-        talpa_vfsmount_lock();
+        talpa_vfsmount_lock(); // locks dcache_lock on 2.4
 
         /* Go down the tree for a child if there is one */
         if ( !list_empty(&mnt->mnt_mounts) )
@@ -2007,8 +2004,7 @@ static int walkMountTree(void)
             /* Abort if we are at the root */
             if ( nextmnt == nextmnt->mnt_parent )
             {
-                talpa_vfsmount_unlock();
-                spin_unlock(&dcache_lock);
+                talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
                 mntput(mnt);
                 break;
             }
@@ -2020,8 +2016,7 @@ static int walkMountTree(void)
         mntget(nextmnt);
         prevmnt = mnt;
         mnt = nextmnt;
-        talpa_vfsmount_unlock();
-        spin_unlock(&dcache_lock);
+        talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
         mntput(prevmnt);
     } while (mnt);
 

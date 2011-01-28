@@ -3,7 +3,7 @@
 #
 # TALPA Filesystem Interceptor
 #
-# Copyright (C) 2004-2010 Sophos Group
+# Copyright (C) 2004-2011 Sophos Group
 #
 # This program is free software; you can redistribute it and/or modify it under the terms of the
 # GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -19,9 +19,9 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.72)
+AC_INIT(talpa, 0.9.73)
 AC_CONFIG_AUX_DIR(config)
-AC_COPYRIGHT(Copyright (c) 2004-2010 Sophos Group)
+AC_COPYRIGHT(Copyright (c) 2004-2011 Sophos Group)
 
 AM_INIT_AUTOMAKE([1.9 tar-ustar])
 AM_INIT_AUTOMAKE([dist-zip dist-bzip2 dist-shar])
@@ -199,11 +199,6 @@ AC_ARG_ENABLE(no-tasklist-lock,
                     auto_notasklistlock=no
                 ],
                 [   auto_notasklistlock=yes])
-
-AC_ARG_ENABLE(vfsmount-lock,
-                [  --enable-vfsmount-lock         Use vfsmount_lock when creating path names [[autodetected]]],
-                [ auto_vfsmntlock=$enableval ],
-                [ auto_vfsmntlock=yes])
 
 AC_ARG_ENABLE(lsm,
                 [  --enable-lsm                   try to build LSM dependent modules [[autodetected]]],
@@ -924,32 +919,46 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ## Determine if we should take the dcache_lock outside the __d_path function
-    AC_MSG_CHECKING([for taking dcache_lock outside __d_path])
-    if test -f "$DCACHE_SOURCE_FILE" ; then
-        ${EGREP} -1 "spin_lock\(&vfsmount_lock\);" "$DCACHE_SOURCE_FILE" | ${EGREP} "spin_lock\(&dcache_lock\);" >/dev/null 2>&1
-        if test $? -ne 0; then
-            AC_MSG_RESULT([take lock])
-            AC_SUBST(dpath, "$dpath -DHOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH")
+    TALPA_LOCATE_HEADER(linux/dcache.h, $kernelhdrspath)
+    AC_MSG_CHECKING([for 2.6.38 style locking])
+    if ${EGREP} "seqcount_t d_seq;" $TALPA_HEADER_LOCATION/linux/dcache.h >/dev/null 2>&1; then
+        AC_MSG_RESULT([post 2.6.38 style locking])
+        HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH=0
+    else
+        AC_MSG_RESULT([pre 2.6.38 style locking])
+        ## Determine if we should take the dcache_lock outside the __d_path function
+        AC_MSG_CHECKING([for taking dcache_lock outside __d_path])
+        if test -f "$DCACHE_SOURCE_FILE" ; then
+            ${EGREP} -1 "spin_lock\(&vfsmount_lock\);" "$DCACHE_SOURCE_FILE" | ${EGREP} "spin_lock\(&dcache_lock\);" >/dev/null 2>&1
+            if test $? -ne 0; then
+                AC_MSG_RESULT([take lock])
+                HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH=1
+            else
+                AC_MSG_RESULT([don't take lock]) ## '
+                HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH=0
+            fi
         else
-            AC_MSG_RESULT([don't take lock])
-            ## We're not going to hold the lock - so we'd better be calling the real __d_path
+            AC_MSG_RESULT([undetectable: assume take lock])
+            HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH=1
+        fi
+    fi
 
-            if test "$CALLING_REAL_DPATH" -eq 0 ; then
-                AC_MSG_CHECKING([for __d_path address])
-                d_path_addr=`${EGREP} " __d_path\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-                if test "$d_path_addr" != ""; then
-                    CALLING_REAL_DPATH=1
-                    AC_MSG_RESULT([0x$d_path_addr])
-                    AC_SUBST(dpath, "$dpath -DTALPA_HAS_DPATH -DTALPA_HAS_DPATH_ADDR -DTALPA_DPATH_ADDR=0x$d_path_addr")
-                else
-                    AC_MSG_ERROR([not found])
-                fi
+    if test $HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH -eq 1 ; then
+        AC_SUBST(dpath, "$dpath -DHOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH")
+    else
+        ## We're not going to hold the lock - so we'd better be calling the real __d_path
+
+        if test "$CALLING_REAL_DPATH" -eq 0 ; then
+            AC_MSG_CHECKING([for __d_path address])
+            d_path_addr=`${EGREP} " __d_path\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+            if test "$d_path_addr" != ""; then
+                CALLING_REAL_DPATH=1
+                AC_MSG_RESULT([0x$d_path_addr])
+                AC_SUBST(dpath, "$dpath -DTALPA_HAS_DPATH -DTALPA_HAS_DPATH_ADDR -DTALPA_DPATH_ADDR=0x$d_path_addr")
+            else
+                AC_MSG_ERROR([not found])
             fi
         fi
-    else
-        AC_MSG_RESULT([undetectable: assume take lock])
-        AC_SUBST(dpath, "$dpath -DHOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH")
     fi
 
 
@@ -990,8 +999,14 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    # Find vfsmnt_lock address
-    if test "$auto_vfsmntlock" = "yes" -a "$dpath" = ""; then
+    AC_MSG_CHECKING([for vfsmount lock])
+    vfsmount_lock_lock=`${EGREP} "D vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    if test x"$vfsmount_lock_lock" != x"" ; then
+        AC_MSG_RESULT([vfsmount lock is BRLOCK])
+        AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")
+    else
+        AC_MSG_RESULT([vfsmount lock is spinlock])
+        # Find vfsmnt_lock address
         AC_MSG_CHECKING([for vfsmount_lock address])
         vfsmnt_lock_addr=`${EGREP} " vfsmount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test "$vfsmnt_lock_addr" != ""; then

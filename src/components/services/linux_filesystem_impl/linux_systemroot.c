@@ -114,11 +114,12 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
 #else
                 write_lock(&init_fs->lock);
 #endif
-                spin_lock(&dcache_lock);
+
+                talpa_vfsmount_lock(); // locks dcache_lock on 2.4
                 for (rootmnt = talpa_fs_mnt(init_fs); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
                 object->mMnt = mntget(rootmnt);
                 object->mDentry = dget(rootmnt->mnt_root);
-                spin_unlock(&dcache_lock);
+                talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
                 init_fs->users--;
   #else
