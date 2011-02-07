@@ -200,7 +200,6 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             if ( talpa_nd_dentry(&nd) != talpa_nd_mnt(&nd)->mnt_root )
             {
-                notice("Not a root of a mounted filesystem!");
                 goto error2;
             }
 
