@@ -525,18 +525,18 @@ fi
 TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
 
 AC_MSG_CHECKING([for kernel configuration])
-TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
+TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
 if test "$autoconffound" = "yes"; then
-    autoconf_h=linux/autoconf.h
-    autoconf_h_path=$TALPA_HEADER_LOCATION/linux/autoconf.h
-    utsrelease_h=linux/utsrelease.h
+    autoconf_h=generated/autoconf.h
+    autoconf_h_path=$TALPA_HEADER_LOCATION/generated/autoconf.h
+    utsrelease_h=generated/utsrelease.h
+    ccgenerateduts="-DGENERATED_UTS_RELEASE"
 else
-    TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
+    TALPA_LOCATE_HEADER(linux/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
     if test "$autoconffound" = "yes"; then
-        autoconf_h=generated/autoconf.h
-        autoconf_h_path=$TALPA_HEADER_LOCATION/generated/autoconf.h
-        utsrelease_h=generated/utsrelease.h
-        ccgenerateduts="-DGENERATED_UTS_RELEASE"
+        autoconf_h=linux/autoconf.h
+        autoconf_h_path=$TALPA_HEADER_LOCATION/linux/autoconf.h
+        utsrelease_h=linux/utsrelease.h
     else
         AC_MSG_ERROR([autoconf.h not found])
     fi
