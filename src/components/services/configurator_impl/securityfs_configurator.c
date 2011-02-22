@@ -219,6 +219,10 @@ static ssize_t securityfsRead(struct file *file, char __user *buf, size_t count,
 
     item = element->owner;
     data = (char *)(item->get(item->object, element->name));
+    if (data == NULL)
+    {
+        return -ENOMEM;
+    }
     dbg("reading %s/%s = %s", item->name(item->object), element->name, data);
     len = strlen(data);
     if ( len > count )
