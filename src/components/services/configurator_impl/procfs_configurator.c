@@ -336,6 +336,10 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
 
         if ( len )
         {
+            if (data == NULL)
+            {
+                return -ENOMEM;
+            }
             size_t l = strlen(data);
             if ( len > l )
             {
@@ -457,6 +461,10 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
     else
     {
         char* data = (char *)((IConfigurable*)table->extra1)->get(((IConfigurable*)table->extra1)->object, table->procname);
+        if (data == NULL)
+        {
+            return -ENOMEM;
+        }
         size_t len = strlen(data);
         if ( len > *lenp )
         {

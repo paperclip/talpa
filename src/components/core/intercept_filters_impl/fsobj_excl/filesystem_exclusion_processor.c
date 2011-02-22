@@ -485,6 +485,11 @@ static void constructStringSet(void* self, talpa_list_head* list, char** set)
     char* newset = NULL;
     char* out;
 
+    if (*set != NULL)
+    {
+        err("Leaking old stringSet");
+    }
+
 
     /* We are doing the allocation in at least 2-passes.
      * That is because we want to allocate enough storage outside of
@@ -497,6 +502,7 @@ try_alloc:
         if ( !newset )
         {
             err("Failed to create string set!");
+            *set = NULL;
             return;
         }
     }
