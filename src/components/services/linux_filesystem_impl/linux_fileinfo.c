@@ -49,6 +49,7 @@ static uint32_t              deviceMinor        (const void* self);
 static const char*           deviceName         (const void* self);
 static const char*           fsType             (const void* self);
 static bool                  fsObjects          (const void* self, void** obj1, void** obj2);
+static bool                  isDeleted          (const void* self);
 static void deleteLinuxFileInfo(struct tag_LinuxFileInfo* object);
 
 
@@ -72,6 +73,7 @@ static LinuxFileInfo template_LinuxFileInfo =
             deviceName,
             fsType,
             fsObjects,
+            isDeleted,
             NULL,
             (void (*)(const void*))deleteLinuxFileInfo
         },
@@ -501,6 +503,15 @@ static bool fsObjects(const void* self, void** obj1, void** obj2)
         return true;
     }
 
+    return false;
+}
+
+static bool isDeleted(const void* self)
+{
+    if ( this->mDentry )
+    {
+        return (!IS_ROOT(this->mDentry) && d_unhashed(this->mDentry));
+    }
     return false;
 }
 

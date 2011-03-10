@@ -161,6 +161,13 @@ static int examineFileInfo(const void* self, const IFileInfo* info, IFile* file)
     EInterceptAction action;
     int retCode;
 
+    /*
+     * Don't examine deleted files on close
+     */
+    if (info->isDeleted(info))
+    {
+        return 0;
+    }
 
     /*
      * Create evaluation report, and obtain the user's personality information.
