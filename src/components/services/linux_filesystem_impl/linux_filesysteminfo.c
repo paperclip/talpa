@@ -77,7 +77,7 @@ static LinuxFilesystemInfo template_LinuxFilesystemInfo =
 #define this    ((LinuxFilesystemInfo*)self)
 
 /* Makes an absolute path from nameidata, and allocates a string for it */
-static char* absolutePath(struct nameidata* nd)
+static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt)
 {
     char* path;
     size_t path_size = 0;
@@ -94,7 +94,7 @@ static char* absolutePath(struct nameidata* nd)
     }
 
     root = TALPA_Portability()->systemRoot();
-    apath = talpa__d_path(talpa_nd_dentry(nd), talpa_nd_mnt(nd), root->directoryEntry(root->object), root->mountPoint(root->object), path, path_size);
+    apath = talpa__d_path(dentry, mnt, root->directoryEntry(root->object), root->mountPoint(root->object), path, path_size);
 
     if ( !IS_ERR(apath) )
     {
@@ -133,7 +133,15 @@ static char* copyString(const char* string)
 LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char* dev_name, char* dir_name, char* type)
 {
     LinuxFilesystemInfo* object;
+#ifdef TALPA_HAVE_PATH_LOOKUP
     struct nameidata nd;
+#else
+    struct path p;
+#endif
+    struct vfsmount *mnt;
+    struct dentry *dentry;
+    int rc;
+
 
 
     object = talpa_alloc(sizeof(template_LinuxFilesystemInfo));
@@ -151,11 +159,28 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
         {
             object->mType = copyString(type);
 
-            if ( !talpa_path_lookup(dev_name, TALPA_LOOKUP, &nd) )
-            {
-                struct inode *inode = talpa_nd_dentry(&nd)->d_inode;
+            mnt = 0;
+            dentry = 0;
+#ifdef TALPA_HAVE_PATH_LOOKUP
+            rc = talpa_path_lookup(dev_name, TALPA_LOOKUP, &nd);
+#else
+            rc = kern_path(dev_name, TALPA_LOOKUP, &p);
+#endif
 
-                object->mDeviceName = absolutePath(&nd);
+            if ( rc == 0 )
+            {
+                struct inode *inode;
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                mnt = talpa_nd_mnt(&nd);
+                dentry = talpa_nd_dentry(&nd);
+#else
+                mnt = p.mnt;
+                dentry = p.dentry;
+#endif
+
+                inode = dentry->d_inode;
+
+                object->mDeviceName = absolutePath(dentry,mnt);
 
                 if (S_ISBLK(inode->i_mode))
                 {
@@ -164,7 +189,11 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                     object->mDeviceMinor = MINOR(inode->i_rdev);
                 }
 
+#ifdef TALPA_HAVE_PATH_LOOKUP
                 talpa_path_release(&nd);
+#else
+                path_put(&p);
+#endif
             }
 
             if ( !object->mDeviceName )
@@ -178,14 +207,35 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             if ( dir_name )
             {
-                if ( !talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd) )
-                {
-                    object->mMountPoint = absolutePath(&nd);
 
+                mnt = 0;
+                dentry = 0;
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                rc = talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd);
+#else
+                rc = kern_path(dir_name, TALPA_LOOKUP, &p);
+#endif
+
+                if ( rc == 0 )
+                {
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                    mnt = talpa_nd_mnt(&nd);
+                    dentry = talpa_nd_dentry(&nd);
+#else
+                    mnt = p.mnt;
+                    dentry = p.dentry;
+#endif
+
+                    object->mMountPoint = absolutePath(dentry,mnt);
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
                     talpa_path_release(&nd);
+#else
+                    path_put(&p);
+#endif
                 }
 
-                if ( !object->mMountPoint )
+                if ( object->mMountPoint == 0 )
                 {
                     object->mMountPoint = copyString(dir_name);
                 }
@@ -193,19 +243,32 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
         }
         else if ( (operation == EFS_Umount) && dir_name )
         {
-            if ( talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd) )
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
+            rc = talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd);
+#else
+            rc = kern_path(dir_name, TALPA_LOOKUP, &p);
+#endif
+            if ( unlikely(rc != 0) )
             {
                 goto error;
             }
+#ifdef TALPA_HAVE_PATH_LOOKUP
+            mnt = talpa_nd_mnt(&nd);
+            dentry = talpa_nd_dentry(&nd);
+#else
+            mnt = p.mnt;
+            dentry = p.dentry;
+#endif
 
-            if ( talpa_nd_dentry(&nd) != talpa_nd_mnt(&nd)->mnt_root )
+            if ( dentry != mnt->mnt_root )
             {
                 goto error2;
             }
 
-            object->mMountPoint = absolutePath(&nd);
+            object->mMountPoint = absolutePath(dentry,mnt);
 
-            if ( !object->mMountPoint )
+            if ( object->mMountPoint == 0 )
             {
                 object->mMountPoint = copyString(dir_name);
                 if ( !object->mMountPoint )
@@ -214,17 +277,37 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                 }
             }
 
-            if ( talpa_nd_mnt(&nd)->mnt_devname )
+            if ( mnt->mnt_devname )
             {
-                if ( talpa_nd_mnt(&nd)->mnt_sb->s_bdev )
+                if ( mnt->mnt_sb->s_bdev )
                 {
+#ifdef TALPA_HAVE_PATH_LOOKUP
                     struct nameidata dnd;
+#else
+                    struct path dp;
+#endif
+                    struct vfsmount *dmnt;
+                    struct dentry *ddentry;
 
-                    if ( !talpa_path_lookup(talpa_nd_mnt(&nd)->mnt_devname, TALPA_LOOKUP, &dnd) )
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                    rc = talpa_path_lookup(mnt->mnt_devname, TALPA_LOOKUP, &dnd);
+#else
+                    rc = kern_path(mnt->mnt_devname, TALPA_LOOKUP, &dp);
+#endif
+                    if ( rc == 0 )
                     {
-                        struct inode *inode = talpa_nd_dentry(&dnd)->d_inode;
+                        struct inode *inode;
 
-                        object->mDeviceName = absolutePath(&dnd);
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                        dmnt = talpa_nd_mnt(&dnd);
+                        ddentry = talpa_nd_dentry(&dnd);
+#else
+                        dmnt = dp.mnt;
+                        ddentry = dp.dentry;
+#endif
+                        inode = ddentry->d_inode;
+                        object->mDeviceName = absolutePath(ddentry,dmnt);
 
                         if (S_ISBLK(inode->i_mode))
                         {
@@ -233,13 +316,17 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                             object->mDeviceMinor = MINOR(kdev_t_to_nr(inode->i_rdev));
                         }
 
+#ifdef TALPA_HAVE_PATH_LOOKUP
                         talpa_path_release(&dnd);
+#else
+                        path_put(&dp);
+#endif
                     }
                 }
 
                 if ( !object->mDeviceName )
                 {
-                    object->mDeviceName = copyString(talpa_nd_mnt(&nd)->mnt_devname);
+                    object->mDeviceName = copyString(mnt->mnt_devname);
                     if ( !object->mDeviceName )
                     {
                         goto error2;
@@ -247,9 +334,9 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                 }
             }
 
-            if ( talpa_nd_mnt(&nd)->mnt_sb->s_type->name )
+            if ( mnt->mnt_sb->s_type->name )
             {
-                object->mType = copyString(talpa_nd_mnt(&nd)->mnt_sb->s_type->name);
+                object->mType = copyString(mnt->mnt_sb->s_type->name);
             }
 
             if ( !object->mType )
@@ -259,7 +346,11 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             dbg("Device %s resolved from mount point %s - %s", object->mDeviceName, object->mMountPoint, object->mType);
 
+#ifdef TALPA_HAVE_PATH_LOOKUP
             talpa_path_release(&nd);
+#else
+            path_put(&p);
+#endif
         }
         else
         {
@@ -272,7 +363,11 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
     return object;
 
     error2:
+#ifdef TALPA_HAVE_PATH_LOOKUP
     talpa_path_release(&nd);
+#else
+    path_put(&p);
+#endif
     error:
     talpa_free(object->mDeviceName);
     talpa_free(object->mMountPoint);

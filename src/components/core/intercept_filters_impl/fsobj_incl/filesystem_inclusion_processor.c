@@ -78,7 +78,7 @@ static FilesystemInclusionProcessor template_FilesystemInclusionProcessor =
         },
         deleteFilesystemInclusionProcessor,
         setPath,
-        TALPA_RW_UNLOCKED,
+        TALPA_RW_UNLOCKED(talpa_filesystem_inclusion_rw_lock),
         false,
         CFG_PATH_DEFAULT,
         CFG_PATH_DEFAULT_LEN,

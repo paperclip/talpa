@@ -40,7 +40,7 @@
 
 typedef talpa_simple_lock_t talpa_group_lock_t;
 
-#define TALPA_GROUP_UNLOCKED    TALPA_SIMPLE_UNLOCKED
+#define TALPA_GROUP_UNLOCKED(lockname)    TALPA_SIMPLE_UNLOCKED(lockname)
 #define talpa_group_lock_init   talpa_simple_init
 #define talpa_group_lock        talpa_simple_lock
 #define talpa_group_unlock      talpa_simple_unlock

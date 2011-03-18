@@ -93,7 +93,7 @@ static ProcessExclusionProcessor template_ProcessExclusionProcessor =
         deleteProcessExclusionProcessor,
         TALPA_MUTEX_INIT,
         true,
-        TALPA_RCU_UNLOCKED,
+        TALPA_RCU_UNLOCKED(talpa_process_exclusion_processor_excluded_lock),
         { },
         {
             {NULL, NULL, PROCEXCL_CFGDATASIZE, true, true },

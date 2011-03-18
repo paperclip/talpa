@@ -146,9 +146,9 @@ static VFSHookInterceptor GL_object =
         TALPA_STATIC_MUTEX(GL_object.mSemaphore),
         0,
         HOOK_DEFAULT,
-        TALPA_RCU_UNLOCKED,
+        TALPA_RCU_UNLOCKED(talpa_vfshook_interceptor_patch_lock),
         TALPA_LIST_HEAD_INIT(GL_object.mPatches),
-        TALPA_RCU_UNLOCKED,
+        TALPA_RCU_UNLOCKED(talpa_vfshook_interceptor_list_lock),
         TALPA_LIST_HEAD_INIT(GL_object.mGoodFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mSkipFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mNoScanFilesystems),
@@ -853,19 +853,24 @@ static struct dentry *scanDirectory(const char* dirname, char* rootbuf, size_t r
 {
     struct dentry *reg = NULL;
     struct dentryContext* dc;
-    struct nameidata* nd;
+#ifdef TALPA_HAVE_PATH_LOOKUP
+    struct nameidata nd;
+#else
+    struct path p;
+#endif
     int err;
     bool newdir = false;
     struct directories dirs;
     unsigned int depth = 0;
+    struct vfsmount *mnt;
+    struct dentry *dentry;
 
 
     initDirectories(&dirs);
     /* Allocate structures and memory */
     dc = talpa_alloc(sizeof(struct dentryContext));
-    nd = talpa_alloc(sizeof(struct nameidata));
 
-    if ( !dc || !nd )
+    if ( !dc )
     {
         goto out;
     }
@@ -936,23 +941,39 @@ rescan:
         }
 
         /* Try to lookup it... */
-        err = talpa_path_lookup(dc->dirent, 0, nd);
+#ifdef TALPA_HAVE_PATH_LOOKUP
+        err = talpa_path_lookup(dc->dirent, 0, &nd);
+#else
+        err = kern_path(dc->dirent, 0, &p);
+#endif
 
         if ( err == 0 )
         {
+#ifdef TALPA_HAVE_PATH_LOOKUP
+            mnt = talpa_nd_mnt(&nd);
+            dentry = talpa_nd_dentry(&nd);
+#else
+            mnt = p.mnt;
+            dentry = p.dentry;
+#endif
+
             /* If dentry resolves to regular file we're done! */
-            if ( S_ISREG(talpa_nd_dentry(nd)->d_inode->i_mode) )
+            if ( S_ISREG(dentry->d_inode->i_mode) )
             {
                 dbg("regular %s", dc->dirent);
-                reg = dget(talpa_nd_dentry(nd));
+                reg = dget(dentry);
             }
             /* If it is a directory and not a root of a mounted filesystem, enter into it.
                But only if we have enough space in the buffer to copy that path. */
-            else if ( S_ISDIR(talpa_nd_dentry(nd)->d_inode->i_mode) && (talpa_nd_dentry(nd) != talpa_nd_mnt(nd)->mnt_root) && (dc->rootsize > strlen(dc->dirent)) )
+            else if ( S_ISDIR(dentry->d_inode->i_mode) && (dentry != mnt->mnt_root) && (dc->rootsize > strlen(dc->dirent)) )
             {
                 dbg("entering %s", dc->dirent);
                 depth++;
-                talpa_path_release(nd);
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                talpa_path_release(&nd);
+#else
+                path_put(&p);
+#endif
                 strcpy(dc->root, dc->dirent);
                 dc->rootlen = strlen(dc->root);
                 goto rescan;
@@ -961,12 +982,15 @@ rescan:
             {
                 dbg("  skipping %s", dc->dirent);
             }
-            talpa_path_release(nd);
+#ifdef TALPA_HAVE_PATH_LOOKUP
+            talpa_path_release(&nd);
+#else
+            path_put(&p);
+#endif
         }
     } while ( !reg ); /* !reg = search finished, we have a regular file */
 
 out:
-    talpa_free(nd);
     talpa_free(dc);
     cleanupDirectories(&dirs);
 
@@ -1738,16 +1762,21 @@ out:
 
 static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
+#ifdef TALPA_HAVE_PATH_LOOKUP
     struct nameidata nd;
+#else
+    struct path p;
+#endif
     char* dir;
 #ifdef TALPA_HAS_SMBFS
-    struct nameidata nd2;
     char* path;
     size_t path_size;
     char* dir2;
+    struct dentry *dentry;
 #endif
     int ret = 0;
 
+    struct vfsmount *mnt;
 
 #ifdef MS_MOVE
 #define VFSHOOK_MS_IGNORE (MS_MOVE)
@@ -1763,31 +1792,73 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 
         if ( !IS_ERR(dir) )
         {
+#ifdef TALPA_HAVE_PATH_LOOKUP
             ret = talpa_path_lookup(dir, TALPA_LOOKUP, &nd);
+#else
+            ret = kern_path(dir, TALPA_LOOKUP, &p);
+#endif
             putname(dir);
-            if ( !ret )
+            if ( ret == 0 )
             {
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                mnt = talpa_nd_mnt(&nd);
+#else
+                mnt = p.mnt;
+#endif
+
 #ifndef TALPA_HAS_SMBFS
-                ret = processMount(talpa_nd_mnt(&nd), flags, true);
+                ret = processMount(mnt, flags, true);
+# ifdef TALPA_HAVE_PATH_LOOKUP
                 talpa_path_release(&nd);
+# else
+                path_put(&p);
+# endif
 
                 return ret;
-#else
+#else /* Have SMBFS */
+# ifdef TALPA_HAVE_PATH_LOOKUP
+                mnt = talpa_nd_mnt(&nd);
+                dentry = talpa_nd_dentry(&nd);
+# else
+                mnt = p.mnt;
+                dentry = p.dentry;
+# endif
                 path = talpa_alloc_path(&path_size);
                 if ( path )
                 {
                     /* Double path resolve. Makes smbmount way of mounting work. */
-                    dir2 = talpa_d_path(talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), path, path_size);
+                    dir2 = talpa_d_path(dentry, mnt, path, path_size);
+# ifdef TALPA_HAVE_PATH_LOOKUP
                     talpa_path_release(&nd);
+# else
+                    path_put(&p);
+# endif
                     if ( !IS_ERR(dir2) )
                     {
-                        ret = talpa_path_lookup(dir2, TALPA_LOOKUP, &nd2);
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                        /* nd has already been released, so we can re-use it */
+                        ret = talpa_path_lookup(dir2, TALPA_LOOKUP, &nd);
+#else
+                        /* p has already been released, so we can re-use it */
+                        ret = kern_path(dir2, TALPA_LOOKUP, &p);
+#endif
                         talpa_free_path(path);
-                        if ( !ret )
+                        if ( ret == 0 )
                         {
-                            ret = processMount(talpa_nd_mnt(&nd2), flags, true);
-                            talpa_path_release(&nd2);
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                            mnt = talpa_nd_mnt(&nd);
+#else
+                            mnt = p.mnt;
+#endif
 
+                            ret = processMount(mnt, flags, true);
+
+# ifdef TALPA_HAVE_PATH_LOOKUP
+                            talpa_path_release(&nd);
+# else
+                            path_put(&p);
+# endif
                             return ret;
                         }
                     }
@@ -1799,7 +1870,11 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                 }
                 else
                 {
+# ifdef TALPA_HAVE_PATH_LOOKUP
                     talpa_path_release(&nd);
+# else
+                    path_put(&p);
+# endif
                     ret = -ENOMEM;
                 }
 #endif

@@ -332,28 +332,49 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
     return 0;
 }
 
+
 static int open(void* self, const char* filename, unsigned int flags, bool check_permissions)
 {
     int ret;
+    struct vfsmount *mnt;
+    struct dentry *dentry;
+#ifdef TALPA_HAVE_PATH_LOOKUP
     struct nameidata nd;
-
+#else
+    struct path p;
+#endif
 
     if ( unlikely(this->mFile != NULL) )
     {
         return -EBUSY;
     }
 
+#ifdef TALPA_HAVE_PATH_LOOKUP
     ret = talpa_path_lookup(filename, TALPA_LOOKUP, &nd);
+#else
+    ret = kern_path(filename, TALPA_LOOKUP, &p);
+#endif
 
     if ( unlikely(ret != 0) )
     {
         return ret;
     }
 
-    ret = openDentry(self, talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), flags, check_permissions);
+#ifdef TALPA_HAVE_PATH_LOOKUP
+    mnt = talpa_nd_mnt(&nd);
+    dentry = talpa_nd_dentry(&nd);
+#else
+    mnt = p.mnt;
+    dentry = p.dentry;
+#endif
 
+    ret = openDentry(self, dentry, mnt, flags, check_permissions);
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
     talpa_path_release(&nd);
-
+#else
+    path_put(&p);
+#endif
     return ret;
 }
 

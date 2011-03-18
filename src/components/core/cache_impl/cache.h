@@ -70,13 +70,6 @@ struct CacheEntry
 
 typedef talpa_rw_lock_t talpa_cache_lock_t;
 
-#define TALPA_CACHE_UNLOCKED     TALPA_RW_UNLOCKED
-#define talpa_cache_lock_init    talpa_rw_init
-#define talpa_cache_read_lock    talpa_read_lock
-#define talpa_cache_read_unlock  talpa_read_unlock
-#define talpa_cache_write_lock   talpa_write_lock
-#define talpa_cache_write_unlock talpa_write_unlock
-
 typedef struct tag_Cache
 {
     ICache                  i_ICache;

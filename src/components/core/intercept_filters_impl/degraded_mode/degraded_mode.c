@@ -88,7 +88,7 @@ static DegradedModeProcessor template_DegradedModeProcessor =
         },
         deleteDegradedModeProcessor,
         true,
-        TALPA_SIMPLE_UNLOCKED,
+        TALPA_SIMPLE_UNLOCKED(talpa_degraded_mode_processor_lock),
         ATOMIC_INIT(CFG_DEFAULT_THRESHOLD),
         false,
         TALPA_MUTEX_INIT,

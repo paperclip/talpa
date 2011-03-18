@@ -125,7 +125,13 @@ static inline char *talpa_d_path(struct dentry *dentry, struct vfsmount *mnt, ch
 
 #endif /* 2.6.25 */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,25) && !defined TALPA_HAS_PATH_LOOKUP
+#if  LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38)
+
+/* No path_lookup */
+#undef TALPA_HAVE_PATH_LOOKUP
+
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,4,25) && !defined TALPA_HAS_PATH_LOOKUP
+#define TALPA_HAVE_PATH_LOOKUP 1
 static inline int talpa_path_lookup(const char *path, unsigned flags, struct nameidata *nd)
 {
         int error = 0;
@@ -135,6 +141,7 @@ static inline int talpa_path_lookup(const char *path, unsigned flags, struct nam
 }
 #else
 #define talpa_path_lookup path_lookup
+#define TALPA_HAVE_PATH_LOOKUP 1
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)

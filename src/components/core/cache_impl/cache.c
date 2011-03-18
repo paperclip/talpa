@@ -26,6 +26,13 @@
 
 #include "platform/alloc.h"
 
+#define TALPA_CACHE_UNLOCKED(lockname)     TALPA_RW_UNLOCKED(lockname)
+#define talpa_cache_lock_init    talpa_rw_init
+#define talpa_cache_read_lock    talpa_read_lock
+#define talpa_cache_read_unlock  talpa_read_unlock
+#define talpa_cache_write_lock   talpa_write_lock
+#define talpa_cache_write_unlock talpa_write_unlock
+
 /*
  * Forward declare implementation methods.
  */
@@ -93,7 +100,7 @@ static Cache template_Cache =
         },
         deleteCache,
         false,
-        TALPA_CACHE_UNLOCKED,
+        TALPA_CACHE_UNLOCKED(talpa_cache_lock),
         0,
         NULL,
         2,
@@ -103,7 +110,7 @@ static Cache template_Cache =
         0,
         0,
         0,
-        TALPA_RCU_UNLOCKED,
+        TALPA_RCU_UNLOCKED(talpa_cache_config_lock),
         TALPA_MUTEX_INIT,
         { },
         NULL,

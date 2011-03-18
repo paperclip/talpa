@@ -92,7 +92,7 @@ static FilesystemExclusionProcessor template_FilesystemExclusionProcessor =
             (void (*)(void*))deleteFilesystemExclusionProcessor
         },
         deleteFilesystemExclusionProcessor,
-        TALPA_RCU_UNLOCKED,
+        TALPA_RCU_UNLOCKED(talpa_filesystem_exclusion_processor_config_lock),
         TALPA_MUTEX_INIT,
         true,
         TALPA_LIST_HEAD_INIT(template_FilesystemExclusionProcessor.mPaths),

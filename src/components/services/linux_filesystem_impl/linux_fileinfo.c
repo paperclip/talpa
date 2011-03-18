@@ -105,57 +105,83 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
 {
     LinuxFileInfo* object;
 
+#ifdef TALPA_HAVE_PATH_LOOKUP
+    struct nameidata nd;
+#else
+    struct path p;
+#endif
+    struct vfsmount *mnt;
+    struct dentry *dentry;
+    int rc;
+    size_t path_size = 0;
+    ISystemRoot* root;
+
 
     object = talpa_alloc(sizeof(template_LinuxFileInfo));
-    if ( likely(object != NULL) )
+    if (unlikely(object == NULL))
     {
-        struct nameidata nd;
-        int rc;
-
-
-        memcpy(object, &template_LinuxFileInfo, sizeof(template_LinuxFileInfo));
-        object->i_IFileInfo.object = object;
-
-        if ( likely((rc = talpa_path_lookup(filename, TALPA_LOOKUP, &nd)) == 0 ) )
-        {
-            size_t path_size = 0;
-
-            object->mPath = talpa_alloc_path(&path_size);
-            if ( likely(object->mPath != NULL) )
-            {
-                ISystemRoot* root = TALPA_Portability()->systemRoot();
-
-                object->mFilename = talpa__d_path(talpa_nd_dentry(&nd), talpa_nd_mnt(&nd), root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
-                object->mOperation = operation;
-                object->mFlags = flags;
-                object->mDentry = talpa_nd_dentry(&nd);
-                object->mVFSMount = talpa_nd_mnt(&nd);
-                object->mMode = talpa_nd_dentry(&nd)->d_inode->i_mode;
-                object->mIno = talpa_nd_dentry(&nd)->d_inode->i_ino;
-                object->mWriteCount = (atomic_read(&talpa_nd_dentry(&nd)->d_inode->i_writecount)<=0)?0:atomic_read(&talpa_nd_dentry(&nd)->d_inode->i_writecount);
-                object->mDevice = kdev_t_to_nr(inode_dev(talpa_nd_dentry(&nd)->d_inode));
-                object->mDeviceMajor = MAJOR(inode_dev(talpa_nd_dentry(&nd)->d_inode));
-                object->mDeviceMinor = MINOR(inode_dev(talpa_nd_dentry(&nd)->d_inode));
-//                 dbg("%s, F:0x%x, M:0x%x, D:0x%x",object->mFilename,object->mFlags,object->mMode,(unsigned int)object->mDevice);
-            }
-            else
-            {
-                talpa_free(object);
-                warn("Not getting a single free page!");
-                talpa_path_release(&nd);
-
-                return NULL;
-            }
-
-            talpa_path_release(&nd);
-        }
-        else
-        {
-            talpa_free(object);
-
-            return NULL;
-        }
+        return NULL;
     }
+
+    memcpy(object, &template_LinuxFileInfo, sizeof(template_LinuxFileInfo));
+    object->i_IFileInfo.object = object;
+
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
+    rc = talpa_path_lookup(filename, TALPA_LOOKUP, &nd);
+#else
+    rc = kern_path(filename, TALPA_LOOKUP, &p);
+#endif
+
+    if (unlikely(rc != 0) )
+    {
+        talpa_free(object);
+        return NULL;
+    }
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
+    mnt = talpa_nd_mnt(&nd);
+    dentry = talpa_nd_dentry(&nd);
+#else
+    mnt = p.mnt;
+    dentry = p.dentry;
+#endif
+
+    object->mPath = talpa_alloc_path(&path_size);
+    if (unlikely(object->mPath == NULL))
+    {
+        talpa_free(object); object = NULL;
+        warn("Not getting a single free page!");
+
+        /* Release the path objects*/
+        goto exit;
+    }
+
+
+    root = TALPA_Portability()->systemRoot();
+
+    object->mFilename = talpa__d_path(dentry, mnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
+    object->mOperation = operation;
+    object->mFlags = flags;
+    object->mDentry = dentry;
+    object->mVFSMount = mnt;
+    object->mMode = dentry->d_inode->i_mode;
+    object->mIno = dentry->d_inode->i_ino;
+
+    object->mWriteCount = (atomic_read(&dentry->d_inode->i_writecount)<=0)?0:atomic_read(&dentry->d_inode->i_writecount);
+    object->mDevice = kdev_t_to_nr(inode_dev(dentry->d_inode));
+    object->mDeviceMajor = MAJOR(inode_dev(dentry->d_inode));
+    object->mDeviceMinor = MINOR(inode_dev(dentry->d_inode));
+/*                 dbg("%s, F:0x%x, M:0x%x, D:0x%x",object->mFilename,object->mFlags,object->mMode,(unsigned int)object->mDevice); */
+
+    exit:
+
+#ifdef TALPA_HAVE_PATH_LOOKUP
+    talpa_path_release(&nd);
+#else
+    path_put(&p);
+#endif
+
     return object;
 }
 

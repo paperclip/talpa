@@ -34,7 +34,13 @@
 #include <asm/semaphore.h>
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+#include <linux/rwlock_types.h>
+#endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+#include <linux/spinlock_types.h>
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_MUTEXES
 
@@ -68,14 +74,24 @@ typedef struct semaphore talpa_mutex_t;
 
 typedef spinlock_t talpa_simple_lock_t;
 
-#define TALPA_SIMPLE_UNLOCKED   SPIN_LOCK_UNLOCKED
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+#define TALPA_SIMPLE_UNLOCKED(lockname)   __SPIN_LOCK_UNLOCKED(lockname)
+#else
+#define TALPA_SIMPLE_UNLOCKED(lockname)   SPIN_LOCK_UNLOCKED
+#endif
+
 #define talpa_simple_init       spin_lock_init
 #define talpa_simple_lock       spin_lock
 #define talpa_simple_unlock     spin_unlock
 
 typedef rwlock_t talpa_rw_lock_t;
 
-#define TALPA_RW_UNLOCKED   RW_LOCK_UNLOCKED
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+#define TALPA_RW_UNLOCKED(lockname)   __RW_LOCK_UNLOCKED(lockname)
+#else
+#define TALPA_RW_UNLOCKED(lockname)   RW_LOCK_UNLOCKED
+#endif
+
 #define talpa_rw_init       rwlock_init
 #define talpa_read_lock     read_lock
 #define talpa_read_unlock   read_unlock
@@ -86,7 +102,7 @@ typedef rwlock_t talpa_rw_lock_t;
 
 typedef spinlock_t talpa_rcu_lock_t;
 
-#define TALPA_RCU_UNLOCKED          SPIN_LOCK_UNLOCKED
+#define TALPA_RCU_UNLOCKED(lockname)      TALPA_SIMPLE_UNLOCKED(lockname)
 #define talpa_rcu_lock_init         spin_lock_init
 #define talpa_rcu_read_lock(l)      rcu_read_lock()
 #define talpa_rcu_read_unlock(l)    rcu_read_unlock()
@@ -97,7 +113,7 @@ typedef spinlock_t talpa_rcu_lock_t;
 
 typedef rwlock_t talpa_rcu_lock_t;
 
-#define TALPA_RCU_UNLOCKED      RW_LOCK_UNLOCKED
+#define TALPA_RCU_UNLOCKED(lockname)      TALPA_RW_UNLOCKED(lockname)
 #define talpa_rcu_lock_init     rwlock_init
 #define talpa_rcu_read_lock     read_lock
 #define talpa_rcu_read_unlock   read_unlock
