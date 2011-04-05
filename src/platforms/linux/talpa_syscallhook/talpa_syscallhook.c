@@ -42,6 +42,7 @@
 #endif
 #ifdef TALPA_RODATA_MAP_WRITABLE
 #include <linux/vmalloc.h>
+#include <linux/uaccess.h>
 #endif
 
 #include "platforms/linux/glue.h"
@@ -335,16 +336,42 @@ void talpa_syscallhook_modify_finish(void)
 void *talpa_syscallhook_poke(void *addr, void *val)
 {
     unsigned long target = (unsigned long)addr;
-
-
 #if defined(TALPA_RODATA_MAP_WRITABLE)
+    long probeRes;
+
     if (target >= rodata_start && target <= rodata_end)
     {
         target += rwdata_offset;
+        *(void **)target = val;
     }
+    else
+    {
+        dbg("poking to address outside of rodata area 0x%p",addr);
+        dbg("reading target 0x%p",*(void **)target);
+        probeRes = probe_kernel_write((void*)target,(void*)&val,sizeof(void*));
+
+        if (probeRes == -EFAULT)
+        {
+            unsigned long rwshadow;
+
+            rwshadow = (unsigned long)talpa_syscallhook_unro((void *)target, sizeof(void*), 1);
+            if (rwshadow)
+            {
+                probeRes = probe_kernel_write((void*)rwshadow,(void*)&val,sizeof(void*));
+                talpa_syscallhook_unro((void *)(rwshadow), sizeof(void*), 0);
+            }
+        }
+        if (probeRes == -EFAULT)
+        {
+
+            err("Write to  0x%p would have caused a fault",(void*)target);
+        }
+    }
+
+#else
+    *(void **)target = val;
 #endif
 
-    *(void **)target = val;
 
     return (void *)target;
 }
@@ -1333,13 +1360,15 @@ static unsigned int check_table(void)
 
     if ( strchr(hook_mask, 'o') )
     {
-        if ( sys_call_table[__NR_open] != talpa_open )
+        if ( sys_call_table[__NR_open] != talpa_open &&
+             sys_call_table[__NR_open] != orig_open)
         {
             warn("open() is patched by someone else!");
             rc = 1;
         }
 #ifdef CONFIG_IA32_EMULATION
-        if ( ia32_sys_call_table[__NR_open_ia32] != talpa_open )
+        if ( ia32_sys_call_table[__NR_open_ia32] != talpa_open &&
+             ia32_sys_call_table[__NR_open_ia32] != orig_open_32)
         {
             warn("ia32_open() is patches by someone else!");
             rc = 1;
@@ -1349,13 +1378,15 @@ static unsigned int check_table(void)
 
     if ( strchr(hook_mask, 'c') )
     {
-        if ( sys_call_table[__NR_close] != talpa_close )
+        if ( sys_call_table[__NR_close] != talpa_close &&
+             sys_call_table[__NR_close] != orig_close)
         {
             warn("close() is patched by someone else!");
             rc = 1;
         }
 #ifdef CONFIG_IA32_EMULATION
-        if ( ia32_sys_call_table[__NR_close_ia32] != talpa_close )
+        if ( ia32_sys_call_table[__NR_close_ia32] != talpa_close &&
+             ia32_sys_call_table[__NR_close_ia32] != orig_close_32)
         {
             warn("ia32_close() is patched by someone else!");
             rc = 1;
@@ -1365,13 +1396,15 @@ static unsigned int check_table(void)
 
     if ( strchr(hook_mask, 'l') )
     {
-        if ( sys_call_table[__NR_uselib] != talpa_uselib )
+        if ( sys_call_table[__NR_uselib] != talpa_uselib &&
+             sys_call_table[__NR_uselib] != orig_uselib)
         {
             warn("uselib() is patched by someone else!");
             rc = 1;
         }
 #if defined CONFIG_IA32_EMULATION && defined CONFIG_IA32_AOUT
-        if ( ia32_sys_call_table[__NR_uselib_ia32] != talpa_uselib )
+        if ( ia32_sys_call_table[__NR_uselib_ia32] != talpa_uselib &&
+             ia32_sys_call_table[__NR_uselib_ia32] != orig_uselib_32)
         {
             warn("ia32_uselib() is patched by someone else!");
             rc = 1;
@@ -1381,13 +1414,15 @@ static unsigned int check_table(void)
 
     if ( strchr(hook_mask, 'm') )
     {
-        if ( sys_call_table[__NR_mount] != talpa_mount )
+        if ( sys_call_table[__NR_mount] != talpa_mount &&
+             sys_call_table[__NR_mount] != orig_mount )
         {
             warn("mount() is patched by someone else!");
             rc = 1;
         }
 #ifdef CONFIG_IA32_EMULATION
-        if ( ia32_sys_call_table[__NR_mount_ia32] != talpa_mount )
+        if ( ia32_sys_call_table[__NR_mount_ia32] != talpa_mount &&
+             ia32_sys_call_table[__NR_mount_ia32] != orig_mount_32)
         {
             warn("ia32_mount() is patched by someone else!");
             rc = 1;
@@ -1399,18 +1434,21 @@ static unsigned int check_table(void)
     {
 #if defined CONFIG_X86
  #if defined CONFIG_X86_64
-        if ( sys_call_table[__NR_umount2] != talpa_umount2 )
+        if ( sys_call_table[__NR_umount2] != talpa_umount2 &&
+             sys_call_table[__NR_umount2] != orig_umount2)
         {
             warn("umount2() is patched by someone else!");
             rc = 1;
         }
  #else
-        if ( sys_call_table[__NR_umount] != talpa_umount )
+        if ( sys_call_table[__NR_umount] != talpa_umount &&
+             sys_call_table[__NR_umount] != orig_umount)
         {
             warn("umount() is patched by someone else!");
             rc = 1;
         }
-        if ( sys_call_table[__NR_umount2] != talpa_umount2 )
+        if ( sys_call_table[__NR_umount2] != talpa_umount2 &&
+             sys_call_table[__NR_umount2] != orig_umount2)
         {
             warn("umount2() is patched by someone else!");
             rc = 1;
@@ -1418,12 +1456,14 @@ static unsigned int check_table(void)
  #endif
 #endif
 #ifdef CONFIG_IA32_EMULATION
-        if ( ia32_sys_call_table[__NR_umount_ia32] != talpa_umount )
+        if ( ia32_sys_call_table[__NR_umount_ia32] != talpa_umount &&
+             ia32_sys_call_table[__NR_umount_ia32] != orig_umount_32)
         {
             warn("ia32_umount() is patched by someone else!");
             rc = 1;
         }
-        if ( ia32_sys_call_table[__NR_umount2_ia32] != talpa_umount2 )
+        if ( ia32_sys_call_table[__NR_umount2_ia32] != talpa_umount2 &&
+             ia32_sys_call_table[__NR_umount2_ia32] != orig_umount2_32)
         {
             warn("ia32_umount2() is patched by someone else!");
             rc = 1;
@@ -1434,7 +1474,8 @@ static unsigned int check_table(void)
 #ifdef TALPA_EXECVE_SUPPORT
     if ( strchr(hook_mask, 'e') )
     {
-        if ( sys_call_table[__NR_execve] != talpa_execve )
+        if ( sys_call_table[__NR_execve] != talpa_execve &&
+             sys_call_table[__NR_execve] != orig_execve)
         {
             warn("execve() is patched by someone else!");
             rc = 1;

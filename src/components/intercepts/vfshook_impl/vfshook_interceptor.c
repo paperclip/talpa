@@ -944,7 +944,12 @@ rescan:
 #ifdef TALPA_HAVE_PATH_LOOKUP
         err = talpa_path_lookup(dc->dirent, 0, &nd);
 #else
+        dbg("kern_path on %s", dc->dirent);
+# ifdef LOOKUP_NO_AUTOMOUNT
+        err = kern_path(dc->dirent, LOOKUP_NO_AUTOMOUNT, &p);
+# else
         err = kern_path(dc->dirent, 0, &p);
+# endif
 #endif
 
         if ( err == 0 )
@@ -982,6 +987,7 @@ rescan:
             {
                 dbg("  skipping %s", dc->dirent);
             }
+            /* Can release the path, as we have done dget, if we want to keep it */
 #ifdef TALPA_HAVE_PATH_LOOKUP
             talpa_path_release(&nd);
 #else
@@ -1429,8 +1435,14 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         if ( !spatch )
         {
             dbg("Restoring file operations 0x%p 0x%p", patch->open, patch->release);
-            talpa_syscallhook_poke(&patch->f_ops->open, patch->open);
-            talpa_syscallhook_poke(&patch->f_ops->release, patch->release);
+            if (patch->f_ops->open != patch->open)
+            {
+                talpa_syscallhook_poke(&patch->f_ops->open, patch->open);
+            }
+            if (patch->f_ops->release != patch->release)
+            {
+                talpa_syscallhook_poke(&patch->f_ops->release, patch->release);
+            }
         }
     }
     else if ( patch->i_ops )
@@ -1452,13 +1464,19 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
             if ( patch->i_ops->lookup == talpaInodeLookup )
             {
                 dbg("Restoring lookup inode operation 0x%p", patch->lookup);
-                talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
+                if (patch->i_ops->lookup != patch->lookup)
+                {
+                    talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
+                }
                 patch->lookup = NULL;
             }
             if ( patch->i_ops->create == talpaInodeCreate )
             {
                 dbg("Restoring create inode operation 0x%p", patch->create);
-                talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
+                if (patch->i_ops->create != patch->create)
+                {
+                    talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
+                }
                 patch->create = NULL;
             }
         }
@@ -2045,7 +2063,7 @@ static int walkMountTree(void)
     mnt = mntget(rootmnt);
     do
     {
-        dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, flags: 0x%x, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_flags, mnt->mnt_sb->s_type->name);
+        dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, flags: 0x%lx, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_flags, mnt->mnt_sb->s_type->name);
 
         ret = processMount(mnt, mnt->mnt_sb->s_flags, false);
         if (ret)
