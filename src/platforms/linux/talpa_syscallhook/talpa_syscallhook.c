@@ -354,6 +354,8 @@ void *talpa_syscallhook_poke(void *addr, void *val)
         {
             unsigned long rwshadow;
 
+            dbg("Write to 0x%p would have caused a fault, so shadow mapping a replacement.",(void*)target);
+
             rwshadow = (unsigned long)talpa_syscallhook_unro((void *)target, sizeof(void*), 1);
             if (rwshadow)
             {
@@ -364,7 +366,7 @@ void *talpa_syscallhook_poke(void *addr, void *val)
         if (probeRes == -EFAULT)
         {
 
-            err("Write to  0x%p would have caused a fault",(void*)target);
+            err("Write to  0x%p would have caused a fault and failed to shadow map replacement.",(void*)target);
         }
     }
 
