@@ -24,7 +24,12 @@
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/quotaops.h>
+
+/* Header goes away in 2.6.39, but we don't use it on 2.6 anyway */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 #include <linux/smp_lock.h>
+#endif
+
 #if defined TALPA_INODE_USES_MUTEXES
 #include <linux/mutex.h>
 #else

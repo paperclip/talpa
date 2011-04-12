@@ -25,7 +25,6 @@
 #include <linux/sched.h>
 #include <linux/unistd.h>
 #include <linux/linkage.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)
@@ -45,6 +44,7 @@
 #include "common/talpa.h"
 
 #include "platforms/linux/glue.h"
+#include "platforms/linux/locking.h"
 
 
 static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
@@ -91,9 +91,9 @@ int talpa_syscallhook_modify_start(void)
   #else
     unsigned long rwshadow;
 
-    lock_kernel();
+    talpa_lock_kernel();
     rwshadow = (unsigned long)talpa_syscallhook_unro((void *)rodata_start, rodata_end - rodata_start, 1);
-    unlock_kernel();
+    talpa_unlock_kernel();
     if (!rwshadow)
     {
         return 1;
@@ -111,9 +111,9 @@ void talpa_syscallhook_modify_finish(void)
   #ifdef TALPA_HAS_MARK_RODATA_RW
     mark_rodata_ro();
   #else
-    lock_kernel();
+    talpa_lock_kernel();
     talpa_syscallhook_unro((void *)(rodata_start + rwdata_offset), rodata_end - rodata_start, 0);
-    unlock_kernel();
+    talpa_unlock_kernel();
   #endif
 #endif
 }
@@ -164,9 +164,24 @@ static void *lower_bound = &empty_zero_page;
 
 const char * __attribute__((weak)) kallsyms_lookup(unsigned long addr, unsigned long *symbolsize, unsigned long *offset, char **modname, char *namebuf);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+
 static void **get_start_addr(void)
 {
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+    /* This isn't used very much as the address is compiled in by the configure script
+     * so we won't deal with it for 2.6.39+ as I can't find a symbol to use
+     */
+#ifdef TALPA_HIDDEN_SYSCALLS
+  #ifndef TALPA_SYSCALL_TABLE
+    #error "Syscall table address not built in"
+  #endif
+#endif
+    err("Syscall searching not available for 2.6.39+");
+    return (void **)0;
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+static void **get_start_addr(void)
+{
     #ifdef CONFIG_SMP
       #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
     return (void **)&_lock_kernel;
@@ -181,14 +196,19 @@ static void **get_start_addr(void)
     return (void **)&mutex_lock;
       #endif
     #endif
-  #else
-    #ifdef CONFIG_X86_64
-    return (void **)&tasklist_lock - 0x4000;
-    #else
-    return (void **)&init_mm;
-    #endif
-  #endif
 }
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16) */
+
+static void **get_start_addr(void)
+{
+    #ifdef CONFIG_X86_64
+      return (void **)&tasklist_lock - 0x4000;
+    #else
+      return (void **)&init_mm;
+    #endif
+}
+
+#endif
 
 static int kallsym_is_equal(unsigned long addr, const char *name)
 {
@@ -636,7 +656,7 @@ ret = find_syscall_table();
         return ret;
     }
 
-    lock_kernel();
+    talpa_lock_kernel();
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     fsync_dev(0);
 #endif
@@ -644,13 +664,13 @@ ret = find_syscall_table();
     ret = talpa_syscallhook_modify_start();
     if (ret)
     {
-        unlock_kernel();
+        talpa_unlock_kernel();
         err("Failed to unprotect read-only memory!");
         return ret;
     }
     patch_table();
     talpa_syscallhook_modify_finish();
-    unlock_kernel();
+    talpa_unlock_kernel();
 
     dbg("Hooked");
 
@@ -662,7 +682,7 @@ static void __exit talpa_syscallhook_exit(void)
     int ret;
 
 
-    lock_kernel();
+    talpa_lock_kernel();
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
     fsync_dev(0);
 #endif
@@ -677,26 +697,26 @@ static void __exit talpa_syscallhook_exit(void)
     */
     while ( check_table() != 0 )
     {
-        unlock_kernel();
+        talpa_unlock_kernel();
         __set_current_state(TASK_UNINTERRUPTIBLE);
         schedule_timeout(HZ);
-        lock_kernel();
+        talpa_lock_kernel();
     }
     do
     {
         ret = talpa_syscallhook_modify_start();
         if (ret)
         {
-            unlock_kernel();
+            talpa_unlock_kernel();
             err("Failing to unprotect read-only memory!");
             __set_current_state(TASK_UNINTERRUPTIBLE);
             schedule_timeout(HZ);
-            lock_kernel();
+            talpa_lock_kernel();
         }
     } while (ret); /* Unfortunate but we can't possibly exit if we failed to restore original pointers. */
     restore_table();
     talpa_syscallhook_modify_finish();
-    unlock_kernel();
+    talpa_unlock_kernel();
 
     dbg("Unhooked");
 }

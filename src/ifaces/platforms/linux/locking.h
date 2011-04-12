@@ -42,6 +42,10 @@
 #include <linux/spinlock_types.h>
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
+#include <linux/smp_lock.h>
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) || defined TALPA_HAS_MUTEXES
 
 typedef struct mutex talpa_mutex_t;
@@ -121,6 +125,15 @@ typedef rwlock_t talpa_rcu_lock_t;
 #define talpa_rcu_write_unlock  write_unlock
 
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) */
+
+// BKL wrapper
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
+#define talpa_lock_kernel       lock_kernel
+#define talpa_unlock_kernel     unlock_kernel
+#else
+#define talpa_lock_kernel()
+#define talpa_unlock_kernel()
+#endif
 
 #endif
 

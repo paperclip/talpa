@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/unistd.h>
 
 #include <linux/mount.h>
@@ -47,6 +46,7 @@
 #include "filesystem/ifile_info.h"
 #include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/locking.h"
 
 
 /*
@@ -2318,7 +2318,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
 
     /* Lock kernel so that no (u)mounting can happen between us walking the mount
        tree and hooking into the syscall table */
-    lock_kernel();
+    talpa_lock_kernel();
 
     /* See which filesystem are already present and patch them */
     err = walkMountTree();
@@ -2336,7 +2336,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
         goto error;
     }
 
-    unlock_kernel();
+    talpa_unlock_kernel();
 
     GL_object.mInitialized = true;
 
@@ -2345,7 +2345,7 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     return &GL_object;
 
 error:
-    unlock_kernel();
+    talpa_unlock_kernel();
     purgePatches(&GL_object);
     /* Free the configuration list objects */
     talpa_list_for_each_entry_safe(obj, tmp, &GL_object.mGoodFilesystems, head)
