@@ -674,6 +674,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     //~ {
         //~ dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->f_path.dentry);
     //~ }
+    return resultCode;
 }
 
 static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
@@ -682,9 +683,8 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
 
+    dbg("talpaDentryRevalidate dentry=%p nd=%p dentry->d_op=%p",dentry,nd,dentry->d_op);
     hookEntry();
-
-    dbg("talpaDentryRevalidate dentry=%p nd=%p",dentry,nd);
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
@@ -715,12 +715,15 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         {
            err("Dentry revalidate patched without d_revalidate!");
         }
+
+        putPatch(patch);
     }
     else
     {
         err("Dentry revalidate left patched after record removed!");
     }
 
+    dbg("exit talpaDentryRevalidate dentry=%p nd=%p dentry->d_op=%p",dentry,nd,dentry->d_op);
     hookExitRv(resultCode);
 }
 
@@ -989,7 +992,7 @@ static struct dentry *scanDirectory(const char* dirname, char* rootbuf, size_t r
     strcpy(dc->root, dirname);
     dc->rootlen = strlen(dc->root);
 
-    dbg("root at %s, max path %lu bytes", dc->root, dc->bufsize);
+    dbg("root at %s, max path %lu bytes", dc->root, (long unsigned int)dc->bufsize);
 rescan:
     dc->dir = openDirectory(&dirs, depth, dc->root, &newdir);
 
@@ -1154,7 +1157,7 @@ static struct dentry *findRegular(struct vfsmount* root)
             else
             {
                 /* Unexpected failure */
-                dbg("unexpected failure %d", PTR_ERR(name));
+                dbg("unexpected failure %ld", PTR_ERR(name));
                 goto exit1;
             }
         }
@@ -1387,7 +1390,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
         }
     }
 
-#ifdef TALPA_HOOK_D_OPS_NOT
+#ifdef TALPA_HOOK_D_OPS
     if (patch->mHookDOps && patch->d_ops && patch->d_revalidate)
     {
         if ( patch->d_ops->d_revalidate != talpaDentryRevalidate )
@@ -1575,8 +1578,8 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     struct patchedFilesystem*   spatch = NULL;
     struct patchedFilesystem*   p;
 
-#ifdef TALPA_HOOK_D_OPS_NOT
-    if (patch->d_ops && patch->mHookDOps && patch->d_revalidate)
+#ifdef TALPA_HOOK_D_OPS
+    if (patch->d_ops)
     {
         bool restoreRevalidate = true;
         talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
@@ -1589,12 +1592,19 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
             }
         }
 
-        if (restoreRevalidate && patch->d_ops->d_revalidate == talpaDentryRevalidate)
+        if (restoreRevalidate)
         {
-            dbg("  Restoring dentry operations 0x%p for %s", patch->d_ops, patch->fstype->name);
-            dbg("     revalidate 0x%p", patch->d_revalidate);
-            TALPA_BUG_ON(patch->d_revalidate == NULL);
-            talpa_syscallhook_poke(&patch->d_ops->d_revalidate, patch->d_revalidate);
+            if (patch->d_ops->d_revalidate == talpaDentryRevalidate)
+            {
+                dbg("  Restoring dentry operations 0x%p for %s", patch->d_ops, patch->fstype->name);
+                dbg("     revalidate 0x%p", patch->d_revalidate);
+                TALPA_BUG_ON(patch->d_revalidate == NULL);
+                talpa_syscallhook_poke(&patch->d_ops->d_revalidate, patch->d_revalidate);
+            }
+            else
+            {
+                err("patch->d_ops->d_revalidate (%p) is not talpaDentryRevalidate (%p)",patch->d_ops->d_revalidate,talpaDentryRevalidate);
+            }
         }
 
         /* We renounce our claim to the d_ops */
@@ -1654,6 +1664,7 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     {
         /* We must not restore when filesystem share operation tables
            until the call to restore the last one. */
+        spatch = NULL;
         talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
         {
             if ( p != patch && p->i_ops == patch->i_ops )
@@ -1691,6 +1702,8 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     {
         module_put(patch->fstype->owner);
     }
+
+    err("DEBUG done restoreFilesystem");
 
     return 0;
 }
