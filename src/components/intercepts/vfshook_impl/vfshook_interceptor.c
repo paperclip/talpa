@@ -93,6 +93,10 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
   #endif
 #endif
 
+#ifdef BUG_ON
+# define TALPA_BUG_ON BUG_ON
+#endif
+
 
 /*
  * Constants
@@ -120,6 +124,7 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
  * Singleton object.
  */
 
+
 static VFSHookInterceptor GL_object =
     {
         {
@@ -140,19 +145,24 @@ static VFSHookInterceptor GL_object =
             (void (*)(void*))deleteVFSHookInterceptor
         },
         deleteVFSHookInterceptor,
-        false,
-        ATOMIC_INIT(0),
-        { },
-        TALPA_STATIC_MUTEX(GL_object.mSemaphore),
-        0,
-        HOOK_DEFAULT,
+        NULL, /* mTargetProcessor */
+        NULL, /* mLinuxFilesystemFactory */
+        NULL, /* mLinuxSystemRoot */
+        NULL, /* mGoodFilesystemsSet */
+        NULL, /* mSkipFilesystemsSet */
+        NULL, /* mNoScanFilesystemsSet */
+        NULL, /* mPatchListSet */
+        0, /* mInterceptMask */
+        HOOK_DEFAULT, /* mHookingMask */
+        ATOMIC_INIT(0), /* mUseCnt */
+        { }, /* mUnload */
+        TALPA_STATIC_MUTEX(GL_object.mSemaphore), /* mSemaphore */
         TALPA_RCU_UNLOCKED(talpa_vfshook_interceptor_patch_lock),
         TALPA_LIST_HEAD_INIT(GL_object.mPatches),
         TALPA_RCU_UNLOCKED(talpa_vfshook_interceptor_list_lock),
         TALPA_LIST_HEAD_INIT(GL_object.mGoodFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mSkipFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mNoScanFilesystems),
-        NULL,
         {
             {GL_object.mConfigData.name, GL_object.mConfigData.value, VFSHOOK_CFGDATASIZE, true, true },
             {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, VFSHOOK_OPSCFGDATASIZE, true, false },
@@ -168,8 +178,6 @@ static VFSHookInterceptor GL_object =
         { CFG_FS, CFG_VALUE_DUMMY },
         { CFG_NOSCAN, CFG_VALUE_DUMMY },
         { CFG_PATCHLIST, CFG_VALUE_DUMMY },
-        NULL,
-        NULL,
         {
             .open_post = talpaDummyOpen,
             .close_pre = talpaDummyClose,
@@ -180,10 +188,7 @@ static VFSHookInterceptor GL_object =
             .umount_pre = talpaPreUmount,
             .umount_post = talpaPostUmount,
         },
-        NULL,
-        NULL,
-        NULL,
-        NULL,
+        false, /* mInitialized */
     };
 
 #define this    ((VFSHookInterceptor*)self)
@@ -615,6 +620,97 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     }
 
     hookExitRv(err);
+}
+
+static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, struct nameidata * nd)
+{
+    struct inode *inode;
+    struct file *filp = NULL;
+	int openflags;
+
+    if (resultCode <= 0)
+    {
+        dbg("err value of %d",resultCode);
+        return resultCode;
+    }
+    if (dentry == NULL || nd == NULL)
+    {
+        return resultCode;
+    }
+
+
+    inode = dentry->d_inode;
+    if (inode == NULL)
+    {
+        return resultCode;
+    }
+
+	if (!S_ISREG(inode->i_mode))
+    {
+        return resultCode;
+    }
+
+	openflags = nd->intent.open.flags;
+	/* We cannot do exclusive creation on a positive dentry */
+	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
+    {
+        return resultCode;
+    }
+    /* Pick up the filp from the open intent */
+    filp = nd->intent.open.file;
+    dbg("After filp=%p",filp);
+    //~ if (filp != NULL && filp->f_path.dentry != NULL)
+    //~ {
+        //~ dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->f_path.dentry);
+    //~ }
+}
+
+static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
+{
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int resultCode = -ENXIO;
+
+    hookEntry();
+
+    dbg("talpaDentryRevalidate dentry=%p nd=%p",dentry,nd);
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( dentry->d_op == p->d_ops )
+        {
+            patch = getPatch(p);
+            break;
+        }
+    }
+
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+    if ( likely( patch != NULL ) )
+    {
+        if ( likely(patch->d_revalidate != NULL) )
+        {
+#ifdef TALPA_HAVE_INTENT
+            dbg("revalidate on %s", patch->fstype->name);
+            resultCode = patch->d_revalidate(dentry,nd);
+            resultCode = maybeScanDentryRevalidate(resultCode,dentry,nd);
+#else
+            resultCode = patch->d_revalidate(dentry,nd);
+#endif
+        }
+        else
+        {
+           err("Dentry revalidate patched without d_revalidate!");
+        }
+    }
+    else
+    {
+        err("Dentry revalidate left patched after record removed!");
+    }
+
+    hookExitRv(resultCode);
 }
 
 /* Structure which holds info on one entry as we scan the directory tree */
@@ -1201,9 +1297,60 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         }
     }
 
+
+#ifdef TALPA_HOOK_D_OPS
+    if (patch->mHookDOps)
+    {
+        if ( !dentry )
+        {
+            dentry = mnt->mnt_root;
+            dbg("  root dentry [0x%p]", dentry);
+        }
+
+        patch->d_ops = (struct dentry_operations *)dentry->d_op;
+        spatch = NULL;
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+        {
+            if ( p != patch && p->d_ops == patch->d_ops )
+            {
+                dbg("shared dentry operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                spatch = p;
+                break;
+            }
+        }
+
+        if (spatch != NULL)
+        {
+            if (patch->i_ops && patch->i_ops != spatch->i_ops)
+            {
+                dbg("WARNING: however i_ops not shared between %s and %s.", spatch->fstype->name, patch->fstype->name);
+            }
+            if (patch->f_ops && patch->f_ops != spatch->f_ops)
+            {
+                dbg("WARNING: however f_ops not shared between %s and %s.", spatch->fstype->name, patch->fstype->name);
+            }
+            patch->d_revalidate = spatch->d_revalidate;
+        }
+        else
+        {
+            patch->d_revalidate = patch->d_ops->d_revalidate;
+        }
+    }
+    else
+    {
+        patch->d_ops = NULL;
+        patch->d_revalidate = NULL;
+    }
+#endif
+
+
+
     if (        patch->open == talpaOpen || patch->release == talpaRelease
 #ifdef TALPA_HAS_SMBFS
             ||  patch->ioctl == talpaIoctl
+#endif
+#ifdef TALPA_HOOK_D_OPS
+            || patch->d_revalidate == talpaDentryRevalidate
 #endif
             ||  patch->lookup == talpaInodeLookup || patch->create == talpaInodeCreate )
     {
@@ -1226,6 +1373,23 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
             return -1;
         }
     }
+
+#ifdef TALPA_HOOK_D_OPS_NOT
+    if (patch->mHookDOps && patch->d_ops && patch->d_revalidate)
+    {
+        if ( patch->d_ops->d_revalidate != talpaDentryRevalidate )
+        {
+            dbg("  patching dentry operations 0x%p for %s", patch->d_ops, patch->fstype->name);
+            dbg("     revalidate 0x%p", patch->d_revalidate);
+            talpa_syscallhook_poke(&patch->d_ops->d_revalidate, talpaDentryRevalidate);
+        }
+    }
+    else
+    {
+        patch->d_ops = NULL;
+        patch->d_revalidate = NULL;
+    }
+#endif
 
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
@@ -1397,6 +1561,33 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     struct patchedFilesystem*   spatch = NULL;
     struct patchedFilesystem*   p;
 
+#ifdef TALPA_HOOK_D_OPS_NOT
+    if (patch->d_ops && patch->mHookDOps && patch->d_revalidate)
+    {
+        bool restoreRevalidate = true;
+        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+        {
+            if ( p != patch && p->d_ops == patch->d_ops )
+            {
+                dbg("NOT RESTORING - shared dentry operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                restoreRevalidate = false; /* Someone else has revalidate patched */
+                break;
+            }
+        }
+
+        if (restoreRevalidate && patch->d_ops->d_revalidate == talpaDentryRevalidate)
+        {
+            dbg("  Restoring dentry operations 0x%p for %s", patch->d_ops, patch->fstype->name);
+            dbg("     revalidate 0x%p", patch->d_revalidate);
+            TALPA_BUG_ON(patch->d_revalidate == NULL);
+            talpa_syscallhook_poke(&patch->d_ops->d_revalidate, patch->d_revalidate);
+        }
+
+        /* We renounce our claim to the d_ops */
+        patch->d_revalidate = NULL;
+        patch->d_ops = NULL;
+    }
+#endif
 
 #ifdef TALPA_HAS_SMBFS
     if ( !(patch->sf_ops || patch->f_ops || patch->i_ops) )
@@ -1613,6 +1804,16 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         atomic_set(&patch->refcnt, 1);
         patch->fstype = mnt->mnt_sb->s_type;
         talpa_simple_init(&patch->lock);
+
+        /* TODO: If we get more than nfs4, then we should make this a list, and move inside the list lock above */
+        if ( !strcmp(fsname, "nfs4") )
+        {
+            patch->mHookDOps = true;
+        }
+        else
+        {
+            patch->mHookDOps = false;
+        }
     }
 
     /* Lock patch record for manipulation */

@@ -63,6 +63,18 @@ typedef struct
     bool            protected;
 } VFSHookObject;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#define TALPA_HAVE_INTENT
+#else
+#undef TALPA_HAVE_INTENT
+#endif
+
+/* Adjust as appropriate */
+#if defined(CONFIG_NFS_V4) && defined(TALPA_HAVE_INTENT)
+#define TALPA_HOOK_D_OPS
+#endif
+
+
 struct patchedFilesystem
 {
     talpa_list_head         head;
@@ -91,6 +103,14 @@ struct patchedFilesystem
     int                     (*create)(struct inode *,struct dentry *,int);
     struct dentry*          (*lookup)(struct inode *,struct dentry *);
 #endif
+#ifdef TALPA_HOOK_D_OPS
+    struct dentry_operations *d_ops;
+    int                     (*d_revalidate)(struct dentry *, struct nameidata *);
+#endif
+    bool                    mAlwaysHookLookup;
+    bool                    mCreatePatched;
+    bool                    mIoctlPatched;
+    bool                    mHookDOps;
 };
 
 typedef struct tag_VFSHookInterceptor
@@ -99,19 +119,25 @@ typedef struct tag_VFSHookInterceptor
     IConfigurable                   i_IConfigurable;
     void                            (*delete)(struct tag_VFSHookInterceptor* object);
 
-    bool                            mInitialized;
+    IInterceptProcessor*            mTargetProcessor;
+    LinuxFilesystemFactoryImpl*     mLinuxFilesystemFactory;
+    LinuxSystemRoot*                mLinuxSystemRoot;
+    char*                           mGoodFilesystemsSet;
+    char*                           mSkipFilesystemsSet;
+    char*                           mNoScanFilesystemsSet;
+    char*                           mPatchListSet;
+
+    unsigned int                    mInterceptMask;
+    unsigned int                    mHookingMask;
     atomic_t                        mUseCnt;
     wait_queue_head_t               mUnload;
     talpa_mutex_t                   mSemaphore;
-    unsigned int                    mInterceptMask;
-    unsigned int                    mHookingMask;
     talpa_rcu_lock_t                mPatchLock;
     talpa_list_head                 mPatches;
     talpa_rcu_lock_t                mListLock;
     talpa_list_head                 mGoodFilesystems;
     talpa_list_head                 mSkipFilesystems;
     talpa_list_head                 mNoScanFilesystems;
-    IInterceptProcessor*            mTargetProcessor;
     PODConfigurationElement         mConfig[7];
     VFSHookStatusConfigData         mConfigData;
     VFSHookOpsConfigData            mOpsConfigData;
@@ -119,13 +145,8 @@ typedef struct tag_VFSHookInterceptor
     VFSHookFSConfigData             mSkipListConfigData;
     VFSHookFSConfigData             mNoScanConfigData;
     VFSHookFSConfigData             mPatchConfigData;
-    LinuxFilesystemFactoryImpl*     mLinuxFilesystemFactory;
-    LinuxSystemRoot*                mLinuxSystemRoot;
     struct talpa_syscall_operations mSyscallOps;
-    char*                           mGoodFilesystemsSet;
-    char*                           mSkipFilesystemsSet;
-    char*                           mNoScanFilesystemsSet;
-    char*                           mPatchListSet;
+    bool                            mInitialized;
 } VFSHookInterceptor;
 
 /*
