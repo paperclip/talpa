@@ -633,22 +633,58 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     hookExitRv(err);
 }
 
-static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, struct nameidata * nd)
+#ifdef TALPA_HOOK_D_OPS
+
+static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, struct nameidata * nd,
+    struct file *filpBefore)
 {
     struct inode *inode;
     struct file *filp = NULL;
 	int openflags;
+    int ret = 0;
 
     if (resultCode <= 0)
     {
+        /* Got an error before the revalidate */
         dbg("err value of %d",resultCode);
         return resultCode;
     }
+
     if (dentry == NULL || nd == NULL)
     {
+        /* Don't have valid objects to scan anyway */
         return resultCode;
     }
 
+    if ( unlikely( ((GL_object.mInterceptMask & HOOK_OPEN) == 0) || (current->flags & PF_TALPA_INTERNAL) ) )
+    {
+        /* Not scanning it */
+        return resultCode;
+    }
+
+	openflags = nd->intent.open.flags;
+	/* We cannot do exclusive creation on a positive dentry */
+	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
+    {
+        return resultCode;
+    }
+    if ((openflags & O_DIRECTORY) != 0)
+    {
+        /* An open for a directory, which we don't care about */
+        return resultCode;
+    }
+
+    if ((openflags & O_PATH) != 0)
+    {
+        /* O_PATH can't read the file */
+        return resultCode;
+    }
+
+    if ( (openflags & O_ACCMODE) == 0)
+    {
+        /* Not going to do a real open */
+        return resultCode;
+    }
 
     inode = dentry->d_inode;
     if (inode == NULL)
@@ -661,19 +697,65 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-	openflags = nd->intent.open.flags;
-	/* We cannot do exclusive creation on a positive dentry */
-	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
+    /* Pick up the filp from the open intent */
+    filp = nd->intent.open.file;
+
+    if (filp == NULL || IS_ERR(filp))
     {
         return resultCode;
     }
-    /* Pick up the filp from the open intent */
-    filp = nd->intent.open.file;
-    dbg("After filp=%p",filp);
-    //~ if (filp != NULL && filp->f_path.dentry != NULL)
-    //~ {
-        //~ dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->f_path.dentry);
-    //~ }
+
+    dbg("After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
+
+    /* DLCL: Extremely ugly hack - I can't work out what the case is when the filp is
+     * Valid or not
+     */
+    if (filp < 0x1000)
+    {
+        err("Fallen back on extemely ugly hack - filp < 0x1000");
+        return resultCode;
+    }
+
+    if (filp->f_path.dentry == NULL)
+    {
+        /* No dentry openned */
+        return resultCode;
+    }
+
+
+    dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->f_path.dentry);
+
+
+    /* First check with the examineInode method */
+    ret = GL_object.mTargetProcessor->examineInode(GL_object.mTargetProcessor, EFS_Open, flags_to_writable(filp->f_flags), filp->f_flags, kdev_t_to_nr(inode_dev(inode)), inode->i_ino);
+
+    if ( ret == -EAGAIN )
+    {
+        IFileInfo *pFInfo;
+
+
+        ret = 0;
+        pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, filp);
+        if ( likely( pFInfo != NULL ) )
+        {
+            /* Make sure our open and close attempts while examining will be excluded */
+            current->flags |= PF_TALPA_INTERNAL;
+            /* Examine this file */
+            ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+            /* Restore normal process examination */
+            current->flags &= ~PF_TALPA_INTERNAL;
+            pFInfo->delete(pFInfo);
+        }
+    }
+
+    if (ret != 0)
+    {
+        /* TODO: May need to close file here? */
+        return ret;
+    }
+
+    /* TODO: May need to restore state on the open file? */
+
     return resultCode;
 }
 
@@ -682,8 +764,8 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
+    struct file *filpBefore = NULL;
 
-    dbg("talpaDentryRevalidate dentry=%p nd=%p dentry->d_op=%p",dentry,nd,dentry->d_op);
     hookEntry();
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
@@ -704,9 +786,9 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         if ( likely(patch->d_revalidate != NULL) )
         {
 #ifdef TALPA_HAVE_INTENT
-            dbg("revalidate on %s", patch->fstype->name);
+            filpBefore = nd->intent.open.file;
             resultCode = patch->d_revalidate(dentry,nd);
-            resultCode = maybeScanDentryRevalidate(resultCode,dentry,nd);
+            resultCode = maybeScanDentryRevalidate(resultCode,dentry,nd,filpBefore);
 #else
             resultCode = patch->d_revalidate(dentry,nd);
 #endif
@@ -723,9 +805,10 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         err("Dentry revalidate left patched after record removed!");
     }
 
-    dbg("exit talpaDentryRevalidate dentry=%p nd=%p dentry->d_op=%p",dentry,nd,dentry->d_op);
     hookExitRv(resultCode);
 }
+
+#endif
 
 /* Structure which holds info on one entry as we scan the directory tree */
 struct dentryContext
