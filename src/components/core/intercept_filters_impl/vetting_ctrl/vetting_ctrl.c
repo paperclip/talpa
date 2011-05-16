@@ -424,7 +424,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                 offset = details->file->seek(details->file->object, 0, 1);
                 details->file->close(details->file->object);
 
-                dbg("[intercepted %u-%u-%u] requested re-open for writting (offset was %ld)", processParentPID(current), current->tgid, current->pid, offset);
+                dbg("[intercepted %u-%u-%u] requested re-open for writting (offset was %ld)", processParentPID(current), current->tgid, current->pid, (long int) offset);
 
                 /* Try opening with low-level filesystem objects first */
                 if ( details->fileInfo->fsObjects(details->fileInfo->object, &fsobj1, &fsobj2) )
@@ -457,7 +457,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
                     }
                     else
                     {
-                        dbg("[intercepted %u-%u-%u] offset %ld restored", processParentPID(current), current->tgid, current->pid, offset);
+                        dbg("[intercepted %u-%u-%u] offset %ld restored", processParentPID(current), current->tgid, current->pid, (long int) offset);
                     }
                 }
                 else
@@ -603,7 +603,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         return;
     }
 
-    dbg("[intercepted %u-%u-%u] allocated %u bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, sizeof(VettingDetails), details);
+    dbg("[intercepted %u-%u-%u] allocated %lu bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, sizeof(VettingDetails), details);
 
     /* See how much memory do we need for VettingDetails packet */
     rootdir = threadInfo->rootDir(threadInfo);
@@ -881,7 +881,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
         return;
     }
 
-    dbg("[intercepted %u-%u-%u] allocated %u bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, sizeof(VettingDetails), details);
+    dbg("[intercepted %u-%u-%u] allocated %lu bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, sizeof(VettingDetails), details);
 
     /* See how much memory do we need for VettingDetails packet */
     rootdir = threadInfo->rootDir(threadInfo);
@@ -1998,7 +1998,7 @@ static struct TalpaProtocolHeader* streamLength(const void* self, VettingClient*
         pktreturn_fail(ret);
     }
 
-    pktreturn_stream(sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader), job->file->length(job->file->object));
+    pktreturn_stream( ( unsigned int ) (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader) ), (unsigned int) job->file->length(job->file->object));
 }
 
 static struct TalpaProtocolHeader* streamSeek(void* self, VettingClient* client, struct TalpaPacket_StreamSeek* packet)
@@ -2016,7 +2016,7 @@ static struct TalpaProtocolHeader* streamSeek(void* self, VettingClient* client,
     job->externalOperation = true;
     retval = job->file->seek(job->file->object, packet->offset, packet->mode);
     job->externalOperation = false;
-    dbg("seek offset:%ld mode:%d (%ld)", packet->offset, packet->mode, ret);
+    dbg("seek offset:%ld mode:%d (%ld)", (long int) packet->offset, packet->mode, (long int) ret);
 
     if ( retval < 0 )
     {
@@ -2051,7 +2051,7 @@ static struct TalpaProtocolHeader* streamRead(void* self, VettingClient* client,
         pktreturn_fail(ret);
     }
 
-    pktreturn_stream(ret + (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader)), ret);
+    pktreturn_stream( (unsigned int ) (ret + (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader)) ), ret);
 }
 
 static inline void streamMaybeReopenWritable(VettingDetails* job)
@@ -2079,7 +2079,7 @@ static struct TalpaProtocolHeader* streamWrite(void* self, VettingClient* client
     }
 
     streamMaybeReopenWritable(job);
-    dbg("write %lld bytes", packet->size);
+    dbg("write %lld bytes", ( long long int ) packet->size);
     job->externalOperation = true;
     ret = job->file->write(job->file->object, (unsigned char *)packet + sizeof(struct TalpaPacket_StreamWrite), packet->size);
     job->externalOperation = false;
@@ -2089,7 +2089,7 @@ static struct TalpaProtocolHeader* streamWrite(void* self, VettingClient* client
         pktreturn_fail(ret);
     }
 
-    pktreturn_stream(sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader), ret);
+    pktreturn_stream( ( unsigned int ) (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader)), ret);
 }
 
 static struct TalpaProtocolHeader* streamReadAt(void* self, VettingClient* client, struct TalpaPacket_StreamReadAt* packet)
@@ -2128,7 +2128,7 @@ static struct TalpaProtocolHeader* streamReadAt(void* self, VettingClient* clien
         pktreturn_fail(ret);
     }
 
-    pktreturn_stream(ret + (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader)), ret);
+    pktreturn_stream( (unsigned int) (ret + (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader))), ret);
 }
 
 static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* client, struct TalpaPacket_StreamWriteAt* packet)
@@ -2154,7 +2154,7 @@ static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* clie
         pktreturn_fail(retval);
     }
 
-    dbg("write %lld bytes", packet->size);
+    dbg("write %lld bytes", (long long int) packet->size);
 
     job->externalOperation = true;
     ret = job->file->write(job->file->object, (unsigned char *)packet + sizeof(struct TalpaPacket_StreamWriteAt), packet->size);
@@ -2165,7 +2165,7 @@ static struct TalpaProtocolHeader* streamWriteAt(void* self, VettingClient* clie
         pktreturn_fail(ret);
     }
 
-    pktreturn_stream(sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader), ret);
+    pktreturn_stream( (unsigned int) (sizeof(struct TalpaPacket_StreamData) - sizeof(struct TalpaProtocolHeader)), ret);
 }
 
 static struct TalpaProtocolHeader* streamUnlinkFile(void* self, VettingClient* client, struct TalpaPacket_StreamUnlinkFile* packet)
@@ -2203,7 +2203,7 @@ static struct TalpaProtocolHeader* streamTruncate(void* self, VettingClient* cli
     }
 
     streamMaybeReopenWritable(job);
-    dbg("truncate file %u", packet->length);
+    dbg("truncate file %u", (unsigned int) packet->length);
     job->externalOperation = true;
     ret = job->file->truncate(job->file->object, packet->length);
     job->externalOperation = false;

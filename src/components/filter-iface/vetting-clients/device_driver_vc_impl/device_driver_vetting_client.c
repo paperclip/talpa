@@ -444,7 +444,7 @@ static ssize_t ddvcRead(struct file* file, char* buf, size_t len, loff_t* ppos)
 
     /* Continuing with previously established read */
     to_read = MIN(state->stream.remain, len);
-    dbg("will read %u in this pass (remain %u, requested %u)", to_read, state->stream.remain, len);
+    dbg("will read %u in this pass (remain %u, requested %u)", to_read, state->stream.remain, (unsigned int) len);
 
     if ( likely(to_read > 0) )
     {

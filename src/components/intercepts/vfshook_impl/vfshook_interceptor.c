@@ -633,8 +633,8 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     hookExitRv(err);
 }
 
-#ifdef TALPA_HOOK_D_OPS
 
+#ifdef TALPA_HOOK_D_OPS
 static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, struct nameidata * nd,
     struct file *filpBefore)
 {
@@ -674,12 +674,13 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
+#ifdef O_PATH 
     if ((openflags & O_PATH) != 0)
     {
         /* O_PATH can't read the file */
         return resultCode;
     }
-
+#endif
     if ( (openflags & O_ACCMODE) == 0)
     {
         /* Not going to do a real open */
@@ -710,7 +711,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     /* DLCL: Extremely ugly hack - I can't work out what the case is when the filp is
      * Valid or not
      */
-    if (filp < 0x1000)
+    if ( (void*)  filp < (void*) 0x1000)
     {
         err("Fallen back on extemely ugly hack - filp < 0x1000");
         return resultCode;
