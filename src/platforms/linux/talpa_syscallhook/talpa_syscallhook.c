@@ -249,6 +249,10 @@ extern void mark_rodata_ro(void);
 
 static int _talpa_syscallhook_modify_start(void)
 {
+  #ifndef TALPA_HAS_MARK_RODATA_RW
+    unsigned long rwshadow;
+  #endif
+
   #ifndef TALPA_RODATA_MAP_WRITABLE
     /* Don't need a lock if we are using shadow mappings */
     talpa_mutex_lock(&rodata_lock);
@@ -257,8 +261,6 @@ static int _talpa_syscallhook_modify_start(void)
   #ifdef TALPA_HAS_MARK_RODATA_RW
     mark_rodata_rw();
   #else
-    unsigned long rwshadow;
-
     rwshadow = (unsigned long)talpa_syscallhook_unro((void *)rodata_start, rodata_end - rodata_start, 1);
     if (!rwshadow)
     {
@@ -1104,7 +1106,7 @@ static void **look_around(void **p, const unsigned int unique_syscalls[], const 
 
         if ( ok && verify((void **)start_addr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup) )
         {
-            info("At offset %ld", start_addr - orig_addr);
+            info("At offset %ld", (long int)(start_addr - orig_addr));
             return (void **)start_addr;
         }
     }
@@ -1125,7 +1127,7 @@ static void **find_around(void **p, const unsigned int unique_syscalls[], const 
         res = talpa_find_syscall_table((void **)start_addr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, symlookup);
         if ( res )
         {
-            info("Found with offset %ld", start_addr - orig_addr);
+            info("Found with offset %ld", (long int)(start_addr - orig_addr));
             return res;
         }
     }
