@@ -717,18 +717,20 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-    if (filp->f_path.dentry == NULL)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+ #define TALPA_f_dentry f_path.dentry
 #else
-    if (filp->f_dentry == NULL)
+ #define TALPA_f_dentry f_dentry
 #endif
+
+    if (filp->TALPA_f_dentry == NULL)
     {
         /* No dentry openned */
         return resultCode;
     }
 
 
-    dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->f_path.dentry);
+    dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
 
 
     /* First check with the examineInode method */
