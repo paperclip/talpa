@@ -717,7 +717,11 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
     if (filp->f_path.dentry == NULL)
+#else
+    if (filp->f_dentry == NULL)
+#endif
     {
         /* No dentry openned */
         return resultCode;
