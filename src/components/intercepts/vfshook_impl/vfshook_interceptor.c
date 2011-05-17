@@ -674,7 +674,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-#ifdef O_PATH 
+#ifdef O_PATH
     if ((openflags & O_PATH) != 0)
     {
         /* O_PATH can't read the file */
@@ -1786,8 +1786,6 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     {
         module_put(patch->fstype->owner);
     }
-
-    err("DEBUG done restoreFilesystem");
 
     return 0;
 }
