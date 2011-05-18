@@ -603,7 +603,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         return;
     }
 
-    dbg("[intercepted %u-%u-%u] allocated %lu bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, sizeof(VettingDetails), details);
+    dbg("[intercepted %u-%u-%u] allocated %lu bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, (long unsigned int) sizeof(VettingDetails), details);
 
     /* See how much memory do we need for VettingDetails packet */
     rootdir = threadInfo->rootDir(threadInfo);
@@ -881,7 +881,7 @@ static void examineFilesystem(const void* self, IEvaluationReport* report,
         return;
     }
 
-    dbg("[intercepted %u-%u-%u] allocated %lu bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, sizeof(VettingDetails), details);
+    dbg("[intercepted %u-%u-%u] allocated %lu bytes at 0x%p for vetting details", processParentPID(current), current->tgid, current->pid, (long unsigned int) sizeof(VettingDetails), details);
 
     /* See how much memory do we need for VettingDetails packet */
     rootdir = threadInfo->rootDir(threadInfo);

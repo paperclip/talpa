@@ -597,7 +597,7 @@ out:
     #warning "execve is not implemented on this architecture!"
   #endif
 #else
-  #warning "execve is not implemented on this kernel!"
+/* This is not a #warning, as some kernels compile modules with -Werror */
 #endif
 
 static asmlinkage long talpa_mount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)

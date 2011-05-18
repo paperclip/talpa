@@ -329,7 +329,7 @@ static inline int examineExecve(const char *filename)
 
         if ( unlikely( IS_ERR(real) ) )
         {
-            dbg("[intercepted %u-%u-%u] Failed to parse executable! error-code:%d", processParentPID(current), current->tgid, current->pid, PTR_ERR(real));
+            dbg("[intercepted %u-%u-%u] Failed to parse executable! error-code:%ld", processParentPID(current), current->tgid, current->pid, PTR_ERR(real));
             pFile->delete(pFile);
 
             return PTR_ERR(real);
