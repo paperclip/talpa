@@ -271,6 +271,7 @@ static int talpaOpen(struct inode *inode, struct file *file)
                     ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
                     /* Restore normal process examination */
                     current->flags &= ~PF_TALPA_INTERNAL;
+                    /* dbg("talpaOpen 3 inode=%p file=%p ret=%d filename=%s",inode,file,ret, pFInfo->filename(pFInfo)); */
                     pFInfo->delete(pFInfo);
                 }
             }
@@ -1395,13 +1396,13 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             patch->lookup = spatch->lookup;
             patch->create = spatch->create;
-            dbg("  storing shared inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+            dbg("  storing shared inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
         }
         else
         {
             patch->lookup = patch->i_ops->lookup;
             patch->create = patch->i_ops->create;
-            dbg("  storing original inode operations [0x%p][0x%p 0x%p]", patch->i_ops, patch->lookup, patch->create);
+            dbg("  storing original inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
         }
     }
 
@@ -1412,7 +1413,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         if ( !dentry )
         {
             dentry = mnt->mnt_root;
-            dbg("  root dentry [0x%p]", dentry);
+            dbg("  root dentry [0x%p] for %s", dentry, patch->fstype->name);
         }
 
         patch->d_ops = (struct dentry_operations *)dentry->d_op;
@@ -1500,36 +1501,36 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
     {
-        dbg("  patching file operations 0x%p", patch->f_ops);
+        dbg("  patching file operations 0x%p for %s", patch->f_ops, patch->fstype->name);
         if ( patch->f_ops->open != talpaOpen )
         {
-            dbg("     open 0x%p", patch->open);
+            dbg("     open 0x%p to 0x%p for %s", patch->open, talpaOpen, patch->fstype->name);
             talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
         }
         if ( patch->f_ops->release != talpaRelease )
         {
-            dbg("     release 0x%p", patch->release);
+            dbg("     release 0x%p to 0x%p for %s", patch->release, talpaRelease, patch->fstype->name);
             talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
         }
     }
 #ifdef TALPA_HAS_SMBFS
     else if ( dentry && smbfs )
     {
-        dbg("  patching smbfs ioctl [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+        dbg("  patching smbfs ioctl [0x%p][0x%p] for %s", patch->sf_ops, patch->ioctl, patch->fstype->name);
         talpa_syscallhook_poke(&patch->sf_ops->smbfs_ioctl, talpaIoctl);
     }
 #endif
     else
     {
-        dbg("  patching inode operations 0x%p", patch->i_ops);
+        dbg("  patching inode operations 0x%p for %s", patch->i_ops, patch->fstype->name);
         if ( patch->i_ops->lookup != talpaInodeLookup )
         {
-            dbg("     lookup 0x%p", patch->lookup);
+            dbg("     lookup 0x%p for %s", patch->lookup,patch->fstype->name);
             talpa_syscallhook_poke(&patch->i_ops->lookup, talpaInodeLookup);
         }
         if ( patch->i_ops->create != talpaInodeCreate )
         {
-            dbg("     create 0x%p", patch->create);
+            dbg("     create 0x%p for %s", patch->create, patch->fstype->name);
             talpa_syscallhook_poke(&patch->i_ops->create, talpaInodeCreate);
         }
     }
