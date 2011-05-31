@@ -64,7 +64,7 @@ typedef struct
 } VFSHookObject;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
- /* Got the struct namei->intent.open.file member
+ /* Got the struct namei->intent.open.file member */
 #define TALPA_HAVE_INTENT
 #else
 #undef TALPA_HAVE_INTENT
