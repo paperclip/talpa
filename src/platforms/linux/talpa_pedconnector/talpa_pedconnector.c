@@ -3,7 +3,7 @@
  *
  * TALPA Filesystem Interceptor
  *
- * Copyright(C) 2004 Sophos Plc, Oxford, England.
+ * Copyright(C) 2004-2011 Sophos Limited, Oxford, England.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of the
  * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -55,7 +55,7 @@ module_init(talpa_pedconnector_init);
 module_exit(talpa_pedconnector_exit);
 
 MODULE_DESCRIPTION("Establishes connection between talpa_pedevice and talpa_core/talpa_linux modules.");
-MODULE_AUTHOR("Sophos Plc");
+MODULE_AUTHOR("Sophos Limited");
 MODULE_LICENSE("GPL");
 #if defined TALPA_VERSION && defined MODULE_VERSION
 MODULE_VERSION(TALPA_VERSION);

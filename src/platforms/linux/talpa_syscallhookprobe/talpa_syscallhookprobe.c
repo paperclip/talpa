@@ -3,7 +3,7 @@
  *
  * TALPA Filesystem Interceptor
  *
- * Copyright(C) 2008 Sophos Plc, Oxford, England.
+ * Copyright(C) 2008-2011 Sophos Limited, Oxford, England.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of the
  * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -56,7 +56,7 @@ module_init(talpa_syscallhookprobe_init);
 module_exit(talpa_syscallhookprobe_exit);
 
 MODULE_DESCRIPTION("Load successfully if talpa_syscallhook can be unloaded.");
-MODULE_AUTHOR("Sophos Plc");
+MODULE_AUTHOR("Sophos Limited");
 MODULE_LICENSE("GPL");
 #if defined TALPA_VERSION && defined MODULE_VERSION
 MODULE_VERSION(TALPA_VERSION);
