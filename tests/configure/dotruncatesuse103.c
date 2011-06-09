@@ -5,6 +5,7 @@
 #include "autoconf.h"
 #include <linux/fs.h>
 
+/* do_truncate(struct dentry*, struct vfsmount*, loff_t, unsigned int, struct file*) */
 int main()
 {
     struct dentry *dentry = NULL;

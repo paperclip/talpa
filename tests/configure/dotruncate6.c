@@ -3,9 +3,10 @@
 #endif
 
 #include "autoconf.h"
+#include <linux/types.h>
 #include <linux/fs.h>
 
-/* do_truncate(struct dentry*, loff_t, unsigned int, struct file*) */
+/* Kernel 3.0+ test */
 int main()
 {
     struct dentry *dentry = NULL;

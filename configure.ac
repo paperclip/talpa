@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.82)
+AC_INIT(talpa, 0.9.83)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2011 Sophos Limited)
 
@@ -613,6 +613,12 @@ kern_uts_release=`tests/configure/kernrelease`
 AC_MSG_RESULT([${kern_uts_release}])
 ${RM} -f tests/configure/kernrelease
 
+## 3.0.0+
+if test $((kern_version_code)) -ge 196608 ; then
+    kernccflags="${kernccflags} -Os"
+fi
+
+## 2.6.0+
 AM_CONDITIONAL(KBUILD26, test $((kern_version_code)) -ge 132608)
 # Set these to true for time being
 AM_CONDITIONAL(TESTXWORKAROUND, test 1 -eq 1)
@@ -624,6 +630,7 @@ case $testinterceptor in
         AC_SUBST(interceptor_name,VFSHookInterceptor)
         ;;
     best)
+        ## Kernel 2.6.0+
         if test $((kern_version_code)) -ge 132608; then
             AC_SUBST(interceptor_module,lsm)
             AC_SUBST(interceptor_name,LSMInterceptor)
@@ -803,7 +810,9 @@ fi
 # Check for tasklist_lock export
 if test "$auto_notasklistlock" = "yes"; then
     AC_MSG_CHECKING([for tasklist_lock export])
+    ## 2.6.0+
     if test $((kern_version_code)) -ge 132608; then
+        ## 2.6.18+
         if test $((kern_version_code)) -ge 132626; then
             AC_SUBST(notasklistlock,"-DTALPA_NO_TASKLIST_LOCK")
             AC_MSG_RESULT([not available])
@@ -875,6 +884,7 @@ function find_syscall_table
 }
 
 AC_MSG_CHECKING([for appropriate build system])
+# 2.6.0+
 if test $((kern_version_code)) -ge 132608; then
     AC_MSG_RESULT([2.6 build system detected])
     AC_SUBST(ko,ko)
@@ -1066,6 +1076,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if rcupdate.h was backported
+    # <2.6.12
     if test $((kern_version_code)) -lt 132620; then
         if test "$auto_rcubackport" = "yes"; then
             AC_MSG_CHECKING([for backported rcupdate.h])
@@ -1080,6 +1091,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if mutexes were backported
+    # <2.6.16
     if test $((kern_version_code)) -lt 132624; then
         if test "$auto_mutexbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/mutex.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
@@ -1108,6 +1120,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if struct inode uses mutexes
+    # < 2.6.16
     if test $((kern_version_code)) -lt 132624 -a "$mutexes" != ""; then
         if test "$auto_inodemutex" = "yes"; then
             TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
@@ -1128,6 +1141,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if struct inode has i_private field
+    # < 2.6.19
     if test $((kern_version_code)) -lt 132627; then
         if test "$auto_inodeiprivate" = "yes"; then
             TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
@@ -1143,6 +1157,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if task_struct->signal was backported
+    # < 2.6.12
     if test $((kern_version_code)) -lt 132620; then
         if test "$auto_signalbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/sched.h, $kernelhdrspath)
@@ -1158,6 +1173,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if msecs_to_jiffies was backported
+    # < 2.6.7
     if test $((kern_version_code)) -lt 132615; then
         if test "$auto_jiffiesbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/time.h, $kernelhdrspath)
@@ -1174,6 +1190,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     # Autodetect if filldir_t was backported
+    # < 2.6.19
     if test $((kern_version_code)) -lt 132627; then
         if test "$auto_filldirbackport" = "yes"; then
             TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, , ,[quiet])
@@ -1233,6 +1250,7 @@ if test $((kern_version_code)) -ge 132608; then
                 if test "$start_rodata" != "" -a "$end_rodata" != ""; then
                     AC_SUBST(syscallhook, "yes")
                     AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_NEED_MANUAL_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
+                    ## >= 2.6.25
                     if test $((kern_version_code)) -ge 132633; then
                         AC_SUBST(rodata, "$rodata -DTALPA_RODATA_MAP_WRITABLE")
                         AC_SUBST(map_writable, yes)
@@ -1389,6 +1407,7 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
 
+        # <= 2.6.13
         if test $((kern_version_code)) -le 132621; then
             # Autodetect if LSM from 2.6.14 is backported to the earlier version
             if test "$auto_lsm2614" = "yes"; then
@@ -1403,6 +1422,7 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
 
+        ## <= 2.6.9
         if test $((kern_version_code)) -le 132617; then
             # Autodetect if LSM from 2.6.10 is backported to 2.6.9
             if test "$auto_lsm2610" = "yes"; then
@@ -1417,6 +1437,7 @@ if test $((kern_version_code)) -ge 132608; then
             fi
         fi
 
+        ## <= 2.6.5
         if test $((kern_version_code)) -le 132613; then
             # Autodetect if LSM from 2.6.6 is backported to 2.6.5
             if test "$auto_lsm266" = "yes"; then

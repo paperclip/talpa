@@ -5,6 +5,8 @@
 #include "autoconf.h"
 #include <linux/fs.h>
 
+/* do_truncate(struct dentry*, loff_t) */
+
 int main()
 {
     struct dentry *dentry = NULL;
