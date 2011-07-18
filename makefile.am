@@ -24,7 +24,13 @@ interceptor_name := @interceptor_name@
 
 export ko interceptor_module interceptor_name
 
-EXTRA_DIST =  Makefile26.in clients/Makefile.in support/stacker/common.mk src/app-ctrl/intercepts/talpa-lsm/common.mk src/platforms/linux/talpa_capability/common.mk tests/functions.sh tests/benchmark/Makefile.in tests/benchmark/bench.sh $(patsubst $(srcdir)/%,%,$(shell find $(srcdir)/src $(srcdir)/include $(srcdir)/support $(srcdir)/clients $(srcdir)/tests/benchmark \( -name \*.c -o -name \*\.h \) -print))
+EXTRA_DIST =  Makefile26.in clients/Makefile.in \
+		support/stacker/common.mk \
+		support/symbolver/common.mk \
+		src/app-ctrl/intercepts/talpa-lsm/common.mk \
+		src/platforms/linux/talpa_capability/common.mk \
+		tests/functions.sh tests/benchmark/Makefile.in tests/benchmark/bench.sh \
+		$(patsubst $(srcdir)/%,%,$(shell find $(srcdir)/src $(srcdir)/include $(srcdir)/support $(srcdir)/clients $(srcdir)/tests/benchmark \( -name \*.c -o -name \*\.h \) -print))
 
 TALPAMODULESRC =
 
@@ -48,6 +54,12 @@ TALPAMODULES := \
 				talpa_syscallhookprobe.ko \
 				talpa_syscall.ko \
 				talpa_vfshook.ko
+
+
+if BUILDSYMBOLVER
+TALPAMODULES += symbolver.ko
+TALPAMODULESRC += support/symbolver/symbolver.c
+endif BUILDSYMBOLVER
 
 if BUILDLSM
 

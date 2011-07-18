@@ -54,6 +54,10 @@ ifeq "@buildlsm@" "yes"
 	endif
 endif
 
+ifeq "@buildsymbolver@" "yes"
+	obj-m += symbolver.o
+endif
+
 include $(src)/src/app-ctrl/core/talpa-linux/common.mk
 talpa_linux-objs := $(talpaLinuxOBJS)
 
@@ -106,6 +110,11 @@ ifeq "@buildlsm@" "yes"
 
 	include $(src)/src/app-ctrl/intercepts/talpa-lsm/common.mk
 	talpa_lsm-objs :=   $(talpaLsmOBJS)
+endif
+
+ifeq "@buildsymbolver@" "yes"
+	include $(src)/support/symbolver/common.mk
+	symbolver-objs := $(talpaSymbolverOBJS)
 endif
 
 # Hidden by makefile, which is run in preference.  If makefile doesn't exist,
