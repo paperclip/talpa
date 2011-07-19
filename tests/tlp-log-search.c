@@ -31,11 +31,21 @@ static int syslog_fd;
 
 int open_log(void)
 {
+    int error;
+    errno = 0;
     syslog_fd = open("/var/log/messages", O_RDONLY | O_NONBLOCK);
+    error = errno;
+
+
+    if ( syslog_fd < 0 && error == ENOENT)
+    {
+        syslog_fd = open("/var/log/kern.log", O_RDONLY | O_NONBLOCK);
+        error = errno;
+    }
 
     if ( syslog_fd < 0 )
     {
-        fprintf(stderr,"Failed to open syslog!\n");
+        fprintf(stderr,"Failed to open syslog %d %s\n",error, strerror(error));
     }
 
     return syslog_fd;
