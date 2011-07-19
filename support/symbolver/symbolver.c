@@ -80,7 +80,7 @@ static int __init symbolver_init(void)
         err("ERROR: not CONFIG_RELOCATABLE and offset not zero: is %lx",offset);
     }
 #endif
-    err("CONFIG PRINTK %x",TALPA_PRINTK_ADDR);
+    err("CONFIG PRINTK %lx",(unsigned long)TALPA_PRINTK_ADDR);
     err("ADDR %lx",(unsigned long)&printk);
     err("DIFF %lx",(unsigned long)offset);
 

@@ -782,7 +782,24 @@ static void **get_start_addr(void)
 
 #endif
 
-  #ifdef CONFIG_IA32_EMULATION
+#ifdef CONFIG_IA32_EMULATION
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+
+static void **get_start_addr_ia32(void)
+{
+    /* This isn't used very much as the address is compiled in by the configure script
+     * so we won't deal with it for 2.6.39+ as I can't find a symbol to use
+     */
+#ifdef TALPA_HIDDEN_SYSCALLS
+  #ifndef TALPA_SYSCALL32_TABLE
+    #error "Syscall32 table address not built in"
+  #endif
+#endif
+    err("Syscall searching not available for 2.6.39+");
+    return (void **)0;
+}
+#else /* ! LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39) */
 static void **get_start_addr_ia32(void)
 {
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
@@ -800,7 +817,8 @@ static void **get_start_addr_ia32(void)
     return (void **)&console_printk - 0x4000;
     #endif
 }
-  #endif
+# endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39) */
+#endif /* CONFIG_IA32_EMULATION */
 
 static int kallsym_is_equal(unsigned long addr, const char *name)
 {
