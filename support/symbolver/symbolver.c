@@ -68,26 +68,63 @@ static __inline const void* talpa_get_symbol(const char* name, const void* ptr)
 
 static int __init symbolver_init(void)
 {
-    long offset = (unsigned long)&printk - TALPA_PRINTK_ADDR;
+    unsigned long printk_kernel = (unsigned long)&printk;
+    unsigned long printk_compile = (unsigned long)TALPA_PRINTK_ADDR;
+    unsigned long offset = printk_kernel - printk_compile;
 
     err("Symbol verifier init");
 #ifdef CONFIG_RELOCATABLE
     err("CONFIG_RELOCATABLE");
 #else
     err("not CONFIG_RELOCATABLE");
+    if (offset == 0)
+    {
+        err("not CONFIG_RELOCATABLE and offset is 0");
+    }
     if (offset != 0)
     {
-        err("ERROR: not CONFIG_RELOCATABLE and offset not zero: is %lx",offset);
+
+        if (printk_kernel == printk_compile)
+        {
+            unsigned long a = 0xc051c8be;
+            unsigned long b = 0xc051c8be;
+            unsigned long diff = a-b;
+            unsigned long pos;
+
+            err("printk_kernel == printk_compile but offset != 0 : offset=%lx",offset);
+            if (diff != offset)
+            {
+                err("diff != offset diff=%lx offset=%lx",diff,offset);
+            }
+            for (pos = 1<<31 ; pos>=1 ; pos = pos >> 1)
+            {
+                unsigned long bit = offset & pos;
+                if (bit == pos)
+                {
+                    err("1 pos=%lx offset bit=%ld",pos,bit);
+                }
+                else if (bit == 0)
+                {
+                    err("0 pos=%lx offset bit=%ld",pos,bit);
+                }
+                else
+                {
+                    err("WIERD: pos=%lx offset bit=%ld",pos,bit);
+                }
+            }
+        }
+        else
+        {
+            err("ERROR: not CONFIG_RELOCATABLE and offset not zero: is %lx",offset);
+        }
     }
 #endif
-    err("CONFIG PRINTK %lx",(unsigned long)TALPA_PRINTK_ADDR);
-    err("ADDR %lx",(unsigned long)&printk);
-    err("DIFF %lx",(unsigned long)offset);
+    err("CONFIG PRINTK %lx",printk_compile);
+    err("ADDR %lx",printk_kernel);
+    err("DIFF %lx",offset);
 
     err("kstrdup %lx", (unsigned long)&kstrdup);
-
     err("jiffies %lx",(unsigned long)&jiffies);
-
 
     err("Finish init");
 

@@ -1216,12 +1216,20 @@ static int find_syscall_table(void)
     /* If valid address wasn't supplied to us we'll try to autodetect it */
     if ( !syscall32_table )
     {
-        ia32_sys_call_table = talpa_find_syscall_table(get_start_addr_ia32(), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
+        void ** startaddr = get_start_addr_ia32();
+
+        if (startaddr == NULL)
+        {
+            err("Trying to search for syscall32_table and no search start position specified");
+            return -EFAULT;
+        }
+
+        ia32_sys_call_table = talpa_find_syscall_table(startaddr, unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
         if ( !ia32_sys_call_table )
         {
             dbg("no ia32_sys_call_table found");
             /* Look around specified address before giving up. */
-            ia32_sys_call_table = find_around(get_start_addr_ia32(), unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
+            ia32_sys_call_table = find_around(startaddr, unique_syscalls_ia32, num_unique_syscalls_ia32, zapped_syscalls_ia32, num_zapped_syscalls_ia32, 0);
             if ( !ia32_sys_call_table )
             {
                 dbg("no ia32_sys_call_table found");
@@ -1274,12 +1282,20 @@ static int find_syscall_table(void)
     /* If valid address wasn't supplied to us we'll try to autodetect it */
     if ( !syscall_table )
     {
-        sys_call_table = talpa_find_syscall_table(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+        void** startaddr = get_start_addr();
+
+        if (startaddr == NULL)
+        {
+            err("Trying to search for syscall_table and no search start position specified");
+            return -EFAULT;
+        }
+
+        sys_call_table = talpa_find_syscall_table(startaddr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
         if ( !sys_call_table )
         {
             dbg("no sys_call_table found");
             /* Look around specified address before giving up. */
-            sys_call_table = find_around(get_start_addr(), unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
+            sys_call_table = find_around(startaddr, unique_syscalls, num_unique_syscalls, zapped_syscalls, num_zapped_syscalls, 1);
             if ( !sys_call_table )
             {
                 dbg("no sys_call_table found");
