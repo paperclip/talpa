@@ -1473,12 +1473,39 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     dbg("Patching filesystem %s", mnt->mnt_sb->s_type->name);
     /* Grab reference to a module (if not builtin) so we are safe elsewhere
        it cannot go away while we use it. For example before post_umount. */
+
+    if (!patch)
+    {
+        err("No patch provided to patchFilesystem");
+        return -1;
+    }
+
+    if (! (patch->fstype))
+    {
+        err("patch->fstype is NULL in patchFilesystem");
+        return -1;
+    }
+
+    if (patch->fstype != mnt->mnt_sb->s_type)
+    {
+        err("patch->fstype != mnt->mnt_sb->s_type");
+        return -1;
+    }
+
     if ( patch->fstype->owner )
     {
-        if ( !try_module_get(patch->fstype->owner) )
+        if (patch->fstype->owner !=  mnt->mnt_sb->s_type->owner)
         {
+            err("patch->fstype->owner !=  mnt->mnt_sb->s_type->owner");
             return -1;
         }
+        /* dbg("1a %s %p", mnt->mnt_sb->s_type->name,patch->fstype->owner); */
+        if ( !try_module_get(patch->fstype->owner) )
+        {
+            err("Failed to get reference to %s", mnt->mnt_sb->s_type->name);
+            return -1;
+        }
+        /* dbg("2 %s", mnt->mnt_sb->s_type->name); */
     }
 
 #ifdef TALPA_HOOK_D_OPS
@@ -1498,8 +1525,9 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     }
 #endif
 
+
     /* If we have a regular file from this filesystem we patch the file_operations */
-    if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
+    if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
         dbg("  patching file operations 0x%p for %s", patch->f_ops, patch->fstype->name);
         if ( patch->f_ops->open != talpaOpen )

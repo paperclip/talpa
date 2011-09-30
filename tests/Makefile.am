@@ -123,6 +123,8 @@ check_PROGRAMS +=   tlp-1-011 \
                     tlp-8-003 \
                     tlp-8-004
 
+PTHREAD_FLAG = -pthread
+
 tlp_1_001_SOURCES = tlp-1-001.c tlp-test.h
 tlp_1_002_SOURCES = tlp-1-002.c
 tlp_1_003_SOURCES = tlp-1-003.c
@@ -192,9 +194,9 @@ tlp_4_003_SOURCES = tlp-4-003.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_003a_SOURCES = tlp-4-003a.c ../clients/vc-lib.c ../clients/talpa.c
 tlp_4_004_SOURCES = tlp-4-004.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_005_SOURCES = tlp-4-005.c ../clients/pe-lib.c ../clients/talpa.c
-tlp_4_005_LDFLAGS = -lpthread
+tlp_4_005_LDFLAGS = $(PTHREAD_FLAG)
 tlp_4_006_SOURCES = tlp-4-006.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
-tlp_4_006_LDFLAGS = -lpthread
+tlp_4_006_LDFLAGS = $(PTHREAD_FLAG)
 tlp_5_001_SOURCES = tlp-5-001.c
 tlp_5_002_SOURCES = tlp-5-002.c
 tlp_5_003_SOURCES = tlp-5-003.c
