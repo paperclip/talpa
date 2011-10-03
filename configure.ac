@@ -1020,7 +1020,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     AC_MSG_CHECKING([for vfsmount lock])
-    vfsmount_lock_lock=`${EGREP} "D vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    vfsmount_lock_lock=`${EGREP} "[[VD]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
     if test x"$vfsmount_lock_lock" != x"" ; then
         AC_MSG_RESULT([vfsmount lock is BRLOCK])
         AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")
