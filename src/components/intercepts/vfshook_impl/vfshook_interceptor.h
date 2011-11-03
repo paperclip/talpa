@@ -70,11 +70,10 @@ typedef struct
 #undef TALPA_HAVE_INTENT
 #endif
 
-/* Adjust as appropriate */
-#if defined(CONFIG_NFS_V4) && defined(TALPA_HAVE_INTENT)
+/* Adjust as appropriate - TALPA_CONFIG_HOOK_DOPS set by configure by default on 2.6.37+ */
+#if defined(CONFIG_NFS_V4) && defined(TALPA_HAVE_INTENT) && defined(TALPA_CONFIG_HOOK_DOPS)
 #define TALPA_HOOK_D_OPS
 #endif
-
 
 struct patchedFilesystem
 {

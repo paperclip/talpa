@@ -644,10 +644,11 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 	int openflags;
     int ret = 0;
 
+
     if (resultCode <= 0)
     {
         /* Got an error before the revalidate */
-        dbg("err value of %d",resultCode);
+        dbg("maybeScanDentryRevalidate: err value of %d",resultCode);
         return resultCode;
     }
 
@@ -664,6 +665,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     }
 
 	openflags = nd->intent.open.flags;
+
 	/* We cannot do exclusive creation on a positive dentry */
 	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
     {
@@ -682,11 +684,15 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 #endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
+    /* 3.1 seems to be able to open the file with only an O_ACCMODE == 0 open */
     if ( (openflags & O_ACCMODE) == 0)
     {
         /* Not going to do a real open */
         return resultCode;
     }
+#endif
 
     inode = dentry->d_inode;
     if (inode == NULL)
@@ -707,16 +713,22 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-    dbg("After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
-
     /* DLCL: Extremely ugly hack - I can't work out what the case is when the filp is
      * Valid or not
      */
     if ( (void*)  filp < (void*) 0x1000)
     {
-        err("Fallen back on extemely ugly hack - filp < 0x1000");
+        err("maybeScanDentryRevalidate: Fallen back on extemely ugly hack - filp < 0x1000");
+        err("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
         return resultCode;
     }
+
+    /* After problems on RHEL 5 we always print out this information */
+#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,18)
+    err("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
+#else
+    dbg("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
  #define TALPA_f_dentry f_path.dentry
@@ -1872,6 +1884,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             return 0;
         }
     }
+
     talpa_list_for_each_entry_rcu(obj, &GL_object.mGoodFilesystems, head)
     {
         if ( !strcmp(fsname, obj->value) )
@@ -1948,16 +1961,15 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         atomic_set(&patch->refcnt, 1);
         patch->fstype = mnt->mnt_sb->s_type;
         talpa_simple_init(&patch->lock);
+        patch->mHookDOps = false;
 
+#ifdef TALPA_HOOK_D_OPS
         /* TODO: If we get more than nfs4, then we should make this a list, and move inside the list lock above */
         if ( !strcmp(fsname, "nfs4") )
         {
             patch->mHookDOps = true;
         }
-        else
-        {
-            patch->mHookDOps = false;
-        }
+#endif
     }
 
     /* Lock patch record for manipulation */

@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.84)
+AC_INIT(talpa, 0.9.85)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2011 Sophos Limited)
 
@@ -264,6 +264,15 @@ AC_ARG_ENABLE(hrtimers,
                     auto_hrtimers=no
                 ],
                 [   auto_hrtimers=yes])
+
+AC_ARG_ENABLE(hookdops,
+              [  --enable-hook-dops              hook d_ops [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(hookdops,"-DTALPA_CONFIG_HOOK_DOPS")
+                    fi
+                    auto_hookdops=no
+                ],
+                [   auto_hookdops=yes])
 
 AC_ARG_ENABLE(x-workaround,
               [  --disable-x-workaround         disable X server workaround where open(2) fails with -EINTR because itimers are not honoured [[autodetected]]],
@@ -617,6 +626,11 @@ AC_MSG_CHECKING([for kernel version code])
 ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/kernversion.c -o tests/configure/kernversion
 kern_version_code=`tests/configure/kernversion`
 AC_MSG_RESULT([${kern_version_code}])
+## 2.6.0  == 132608
+## 2.6.5  == 132613
+## 2.6.18 == 132626
+## 2.6.36 == 132644
+## 3.0.0  == 196608
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
 TALPA_LOCATE_HEADER($utsrelease_h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
@@ -1504,6 +1518,13 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    ## Hook d_ops on 2.6.37 and above by default
+    if test "$auto_hookdops" = yes ; then
+        if test $((kern_version_code)) -ge 132645; then
+            AC_SUBST(hookdops,"-DTALPA_CONFIG_HOOK_DOPS")
+        fi
+    fi
+
     # Check whether xhack can be implemented
     if test "$auto_xhack" = "yes"; then
         if test "$hrtimers" = ""; then
@@ -1659,6 +1680,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@execve@/${execve}/; \
                 s/@xhack@/${xhack}/; \
                 s/@hrtimers@/${hrtimers}/; \
+                s/@hookdops@/${hookdops}/; \
                 s/@imapathcheck@/${imapathcheck}/; \
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
@@ -1705,6 +1727,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@execve@/${execve}/; \
                 s/@xhack@/${xhack}/; \
                 s/@hrtimers@/${hrtimers}/; \
+                s/@hookdops@/${hookdops}/; \
                 s/@imapathcheck@/${imapathcheck}/; \
                 s/@buildstacker@/${buildstacker}/; \
                 s/@syscallhook@/${syscallhook}/; \
