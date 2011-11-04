@@ -41,6 +41,13 @@
 #include <linux/smb_fs.h>
 #endif
 
+#ifdef TALPA_HOOK_D_OPS
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#include <linux/uaccess.h>
+# endif
+#endif
+
+
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
 #include "filesystem/ifile_info.h"
@@ -636,25 +643,39 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
 
 
 #ifdef TALPA_HOOK_D_OPS
+
+/* Change this to err from dbg to get extra debug without turning on debug */
+#define dopsdbg dbg
+
 static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, struct nameidata * nd,
     struct file *filpBefore)
+    /**
+     * 2.6.18
+     * BAD:
+     * filp=0000000100000000, beforeFilp=0000000100000000 openflags=22 create_mode=0 ndflags=0
+     * ndflags=101 openflags=8001 filp=0xffffffffffffffff
+     *
+     * GOOD:
+     * filp=ffff81001d5b9cc0, beforeFilp=ffff81001d5b9cc0 openflags=8001 create_mode=0 ndflags=101
+     *
+     */
 {
     struct inode *inode;
     struct file *filp = NULL;
 	int openflags;
     int ret = 0;
 
-
     if (resultCode <= 0)
     {
         /* Got an error before the revalidate */
-        dbg("maybeScanDentryRevalidate: err value of %d",resultCode);
+        dopsdbg("maybeScanDentryRevalidate: err value of %d",resultCode);
         return resultCode;
     }
 
-    if (dentry == NULL || nd == NULL)
+    if ( unlikely( dentry == NULL || nd == NULL) )
     {
         /* Don't have valid objects to scan anyway */
+        dopsdbg("maybeScanDentryRevalidate: dentry or nd is NULL: dentry=%p, nd=%p",dentry,nd);
         return resultCode;
     }
 
@@ -664,31 +685,117 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
+    /**
+     * TODO: check nd->flags values;
+     *
+    #define LOOKUP_FOLLOW           0x0001
+    #define LOOKUP_DIRECTORY        0x0002
+    #define LOOKUP_AUTOMOUNT        0x0004
+
+    #define LOOKUP_PARENT           0x0010
+    #define LOOKUP_REVAL            0x0020
+    #define LOOKUP_RCU              0x0040
+
+ * Intent data
+    #define LOOKUP_OPEN             0x0100
+    #define LOOKUP_CREATE           0x0200
+    #define LOOKUP_EXCL             0x0400
+    #define LOOKUP_RENAME_TARGET    0x0800
+
+    #define LOOKUP_JUMPED           0x1000
+    #define LOOKUP_ROOT             0x2000
+    #define LOOKUP_EMPTY            0x4000
+
+
+     * fs/nfs/dir.c:1021:	return nd->flags & mask;
+     * fs/nfs/dir.c:1052:		if (nd->flags & LOOKUP_REVAL)
+     * fs/nfs/dir.c:1106:	if (nd->flags & LOOKUP_RCU)
+     * fs/nfs/dir.c:1350:	if (nd->flags & LOOKUP_DIRECTORY)
+     * fs/nfs/dir.c:1437:	if (nd->flags & LOOKUP_EXCL)
+     * fs/nfs/dir.c:1449:	if (nd->flags & LOOKUP_CREATE)
+     * fs/jfs/namei.c:1613:	if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+     * fs/ceph/dir.c:600:	    (nd->flags & LOOKUP_OPEN) &&
+     * fs/namei.c:663:			nd->flags |= LOOKUP_JUMPED;
+     * fs/namei.c:516:		if (!(nd->flags & LOOKUP_ROOT))
+     * fs/namei.c:1567:		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+     */
+
+#if 1
+    if ( (nd->flags & LOOKUP_OPEN) == 0)
+    {
+        dopsdbg("maybeScanDentryRevalidate: nd->flags doesn't have LOOKUP_OPEN - not scanning");
+        return resultCode;
+    }
+#endif
+
+
 	openflags = nd->intent.open.flags;
+    /*
+     * ## Possibly changed in 3.1?
+     * openflags possibilities
+     * #define O_ACCMODE   00000003
+     * #define O_RDONLY    00000000
+     * #define O_WRONLY    00000001
+     * #define O_RDWR      00000002
+     *
+     * O_CREAT
+     * #define O_CREAT     00000100    not fcntl                        0x40
+     * O_EXCL
+     * #define O_EXCL      00000200    not fcntl                        0x80
+     * #define O_NOCTTY    00000400    not fcntl                        0x100
+     * O_TRUNC
+     * #define O_TRUNC     00001000    not fcntl                        0x200
+     * #define O_APPEND    00002000                                     0x400
+     * #define O_NONBLOCK  00004000                                     0x800
+     * #define O_DSYNC     00010000   used to be O_SYNC, see below      0x1000
+     * #define FASYNC      00020000   fcntl, for BSD compatibility      0x2000
+     * #define O_DIRECT    00040000   direct disk access hint           0x4000
+     * #define O_LARGEFILE 00100000                                     0x8000
+     * #define O_DIRECTORY 00200000   must be a directory               0x10000
+     * O_NOFOLLOW
+     * #define O_NOFOLLOW  00400000    don't follow links               0x20000
+     * #define O_NOATIME   01000000                                     0x40000
+     * #define O_CLOEXEC   02000000    set close_on_exec                0x80000
+     * #define __O_SYNC    04000000                                     0x100000
+     * #define O_SYNC      (__O_SYNC|O_DSYNC)
+     * O_PATH
+     * #define O_PATH      010000000                                    0x200000
+
+     * O_ACCMODE
+     * ./drivers/staging/pohmelfs/dir.c:515:	if ((nd->intent.open.flags & O_ACCMODE) != O_RDONLY)
+     * ./fs/nfs/dir.c:1474:				if (!(nd->intent.open.flags & O_NOFOLLOW))
+     * ./fs/nfs/dir.c:1354:	    (nd->intent.open.flags & (O_CREAT|O_TRUNC|O_ACCMODE)))
+     */
+
+#ifdef O_PATH
+    if ((openflags & O_PATH) != 0)
+    {
+        /* O_PATH can't read the file */
+        dopsdbg("maybeScanDentryRevalidate: openflags has O_PATH");
+        return resultCode;
+    }
+#endif
+
+#ifdef O_DIRECTORY
+    if ((openflags & O_DIRECTORY) != 0)
+    {
+        /* An open for a directory, which we don't care about */
+        dopsdbg("maybeScanDentryRevalidate: openflags has O_DIRECTORY dentry=%p nd=%p filpBefore=%p openflags=%x, ndflags=%x",dentry,nd,filpBefore,openflags,nd->flags);
+        return resultCode;
+    }
+#endif
 
 	/* We cannot do exclusive creation on a positive dentry */
 	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
     {
         return resultCode;
     }
-    if ((openflags & O_DIRECTORY) != 0)
-    {
-        /* An open for a directory, which we don't care about */
-        return resultCode;
-    }
-
-#ifdef O_PATH
-    if ((openflags & O_PATH) != 0)
-    {
-        /* O_PATH can't read the file */
-        return resultCode;
-    }
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
     /* 3.1 seems to be able to open the file with only an O_ACCMODE == 0 open */
     if ( (openflags & O_ACCMODE) == 0)
     {
+        dopsdbg("maybeScanDentryRevalidate (openflags & O_ACCMODE) == 0 dentry=%p nd=%p filpBefore=%p openflags=%x, ndflags=%x",dentry,nd,filpBefore,openflags,nd->flags);
         /* Not going to do a real open */
         return resultCode;
     }
@@ -697,11 +804,13 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     inode = dentry->d_inode;
     if (inode == NULL)
     {
+        dopsdbg("maybeScanDentryRevalidate: inode == NULL");
         return resultCode;
     }
 
 	if (!S_ISREG(inode->i_mode))
     {
+        dopsdbg("maybeScanDentryRevalidate: !S_ISREG(inode->i_mode)");
         return resultCode;
     }
 
@@ -710,6 +819,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 
     if (filp == NULL || IS_ERR(filp))
     {
+        dopsdbg("maybeScanDentryRevalidate: (filp == NULL || IS_ERR(filp)) filp=%p",filp);
         return resultCode;
     }
 
@@ -719,16 +829,39 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     if ( (void*)  filp < (void*) 0x1000)
     {
         err("maybeScanDentryRevalidate: Fallen back on extemely ugly hack - filp < 0x1000");
-        err("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
+        err("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x ndflags=%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
         return resultCode;
     }
 
-    /* After problems on RHEL 5 we always print out this information */
-#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,18)
-    err("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
-#else
-    dbg("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x",filp,filpBefore,openflags,nd->intent.open.create_mode);
+#ifdef CONFIG_X86_64
+    if ( (void*) filp == (void*) 0x100000000)
+    {
+        dopsdbg("maybeScanDentryRevalidate: filp == 0x100000000, so not scanning");
+        dopsdbg("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x ndflags=%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
+        return resultCode;
+    }
 #endif
+
+    /* Maybe check if we can access the filp address? */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+    {
+        void* dst;
+        long probeRes = probe_kernel_read((void*)(&dst),(void*)filp,sizeof(void*));
+        if (probeRes == -EFAULT)
+        {
+            err("maybeScanDentryRevalidate: filp can't be read");
+            err("maybeScanDentryRevalidate details: After filp=%p, beforeFilp=%p openflags=%x create_mode=%x ndflags=%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
+            return resultCode;
+        }
+    }
+#endif
+
+    if (filpBefore != filp)
+    {
+        dopsdbg("maybeScanDentryRevalidate:  nd->intent.open.file=%p != beforeFilp=%p",filp,filpBefore);
+    }
+
+    dopsdbg("maybeScanDentryRevalidate details: nd->intent.open.file=%p, beforeFilp=%p openflags=%x create_mode=%x ndflags=%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
  #define TALPA_f_dentry f_path.dentry
@@ -743,7 +876,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     }
 
 
-    dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
+    dopsdbg("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
 
 
     /* First check with the examineInode method */

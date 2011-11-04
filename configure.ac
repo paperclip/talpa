@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.85)
+AC_INIT(talpa, 0.9.86)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2011 Sophos Limited)
 
@@ -266,7 +266,7 @@ AC_ARG_ENABLE(hrtimers,
                 [   auto_hrtimers=yes])
 
 AC_ARG_ENABLE(hookdops,
-              [  --enable-hook-dops              hook d_ops [[autodetected]]],
+              [  --enable-hookdops              hook d_ops [[autodetected]]],
                 [   if test "$enableval" = "yes"; then
                         AC_SUBST(hookdops,"-DTALPA_CONFIG_HOOK_DOPS")
                     fi
