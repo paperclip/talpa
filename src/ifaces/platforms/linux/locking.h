@@ -126,13 +126,14 @@ typedef rwlock_t talpa_rcu_lock_t;
 
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) */
 
-// BKL wrapper
+/* BKL wrapper */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 #define talpa_lock_kernel       lock_kernel
 #define talpa_unlock_kernel     unlock_kernel
 #else
-#define talpa_lock_kernel()
-#define talpa_unlock_kernel()
+/* No more BKL, so the best we can do is put in a memory barrier and hope */
+#define talpa_lock_kernel       smp_mb
+#define talpa_unlock_kernel     smp_mb
 #endif
 
 #endif
