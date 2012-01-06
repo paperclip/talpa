@@ -3,7 +3,7 @@
  *
  * TALPA Filesystem Interceptor
  *
- * Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
+ * Copyright (C) 2004-2012 Sophos Limited, Oxford, England.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of the
  * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -2800,6 +2800,11 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
 #endif
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuseblk", true);
+
+    /* WKI78139 - put ecryptfs on noscan list - Restricted to RHEL 5 kernel */
+#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,18)
+    appendObject(&GL_object, &GL_object.mNoScanFilesystems, "ecryptfs", true);
+#endif
 
     /* Parse module parameters - addition and removals from the above lists */
     parseParams(&GL_object, good_list, &GL_object.mGoodFilesystems, &GL_object.mGoodFilesystemsSet);
