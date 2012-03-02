@@ -2801,10 +2801,10 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuse", true);
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "fuseblk", true);
 
-    /* WKI78139 - put ecryptfs on noscan list - Restricted to RHEL 5 kernel */
-#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,18)
+    /* WKI78139 - put ecryptfs on noscan list */
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "ecryptfs", true);
-#endif
+    /* WKI80362 - Add ezncryptfs to no_scan list */
+    appendObject(&GL_object, &GL_object.mNoScanFilesystems, "ezncryptfs", true);
 
     /* Parse module parameters - addition and removals from the above lists */
     parseParams(&GL_object, good_list, &GL_object.mGoodFilesystems, &GL_object.mGoodFilesystemsSet);
