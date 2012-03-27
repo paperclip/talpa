@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.88)
+AC_INIT(talpa, 0.9.89)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2012 Sophos Limited)
 
@@ -1258,7 +1258,8 @@ if test $((kern_version_code)) -ge 132608; then
             kfunc_mark_rodata_rw=`${EGREP} " mark_rodata_rw\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
             kfunc_mark_rodata_ro=`${EGREP} " mark_rodata_ro\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         fi
-        if test "$kfunc_mark_rodata_rw" != "" -a "$kfunc_mark_rodata_ro" != ""; then
+        ## Kernel's >= 3.0.0 don't seem to work with SuSE's functions (SLES 11 SP2)
+        if test "$kfunc_mark_rodata_rw" != "" -a "$kfunc_mark_rodata_ro" != "" -a if test $((kern_version_code)) -lt 196608 ; then
             # First SLES11 release on x86_64 does not work
             if test "$kern_arch" = "x86_64" -a "$kern_uts_release" = "2.6.27.19-5-default"; then
                 AC_MSG_ERROR([unsupported kernel])
