@@ -2268,6 +2268,90 @@ out:
     return decision;
 }
 
+static int prepend(char **buffer, int *buflen, const char *str, int namelen)
+{
+	*buflen -= namelen;
+	if (*buflen < 0)
+		return -ENAMETOOLONG;
+	*buffer -= namelen;
+	memcpy(*buffer, str, namelen);
+	return 0;
+}
+
+static int prepend_name(char **buffer, int *buflen, struct qstr *name)
+{
+	return prepend(buffer, buflen, name->name, name->len);
+}
+
+/**
+ * prepend_path - Prepend path string to a buffer
+ * @path: the dentry/vfsmount to report
+ * @root: root vfsmnt/dentry
+ * @buffer: pointer to the end of the buffer
+ * @buflen: pointer to buffer length
+ *
+ * Caller holds the rename_lock.
+ */
+static int prepend_path(const struct path *path,
+			const struct path *root,
+			char **buffer, int *buflen)
+{
+	struct dentry *dentry = path->dentry;
+	struct vfsmount *vfsmnt = path->mnt;
+	bool slash = false;
+	int error = 0;
+
+	talpa_vfsmount_lock();
+	while (dentry != root->dentry || vfsmnt != root->mnt) {
+		struct dentry * parent;
+
+		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
+			/* Global root? */
+			if (vfsmnt->mnt_parent == vfsmnt) {
+				goto global_root;
+			}
+			dentry = vfsmnt->mnt_mountpoint;
+			vfsmnt = vfsmnt->mnt_parent;
+			continue;
+		}
+		parent = dentry->d_parent;
+		prefetch(parent);
+		spin_lock(&dentry->d_lock);
+		error = prepend_name(buffer, buflen, &dentry->d_name);
+		spin_unlock(&dentry->d_lock);
+		if (!error)
+			error = prepend(buffer, buflen, "/", 1);
+		if (error)
+			break;
+
+		slash = true;
+		dentry = parent;
+	}
+
+	if (!error && !slash)
+		error = prepend(buffer, buflen, "/", 1);
+
+out:
+	talpa_vfsmount_unlock();
+	return error;
+
+global_root:
+	/*
+	 * Filesystems needing to implement special "root names"
+	 * should do so with ->d_dname()
+	 */
+	if (IS_ROOT(dentry) &&
+	    (dentry->d_name.len != 1 || dentry->d_name.name[0] != '/')) {
+		WARN(1, "Root dentry has weird name <%.*s>\n",
+		     (int) dentry->d_name.len, dentry->d_name.name);
+	}
+	if (!slash)
+		error = prepend(buffer, buflen, "/", 1);
+	if (!error)
+		error = vfsmnt->mnt_ns ? 1 : 2;
+	goto out;
+}
+
 static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
 #ifdef TALPA_HAVE_PATH_LOOKUP
@@ -2285,7 +2369,9 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
     int ret = 0;
 
     struct vfsmount *mnt;
-
+    char *page = 0;
+    
+        
 #ifdef MS_MOVE
 #define VFSHOOK_MS_IGNORE (MS_MOVE)
 #else
@@ -2296,104 +2382,149 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
        We also ignore bind mounts and subtree moves. */
     if ( !err && !(flags & VFSHOOK_MS_IGNORE) )
     {
+        char* abs_dir;
+        
         dir = getname(dir_name);
-
-        if ( !IS_ERR(dir) )
+        if (IS_ERR(dir))
         {
-#ifdef TALPA_HAVE_PATH_LOOKUP
-            ret = talpa_path_lookup(dir, TALPA_LOOKUP, &nd);
-#else
-            ret = kern_path(dir, TALPA_LOOKUP, &p);
-#endif
-            putname(dir);
-            if ( ret == 0 )
+            ret = PTR_ERR(dir);
+            goto out;
+        }
+        
+        abs_dir = dir;
+         
+        if (dir[0] != '/')
+        {
+            /*
+             * Rel -> Abs copied from fs/dcache.c syscall - getcwd
+             * TODO: We aren't taking the seqlock(&rename_lock)
+             * Need to work out whether this will cause us problems
+             * 
+             * TODO: This only handles ".", rather than any relative paths.
+             *  mount.cifs uses "."
+             */
+            struct path pwd, root;
+            char *cwd;
+            int buflen;
+            
+            /* Relative path provided as mount point - need to make absolute
+             */
+             /* get_fs_pwd(current->fs, &pwd); */
+            page = (char *) __get_free_page(GFP_USER);
+            if (!page)
             {
+                err = -ENOMEM;
+                goto out;
+            }
+    
+            get_fs_root_and_pwd(current->fs, &root, &pwd);
+            cwd = page + PAGE_SIZE;
+            buflen = PAGE_SIZE;
+            prepend(&cwd, &buflen, "\0", 1);
+            err = prepend_path(&pwd, &root, &cwd, &buflen);
+            if ( unlikely( err < 0 ) )
+            {
+                goto out;
+            }
+            abs_dir = cwd;     
+        }
+        
+#ifdef TALPA_HAVE_PATH_LOOKUP
+        ret = talpa_path_lookup(abs_dir, TALPA_LOOKUP, &nd);
+#else
+        ret = kern_path(abs_dir, TALPA_LOOKUP, &p);
+#endif
+        putname(dir); abs_dir = NULL; dir = NULL;
+        if ( ret == 0 )
+        {
 
 #ifdef TALPA_HAVE_PATH_LOOKUP
-                mnt = talpa_nd_mnt(&nd);
+            mnt = talpa_nd_mnt(&nd);
 #else
-                mnt = p.mnt;
+            mnt = p.mnt;
 #endif
 
 #ifndef TALPA_HAS_SMBFS
-                ret = processMount(mnt, flags, true);
+            ret = processMount(mnt, flags, true);
+# ifdef TALPA_HAVE_PATH_LOOKUP
+            talpa_path_release(&nd);
+# else
+            path_put(&p);
+# endif
+
+            goto out;
+#else /* Have SMBFS */
+# ifdef TALPA_HAVE_PATH_LOOKUP
+            mnt = talpa_nd_mnt(&nd);
+            dentry = talpa_nd_dentry(&nd);
+# else
+            mnt = p.mnt;
+            dentry = p.dentry;
+# endif
+            path = talpa_alloc_path(&path_size);
+            if ( path )
+            {
+                /* Double path resolve. Makes smbmount way of mounting work. */
+                dir2 = talpa_d_path(dentry, mnt, path, path_size);
 # ifdef TALPA_HAVE_PATH_LOOKUP
                 talpa_path_release(&nd);
 # else
                 path_put(&p);
 # endif
-
-                return ret;
-#else /* Have SMBFS */
-# ifdef TALPA_HAVE_PATH_LOOKUP
-                mnt = talpa_nd_mnt(&nd);
-                dentry = talpa_nd_dentry(&nd);
-# else
-                mnt = p.mnt;
-                dentry = p.dentry;
-# endif
-                path = talpa_alloc_path(&path_size);
-                if ( path )
+                if ( !IS_ERR(dir2) )
                 {
-                    /* Double path resolve. Makes smbmount way of mounting work. */
-                    dir2 = talpa_d_path(dentry, mnt, path, path_size);
-# ifdef TALPA_HAVE_PATH_LOOKUP
-                    talpa_path_release(&nd);
-# else
-                    path_put(&p);
-# endif
-                    if ( !IS_ERR(dir2) )
+#ifdef TALPA_HAVE_PATH_LOOKUP
+                    /* nd has already been released, so we can re-use it */
+                    ret = talpa_path_lookup(dir2, TALPA_LOOKUP, &nd);
+#else
+                    /* p has already been released, so we can re-use it */
+                    ret = kern_path(dir2, TALPA_LOOKUP, &p);
+#endif
+                    talpa_free_path(path);
+                    if ( ret == 0 )
                     {
 #ifdef TALPA_HAVE_PATH_LOOKUP
-                        /* nd has already been released, so we can re-use it */
-                        ret = talpa_path_lookup(dir2, TALPA_LOOKUP, &nd);
+                        mnt = talpa_nd_mnt(&nd);
 #else
-                        /* p has already been released, so we can re-use it */
-                        ret = kern_path(dir2, TALPA_LOOKUP, &p);
-#endif
-                        talpa_free_path(path);
-                        if ( ret == 0 )
-                        {
-#ifdef TALPA_HAVE_PATH_LOOKUP
-                            mnt = talpa_nd_mnt(&nd);
-#else
-                            mnt = p.mnt;
+                        mnt = p.mnt;
 #endif
 
-                            ret = processMount(mnt, flags, true);
+                        ret = processMount(mnt, flags, true);
 
 # ifdef TALPA_HAVE_PATH_LOOKUP
-                            talpa_path_release(&nd);
+                        talpa_path_release(&nd);
 # else
-                            path_put(&p);
+                        path_put(&p);
 # endif
-                            return ret;
-                        }
-                    }
-                    else
-                    {
-                        ret = PTR_ERR(dir2);
-                        talpa_free_path(path);
+                        goto out;
                     }
                 }
                 else
                 {
-# ifdef TALPA_HAVE_PATH_LOOKUP
-                    talpa_path_release(&nd);
-# else
-                    path_put(&p);
-# endif
-                    ret = -ENOMEM;
+                    ret = PTR_ERR(dir2);
+                    talpa_free_path(path);
                 }
-#endif
             }
-        }
-        else
-        {
-            ret = PTR_ERR(dir);
+            else
+            {
+# ifdef TALPA_HAVE_PATH_LOOKUP
+                talpa_path_release(&nd);
+# else
+                path_put(&p);
+# endif
+                ret = -ENOMEM;
+            }
+#endif
         }
 
         err("Failed to synchronise post-mount! (%d)", ret);
+    }
+
+out:
+
+    if (page != 0)
+    {
+        free_page((unsigned long) page);
     }
 
     return ret;

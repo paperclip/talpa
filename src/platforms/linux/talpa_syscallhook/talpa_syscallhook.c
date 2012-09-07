@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3)
     #include <linux/syscalls.h>
@@ -635,7 +636,7 @@ out:
     {
         wake_up(&unregister_wait);
     }
-
+    
     prevent_tail_call(err);
     return err;
 }
