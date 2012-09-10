@@ -2395,6 +2395,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
          
         if (dir[0] != '/')
         {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
             /*
              * Rel -> Abs copied from fs/dcache.c syscall - getcwd
              * TODO: We aren't taking the seqlock(&rename_lock)
@@ -2427,6 +2428,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                 goto out;
             }
             abs_dir = cwd;     
+#endif
         }
         
 #ifdef TALPA_HAVE_PATH_LOOKUP
