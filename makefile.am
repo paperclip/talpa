@@ -139,7 +139,7 @@ talpa-srcpack.tar.gz : distdir
 	echo "" >manifest.spec
 	echo "" >source.spec
 	echo "" >interface.spec
-	tardir=$(distdir) && $(am__tar) manifest.sig manifest.spec source.spec interface.spec | GZIP=$(GZIP_ENV) gzip -c >$@
+	tar cf - $(distdir) manifest.sig manifest.spec source.spec interface.spec | GZIP=$(GZIP_ENV) gzip -c >$@
 
 exampleclients:
 	@cd clients && make

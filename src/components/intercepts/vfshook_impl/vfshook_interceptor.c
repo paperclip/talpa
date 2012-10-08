@@ -47,6 +47,9 @@
 # endif
 #endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
+# define TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
+#endif
 
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -2268,6 +2271,8 @@ out:
     return decision;
 }
 
+#ifdef TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
+
 static int prepend(char **buffer, int *buflen, const char *str, int namelen)
 {
 	*buflen -= namelen;
@@ -2352,6 +2357,8 @@ global_root:
 	goto out;
 }
 
+#endif
+
 static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
 #ifdef TALPA_HAVE_PATH_LOOKUP
@@ -2370,8 +2377,8 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 
     struct vfsmount *mnt;
     char *page = 0;
-    
-        
+
+
 #ifdef MS_MOVE
 #define VFSHOOK_MS_IGNORE (MS_MOVE)
 #else
@@ -2383,31 +2390,31 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
     if ( !err && !(flags & VFSHOOK_MS_IGNORE) )
     {
         char* abs_dir;
-        
+
         dir = getname(dir_name);
         if (IS_ERR(dir))
         {
             ret = PTR_ERR(dir);
             goto out;
         }
-        
+
         abs_dir = dir;
-         
+
         if (dir[0] != '/')
         {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
+#ifdef TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
             /*
              * Rel -> Abs copied from fs/dcache.c syscall - getcwd
              * TODO: We aren't taking the seqlock(&rename_lock)
              * Need to work out whether this will cause us problems
-             * 
+             *
              * TODO: This only handles ".", rather than any relative paths.
              *  mount.cifs uses "."
              */
             struct path pwd, root;
             char *cwd;
             int buflen;
-            
+
             /* Relative path provided as mount point - need to make absolute
              */
              /* get_fs_pwd(current->fs, &pwd); */
@@ -2417,7 +2424,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                 err = -ENOMEM;
                 goto out;
             }
-    
+
             get_fs_root_and_pwd(current->fs, &root, &pwd);
             cwd = page + PAGE_SIZE;
             buflen = PAGE_SIZE;
@@ -2427,10 +2434,10 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
             {
                 goto out;
             }
-            abs_dir = cwd;     
+            abs_dir = cwd;
 #endif
         }
-        
+
 #ifdef TALPA_HAVE_PATH_LOOKUP
         ret = talpa_path_lookup(abs_dir, TALPA_LOOKUP, &nd);
 #else
