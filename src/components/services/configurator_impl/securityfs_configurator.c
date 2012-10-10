@@ -198,15 +198,11 @@ static ssize_t securityfsRead(struct file *file, char __user *buf, size_t count,
     IConfigurable *item;
     char* data;
     size_t len;
+    size_t amountToCopy;
+    size_t extraNewLine = 1;
 
 
     if ( !count )
-    {
-        return 0;
-    }
-
-    /* Return EOF for second read (whole value must be read in one go) */
-    if ( file->f_pos )
     {
         return 0;
     }
@@ -225,29 +221,42 @@ static ssize_t securityfsRead(struct file *file, char __user *buf, size_t count,
     }
     /* Too noisy since we are reading for queue length */
     /* dbg("reading %s/%s = %s", item->name(item->object), element->name, data); */
-    len = strlen(data);
-    if ( len > count )
-    {
-        len = count;
-    }
-    if ( len )
-    {
-        if ( copy_to_user(buf, data, len) )
-        {
-            return -EFAULT;
-        }
-    }
-    if ( len < count )
-    {
-        if ( put_user('\n', buf + len) )
-        {
-            return -EFAULT;
-        }
-        len++;
-    }
-    *ppos = len;
+    len = strlen(data) + extraNewLine; /* For the new line */
+    amountToCopy = len - file->f_pos;
 
-    return len;
+    if (amountToCopy <= 0)
+    {
+        return 0;
+    }
+
+    if ( amountToCopy > count )
+    {
+        /* User buffer is smaller than we have left, so copy from the data, and don't include
+         * the virtual new-line */
+        extraNewLine = 0;
+        amountToCopy = count;
+    }
+    if ( amountToCopy - extraNewLine > 0 )
+    {
+        /*
+         * Need to copy from the config data:
+         * Copy from data, accounting for the virtual new line.
+         */
+        if ( copy_to_user(buf, data+file->f_pos, amountToCopy - extraNewLine) )
+        {
+            return -EFAULT;
+        }
+    }
+    if ( extraNewLine > 0 )
+    {
+        if ( put_user('\n', buf + amountToCopy - extraNewLine) )
+        {
+            return -EFAULT;
+        }
+    }
+    *ppos = file->f_pos + amountToCopy;
+
+    return amountToCopy;
 }
 
 static ssize_t securityfsWrite(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -297,7 +306,7 @@ static ssize_t securityfsWrite(struct file *file, const char __user *buf, size_t
     {
         len = element->size;
     }
-    data = talpa_alloc(len + 1);
+    data = talpa_large_alloc(len + 1);
     if ( !data )
     {
         return -ENOMEM;
@@ -314,7 +323,7 @@ static ssize_t securityfsWrite(struct file *file, const char __user *buf, size_t
     data[len] = 0;
     dbg("setting %s/%s = %s", item->name(item->object), element->name, data);
     item->set(item->object, element->name, data);
-    talpa_free(data);
+    talpa_large_free(data);
 
     return count;
 }

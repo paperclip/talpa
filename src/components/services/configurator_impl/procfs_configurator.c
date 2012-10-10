@@ -374,7 +374,7 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
         {
             len = table->maxlen;
         }
-        cfgValue = talpa_alloc(len + 1);
+        cfgValue = talpa_large_alloc(len + 1);
         if ( !cfgValue )
         {
             return -ENOMEM;
@@ -389,7 +389,7 @@ static int ctlHandler(ctl_table* table, int* name, int nlen, void* oldvalue, siz
         }
         cfgValue[len] = 0;
         ((IConfigurable*)table->extra1)->set(((IConfigurable*)table->extra1)->object, table->procname, cfgValue);
-        talpa_free(cfgValue);
+        talpa_large_free(cfgValue);
     }
     return 1;
 }
@@ -406,7 +406,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
 static int procHandler(ctl_table* table, int write, struct file* filp, void* buffer, size_t* lenp)
 #endif
 {
-    if (!table->data || !table->maxlen || !*lenp || (PPOS && !write))
+    if (!table->data || !table->maxlen || !*lenp)
     {
         *lenp = 0;
         return 0;
@@ -437,7 +437,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
         {
             len = table->maxlen;
         }
-        cfgValue = talpa_alloc(len + 1);
+        cfgValue = talpa_large_alloc(len + 1);
         if ( !cfgValue )
         {
             return -ENOMEM;
@@ -454,7 +454,7 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
 
         PPOS += *lenp;
         ((IConfigurable*)table->extra1)->set(((IConfigurable*)table->extra1)->object, table->procname, cfgValue);
-        talpa_free(cfgValue);
+        talpa_large_free(cfgValue);
 
         return 0;
     }
@@ -462,33 +462,44 @@ static int procHandler(ctl_table* table, int write, struct file* filp, void* buf
     {
         char* data = (char *)((IConfigurable*)table->extra1)->get(((IConfigurable*)table->extra1)->object, table->procname);
         size_t len;
+        size_t amountToCopy;
+        size_t extraNewLine = 1;
 
         if (data == NULL)
         {
             return -ENOMEM;
         }
-        len = strlen(data);
-        if ( len > *lenp )
+
+        len = strlen(data) + 1;         /* Size of the actual data + 1 for new-line */
+        amountToCopy = len-PPOS;   /* Remaining data from the current position including virtual new-line */
+
+        if (amountToCopy <= 0)
         {
-            len = *lenp;
+            *lenp = 0;
+            return 0;
         }
-        if ( len )
+
+        if ( amountToCopy > *lenp )
         {
-            if ( copy_to_user(buffer, data, len) )
+            extraNewLine = 0;
+            amountToCopy = *lenp; /* Reduce amount to copy by buffer length */
+        }
+        if ( amountToCopy - extraNewLine > 0 )
+        {
+            if ( copy_to_user(buffer, data+PPOS, amountToCopy - extraNewLine) ) /* copy without virtual new-line */
             {
                 return -EFAULT;
             }
         }
-        if ( len < *lenp )
+        if ( extraNewLine > 0 )
         {
-            if( put_user('\n', ((char *) buffer) + len) )
+            if( put_user('\n', ((char *) buffer) + amountToCopy - extraNewLine) )
             {
                 return -EFAULT;
             }
-            len++;
         }
-        *lenp = len;
-        PPOS += len;
+        *lenp = amountToCopy;
+        PPOS += amountToCopy;
     }
 
     return 0;

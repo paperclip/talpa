@@ -192,10 +192,10 @@ static void deleteFilesystemExclusionProcessor(struct tag_FilesystemExclusionPro
         freeObject(obj);
     }
 
-    talpa_free(object->mPathsSet);
-    talpa_free(object->mFilesystemsSet);
-    talpa_free(object->mMountPathsSet);
-    talpa_free(object->mMountFilesystemsSet);
+    talpa_large_free(object->mPathsSet);
+    talpa_large_free(object->mFilesystemsSet);
+    talpa_large_free(object->mMountPathsSet);
+    talpa_large_free(object->mMountFilesystemsSet);
 
     talpa_free(object);
 
@@ -493,7 +493,7 @@ try_alloc:
     /* We do not allocate anything in first pass. */
     if ( alloc_len )
     {
-        newset = talpa_alloc(alloc_len);
+        newset = talpa_large_alloc(alloc_len);
         if ( !newset )
         {
             err("Failed to create string set!");
@@ -513,12 +513,12 @@ try_alloc:
     {
         talpa_rcu_read_unlock(&this->mConfigLock);
         alloc_len = len + 1;
-        talpa_free(newset);
+        talpa_large_free(newset);
         goto try_alloc;
     }
 
     out = newset;
-    talpa_free(*set);
+    talpa_large_free(*set);
     talpa_list_for_each_entry_rcu(obj, list, head)
     {
         strcpy(out, obj->value);
@@ -539,7 +539,7 @@ try_alloc:
 
 static void destroyStringSet(void *self, char **set)
 {
-    talpa_free(*set);
+    talpa_large_free(*set);
     *set = NULL;
     return;
 }
