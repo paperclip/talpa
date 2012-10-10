@@ -315,14 +315,24 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
 #endif
 
 #ifdef current_cred /* Introduced in 2.6.29. */
+    err("openDentry 14 0x%x",flags);
+    err("openDentry 14.1 dentry->d_inode=%p",dentry->d_inode);
+    err("openDentry 14.2 OPEN_FMODE(flag)=0x%x",OPEN_FMODE(flags));
+    {
+        struct inode *inode = dentry->d_inode;
+        err("inode->i_op->open=%p",inode->i_op->open);
+    }
+
     file = dentry_open(dget(dentry), mntget(mnt), flags, current_cred());
 #else
     file = dentry_open(dget(dentry), mntget(mnt), flags);
 #endif
     if ( unlikely(IS_ERR(file)) )
     {
+        err("openDentry 16 %ld",PTR_ERR(file));
         return PTR_ERR(file);
     }
+    err("openDentry 17");
 
     if ( !verifyFile(file) )
     {

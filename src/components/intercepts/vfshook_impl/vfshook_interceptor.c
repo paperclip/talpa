@@ -47,7 +47,7 @@
 # endif
 #endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
 # define TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
 #endif
 
@@ -798,7 +798,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     /* 3.1 seems to be able to open the file with only an O_ACCMODE == 0 open */
     if ( (openflags & O_ACCMODE) == 0)
     {
-        dopsdbg("maybeScanDentryRevalidate (openflags & O_ACCMODE) == 0 dentry=%p nd=%p filpBefore=%p openflags=%x, ndflags=%x",dentry,nd,filpBefore,openflags,nd->flags);
+        dopsdbg("maybeScanDentryRevalidate (openflags & O_ACCMODE) == 0 dentry=%p nd=%p filpBefore=%p openflags=0x%x, ndflags=0x%x",dentry,nd,filpBefore,openflags,nd->flags);
         /* Not going to do a real open */
         return resultCode;
     }
@@ -864,8 +864,6 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         dopsdbg("maybeScanDentryRevalidate:  nd->intent.open.file=%p != beforeFilp=%p",filp,filpBefore);
     }
 
-    dopsdbg("maybeScanDentryRevalidate details: nd->intent.open.file=%p, beforeFilp=%p openflags=%x create_mode=%x ndflags=%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
  #define TALPA_f_dentry f_path.dentry
 #else
@@ -878,8 +876,9 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-
-    dopsdbg("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
+    err("maybeScanDentryRevalidate details: nd->intent.open.file=%p, beforeFilp=%p openflags=0x%x create_mode=0x%x ndflags=0x%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
+    err("fileFlags=0x%x",filp->f_flags);
+    err("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
 
 
     /* First check with the examineInode method */
@@ -888,29 +887,37 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     if ( ret == -EAGAIN )
     {
         IFileInfo *pFInfo;
+        IFile *pFile;
 
 
         ret = 0;
         pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, filp);
-        if ( likely( pFInfo != NULL ) )
+        pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, filp);
+        if ( likely( pFInfo != NULL && pFile != NULL))
         {
             /* Make sure our open and close attempts while examining will be excluded */
             current->flags |= PF_TALPA_INTERNAL;
             /* Examine this file */
-            ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+            ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, pFile); /* Share the pre-openned file */
             /* Restore normal process examination */
             current->flags &= ~PF_TALPA_INTERNAL;
+        }
+        if (likely( pFInfo != NULL))
+        {
             pFInfo->delete(pFInfo);
+        }
+        if (likely( pFile != NULL))
+        {
+            pFile->delete(pFile); /* Resets the file to its beginning */
         }
     }
 
     if (ret != 0)
     {
-        /* TODO: May need to close file here? */
+        /* TODO: filp closed by nameidata being destroyed? */
         return ret;
     }
 
-    /* TODO: May need to restore state on the open file? */
 
     return resultCode;
 }
@@ -2400,9 +2407,9 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 
         abs_dir = dir;
 
+#ifdef TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
         if (dir[0] != '/')
         {
-#ifdef TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
             /*
              * Rel -> Abs copied from fs/dcache.c syscall - getcwd
              * TODO: We aren't taking the seqlock(&rename_lock)
@@ -2435,8 +2442,8 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
                 goto out;
             }
             abs_dir = cwd;
-#endif
         }
+#endif
 
 #ifdef TALPA_HAVE_PATH_LOOKUP
         ret = talpa_path_lookup(abs_dir, TALPA_LOOKUP, &nd);
