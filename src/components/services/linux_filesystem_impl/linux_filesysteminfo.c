@@ -27,6 +27,7 @@
 #include "common/talpa.h"
 #include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/vfs_mount.h"
 #include "linux_filesysteminfo.h"
 #include "filesystem/isystemroot.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -243,6 +244,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
         }
         else if ( (operation == EFS_Umount) && dir_name )
         {
+            const char* mnt_devname;
 
 #ifdef TALPA_HAVE_PATH_LOOKUP
             rc = talpa_path_lookup(dir_name, TALPA_LOOKUP, &nd);
@@ -277,7 +279,8 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                 }
             }
 
-            if ( mnt->mnt_devname )
+            mnt_devname = getDeviceName(mnt);
+            if ( mnt_devname )
             {
                 if ( mnt->mnt_sb->s_bdev )
                 {
@@ -290,9 +293,9 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
                     struct dentry *ddentry;
 
 #ifdef TALPA_HAVE_PATH_LOOKUP
-                    rc = talpa_path_lookup(mnt->mnt_devname, TALPA_LOOKUP, &dnd);
+                    rc = talpa_path_lookup(mnt_devname, TALPA_LOOKUP, &dnd);
 #else
-                    rc = kern_path(mnt->mnt_devname, TALPA_LOOKUP, &dp);
+                    rc = kern_path(mnt_devname, TALPA_LOOKUP, &dp);
 #endif
                     if ( rc == 0 )
                     {
@@ -326,7 +329,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
                 if ( !object->mDeviceName )
                 {
-                    object->mDeviceName = copyString(mnt->mnt_devname);
+                    object->mDeviceName = copyString(mnt_devname);
                     if ( !object->mDeviceName )
                     {
                         goto error2;

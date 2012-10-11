@@ -28,6 +28,7 @@
 #include "filesystem/isystemroot.h"
 #include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/vfs_mount.h"
 #include "linux_fileinfo.h"
 #include "app_ctrl/iportability_app_ctrl.h"
 
@@ -482,6 +483,23 @@ static uint32_t deviceMinor(const void* self)
 
 static const char* deviceName(const void* self)
 {
+    struct vfsmount* mnt;
+
+    if ( unlikely(this->mDeviceName != NULL) )
+    {
+        return this->mDeviceName;
+    }
+    mnt = this->mVFSMount;
+
+    if ( likely(mnt != NULL) )
+    {
+        const char * mnt_devname = getDeviceName(mnt);
+        if ( likely(mnt_devname != NULL) )
+        {
+            strcpy(this->mDeviceName, mnt_devname);
+        }
+    }
+
     return this->mDeviceName;
 }
 
@@ -498,14 +516,6 @@ static const char* fsType(const void* self)
 
     if ( likely(mnt != NULL) )
     {
-        if ( likely((this->mDeviceName == NULL) && (mnt->mnt_devname != NULL)) )
-        {
-            this->mDeviceName = talpa_alloc(strlen(mnt->mnt_devname) + 1);
-            if ( likely(this->mDeviceName != NULL) )
-            {
-                strcpy(this->mDeviceName, mnt->mnt_devname);
-            }
-        }
         if ( likely(mnt->mnt_sb->s_type->name != NULL) )
         {
             this->mFSType = talpa_alloc(strlen(mnt->mnt_sb->s_type->name) + 1);

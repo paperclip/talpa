@@ -56,6 +56,7 @@
 #include "filesystem/ifile_info.h"
 #include "platforms/linux/alloc.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/vfs_mount.h"
 #include "platforms/linux/locking.h"
 
 
@@ -442,7 +443,11 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+  #if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode, struct nameidata *nd)
+  #else
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd)
+  #endif
 #else
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode)
 #endif
@@ -2319,11 +2324,11 @@ static int prepend_path(const struct path *path,
 
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
 			/* Global root? */
-			if (vfsmnt->mnt_parent == vfsmnt) {
+			if (getParent(vfsmnt) == vfsmnt) {
 				goto global_root;
 			}
-			dentry = vfsmnt->mnt_mountpoint;
-			vfsmnt = vfsmnt->mnt_parent;
+			dentry = getVfsMountPoint(vfsmnt);
+			vfsmnt = getParent(vfsmnt);
 			continue;
 		}
 		parent = dentry->d_parent;
@@ -2360,7 +2365,7 @@ global_root:
 	if (!slash)
 		error = prepend(buffer, buflen, "/", 1);
 	if (!error)
-		error = vfsmnt->mnt_ns ? 1 : 2;
+		error = 1;
 	goto out;
 }
 
@@ -2665,94 +2670,10 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
 
 static int walkMountTree(void)
 {
-    struct task_struct* inittask;
-    struct vfsmount *rootmnt;
-    struct vfsmount *mnt, *nextmnt, *prevmnt;
-    struct list_head *nexthead = NULL;
-    int ret;
+    struct vfsmount *mnt;
 
-
-    talpa_tasklist_lock();
-    inittask = talpa_find_task_by_pid(1);
-    talpa_tasklist_unlock();
-
-    if ( !inittask )
-    {
-        return -1;
-    }
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-    spin_lock(&inittask->fs->lock);
-#else
-    read_lock(&inittask->fs->lock);
-#endif
-    talpa_vfsmount_lock(); // locks dcache_lock on 2.4
-    /* Find system root */
-    for (rootmnt = talpa_task_root_mnt(inittask); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
-    rootmnt = mntget(rootmnt);
-    talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-    spin_unlock(&inittask->fs->lock);
-#else
-    read_unlock(&inittask->fs->lock);
-#endif
-
-    mnt = mntget(rootmnt);
-    do
-    {
-        dbg("VFSMNT: 0x%p (at 0x%p), sb: 0x%p, dev: %s, flags: 0x%lx, fs: %s", mnt, mnt->mnt_parent, mnt->mnt_sb, mnt->mnt_devname, mnt->mnt_sb->s_flags, mnt->mnt_sb->s_type->name);
-
-        ret = processMount(mnt, mnt->mnt_sb->s_flags, false);
-        if (ret)
-        {
-            break;
-        }
-
-        talpa_vfsmount_lock(); // locks dcache_lock on 2.4
-
-        /* Go down the tree for a child if there is one */
-        if ( !list_empty(&mnt->mnt_mounts) )
-        {
-            nextmnt = list_entry(mnt->mnt_mounts.next, struct vfsmount, mnt_child);
-        }
-        else
-        {
-            nextmnt = mnt;
-            /* If no children, go up until we found some. Abort on root. */
-            while ( nextmnt != nextmnt->mnt_parent )
-            {
-                nexthead = nextmnt->mnt_child.next;
-                /* Take next child if available */
-                if ( nexthead != &nextmnt->mnt_parent->mnt_mounts )
-                {
-                    break;
-                }
-                /* Otherwise go up the tree */
-                nextmnt = nextmnt->mnt_parent;
-            }
-
-            /* Abort if we are at the root */
-            if ( nextmnt == nextmnt->mnt_parent )
-            {
-                talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
-                mntput(mnt);
-                break;
-            }
-
-            /* Take next mount from the list */
-            nextmnt = list_entry(nexthead, struct vfsmount, mnt_child);
-        }
-
-        mntget(nextmnt);
-        prevmnt = mnt;
-        mnt = nextmnt;
-        talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
-        mntput(prevmnt);
-    } while (mnt);
-
-    mntput(rootmnt);
-
-    return ret;
+    mnt = GL_object.mLinuxSystemRoot->i_ISystemRoot.mountPoint(GL_object.mLinuxSystemRoot);
+    return iterateFilesystems(mnt, processMount);
 }
 
 /*

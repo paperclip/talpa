@@ -1,6 +1,7 @@
 
 talpaLinuxSOURCES    =  src/app-ctrl/core/talpa-linux/talpa_linux_module.c \
                         src/platforms/linux/glue.c \
+                        src/platforms/linux/vfs_mount.c \
                         src/components/services/linux_filesystem_impl/linux_systemroot.c \
                         src/components/services/linux_filesystem_impl/linux_filesystem_factoryimpl.c \
                         src/components/services/linux_filesystem_impl/linux_file.c \

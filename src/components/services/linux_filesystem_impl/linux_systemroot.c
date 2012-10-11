@@ -29,6 +29,7 @@
 
 #include "common/talpa.h"
 #include "platforms/linux/glue.h"
+#include "platforms/linux/vfs_mount.h"
 #include "platforms/linux/alloc.h"
 #include "linux_systemroot.h"
 
@@ -116,7 +117,7 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
 #endif
 
                 talpa_vfsmount_lock(); // locks dcache_lock on 2.4
-                for (rootmnt = talpa_fs_mnt(init_fs); rootmnt != rootmnt->mnt_parent; rootmnt = rootmnt->mnt_parent);
+                for (rootmnt = talpa_fs_mnt(init_fs); rootmnt != getParent(rootmnt); rootmnt = getParent(rootmnt));
                 object->mMnt = mntget(rootmnt);
                 object->mDentry = dget(rootmnt->mnt_root);
                 talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
