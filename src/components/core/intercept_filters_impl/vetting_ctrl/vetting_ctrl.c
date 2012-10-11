@@ -723,10 +723,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         /* If low-level filesystem objects are available open the file using them. */
         if ( likely( (operation != EFS_Exec) && (info->fsObjects(info, &fsobj1, &fsobj2) == true) ) )
         {
-            err("examineFile 1 origflags=0x%x",info->flags(info));
-            err("examineFile 2 openDentryFlags=%u O_RDONLY=%u O_LARGEFILE=%u",openDentryFlags,O_RDONLY,O_LARGEFILE);
             ret = details->file->openDentry(file->object, fsobj1, fsobj2, openDentryFlags, operation != EFS_Close);
-            err("examineFile 3 %d",ret);
         }
 
         /* If open via fs object failed or wasn't attempted try opening via filename. */
@@ -746,30 +743,23 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
                 /* Open the file for the stream server. Use the appropriate method depending on operation code. */
                 if ( unlikely( operation == EFS_Exec ) )
                 {
-                    err("examineFile 4");
                     ret = details->file->openExec(file->object, local_filename);
-                    err("examineFile 5 %d",ret);
                 }
                 else
                 {
-                    err("examineFile 6 %u",openFlags);
                     ret = details->file->open(file->object, local_filename, openFlags, operation != EFS_Close);
-                    err("examineFile 7 %d",ret);
                     /* We cannot distinguish between open and exec with vfs interceptor
                     so it is possible that this failed because of the lack of read permission.
                     Try to with open_exec as a last resort. */
                     if ( unlikely( ret == -EACCES ) )
                     {
-                        err("examineFile 8");
                         ret = details->file->openExec(file->object, local_filename);
-                        err("examineFile 9 %d",ret);
                     }
                 }
             }
             else
             {
                 ret = -ENODATA;
-                err("examineFile 10 %d",ret);
             }
         }
 

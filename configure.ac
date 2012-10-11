@@ -628,9 +628,10 @@ kern_version_code=`tests/configure/kernversion`
 AC_MSG_RESULT([${kern_version_code}])
 ## 2.6.0  == 132608
 ## 2.6.5  == 132613
-## 2.6.18 == 132626
-## 2.6.36 == 132644
-## 3.0.0  == 196608
+## 2.6.18 == 132626?
+## 2.6.36 == 132644?
+## 3.0.0  == 196608     0x030000
+## 3.3.0  == 197376     0x030300
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
 TALPA_LOCATE_HEADER($utsrelease_h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
@@ -1584,7 +1585,7 @@ if test $((kern_version_code)) -ge 132608; then
         # Check if binary sysctls are supported
         AC_MSG_CHECKING([for binary sysctl support])
         TALPA_LOCATE_HEADER(linux/sysctl.h, $kernelhdrspath, , , [quiet])
-        if ${EGREP} sysctl_check_table $TALPA_HEADER_LOCATION/linux/sysctl.h >/dev/null 2>&1; then
+        if test $((kern_version_code)) -ge 197376 || ${EGREP} sysctl_check_table $TALPA_HEADER_LOCATION/linux/sysctl.h >/dev/null 2>&1; then
             AC_MSG_RESULT([disabled])
             AM_CONDITIONAL(BINARYSYSCTL, test 0 -eq 1)
             AC_SUBST(binarysysctl, "")

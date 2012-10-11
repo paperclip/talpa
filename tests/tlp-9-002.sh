@@ -15,6 +15,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
+## Test that talpa_syscallhook will block an interceptor that
+## is using the wrong protocol version to talk to it.
+
 . ${srcdir}/tlp-cleanup.sh
 
 if test "$interceptor_module" = "syscall"; then

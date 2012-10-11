@@ -20,4 +20,16 @@
 talpa_disable
 talpa_unload
 
-rm -rf /tmp/tlp-test 2>/dev/null
+if [ -d /tmp/tlp-test ]
+then
+    LSOF=`which lsof 2>/dev/null`
+    if [ -x "$LSOF" ]
+    then
+        lsof /tmp/tlp-test 2>/dev/null
+    fi
+    mount | grep /tmp/tlp-test
+    [ -d /tmp/tlp-test/mnt1 ] && umount /tmp/tlp-test/mnt1 2>/dev/null
+    [ -d /tmp/tlp-test/mnt2 ] && umount /tmp/tlp-test/mnt2 2>/dev/null
+    rm -rf /tmp/tlp-test 2>/dev/null
+fi
+true

@@ -6,6 +6,7 @@ tlpPersonalityOBJS       =  $(tlpPersonalitySOURCES:.c=.o)
 
 tlpFileInfoSOURCES    =  tlp_fileinfo.c \
                          src/platforms/linux/glue.c \
+                         src/platforms/linux/vfs_mount.c \
                          src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                          src/components/services/linux_filesystem_impl/linux_systemroot.c
 
@@ -13,6 +14,7 @@ tlpFileInfoOBJS       =  $(tlpFileInfoSOURCES:.c=.o)
 
 tlpFilesystemInfoSOURCES    =  tlp_filesysteminfo.c \
                              src/platforms/linux/glue.c \
+                             src/platforms/linux/vfs_mount.c \
                              src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                              src/components/services/linux_filesystem_impl/linux_systemroot.c
 
@@ -20,6 +22,7 @@ tlpFilesystemInfoOBJS       =  $(tlpFilesystemInfoSOURCES:.c=.o)
 
 tlpSyslogSOURCES    =  tlp_syslog.c \
                      src/platforms/linux/glue.c \
+                     src/platforms/linux/vfs_mount.c \
                      src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                      src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                      src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -48,6 +51,7 @@ tlpDualfsOBJS       =  $(tlpDualfsSOURCES:.c=.o)
 
 tlpStdInterceptorSOURCES    =  tlp_stdinterceptor.c \
                              src/platforms/linux/glue.c \
+                             src/platforms/linux/vfs_mount.c \
                              src/components/services/linux_filesystem_impl/linux_file.c \
                              src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                              src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
@@ -62,6 +66,7 @@ tlpStdInterceptorOBJS       =  $(tlpStdInterceptorSOURCES:.c=.o)
 
 tlpInclusionSOURCES    =  tlp_inclusion.c \
                         src/platforms/linux/glue.c \
+                        src/platforms/linux/vfs_mount.c \
                         src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                         src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                         src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -73,6 +78,7 @@ tlpInclusionOBJS       =  $(tlpInclusionSOURCES:.c=.o)
 
 tlpOpExclSOURCES    =  tlp_opexcl.c \
                      src/platforms/linux/glue.c \
+                     src/platforms/linux/vfs_mount.c \
                      src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                      src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                      src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -84,6 +90,7 @@ tlpOpExclOBJS       =  $(tlpOpExclSOURCES:.c=.o)
 
 tlpDenySyslogSOURCES    =  tlp_denysyslog.c \
                          src/platforms/linux/glue.c \
+                         src/platforms/linux/vfs_mount.c \
                          src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                          src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                          src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -96,6 +103,7 @@ tlpDenySyslogOBJS       =  $(tlpDenySyslogSOURCES:.c=.o)
 
 tlpThreadInfoSOURCES    =  tlp_threadinfo.c \
                          src/platforms/linux/glue.c \
+                         src/platforms/linux/vfs_mount.c \
                          src/components/services/linux_processandthread_impl/linux_threadinfo.c \
                          src/components/services/linux_filesystem_impl/linux_systemroot.c
 
@@ -103,6 +111,7 @@ tlpThreadInfoOBJS       =  $(tlpThreadInfoSOURCES:.c=.o)
 
 tlpExclusionSOURCES    =  tlp_exclusion.c \
                         src/platforms/linux/glue.c \
+                        src/platforms/linux/vfs_mount.c \
                         src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                         src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                         src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -120,6 +129,7 @@ tlpDDVCOBJS       =  $(tlpDDVCSOURCES:.c=.o)
 
 tlpCacheObjSOURCES    =  tlp_cacheobj.c \
                        src/platforms/linux/glue.c \
+                       src/platforms/linux/vfs_mount.c \
                        src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                        src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                        src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -132,6 +142,7 @@ tlpCacheObjOBJS       =  $(tlpCacheObjSOURCES:.c=.o)
 
 tlpCacheSOURCES    =  tlp_cache.c \
                     src/platforms/linux/glue.c \
+                    src/platforms/linux/vfs_mount.c \
                     src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                     src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                     src/components/services/linux_filesystem_impl/linux_systemroot.c \
@@ -147,6 +158,7 @@ tlpCacheOBJS       =  $(tlpCacheSOURCES:.c=.o)
 
 tlpDegrModeSOURCES    =  tlp_degrmode.c \
                        src/platforms/linux/glue.c \
+                       src/platforms/linux/vfs_mount.c \
                        src/components/services/linux_filesystem_impl/linux_fileinfo.c \
                        src/components/services/linux_filesystem_impl/linux_filesysteminfo.c \
                        src/components/services/linux_filesystem_impl/linux_systemroot.c \

@@ -46,6 +46,7 @@ ${mkfs} ${tmpdir}/fs2.img ${mkfs_args} >/dev/null
 
 mount -t $fs ${tmpdir}/fs2.img ${tmpdir}/mnt2 -o loop
 ls >${tmpdir}/mnt2/file
+sleep 0.2 || sleep 1
 umount ${tmpdir}/mnt2
 
 # We can't be sure we'll have all we need to run this test so skip if anything fails
