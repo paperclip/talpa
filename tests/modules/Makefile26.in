@@ -33,6 +33,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@nopasymbol@ \
                 @kfuncchpgattraddr@ \
 		@notasklistlock@ \
+		@vfsmntlglock@ \
 		@vfsmntlock@ \
 		@samefile@ \
 		@filldirbackport@ \

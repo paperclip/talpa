@@ -632,6 +632,7 @@ AC_MSG_RESULT([${kern_version_code}])
 ## 2.6.36 == 132644?
 ## 3.0.0  == 196608     0x030000
 ## 3.3.0  == 197376     0x030300
+## 3.5.0  == 197888     0x030500
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
 TALPA_LOCATE_HEADER($utsrelease_h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
@@ -1033,24 +1034,32 @@ if test $((kern_version_code)) -ge 132608; then
             AC_MSG_ERROR([ambiguous])
         fi
     fi
-
-    AC_MSG_CHECKING([for vfsmount lock])
-    vfsmount_lock_lock=`${EGREP} "[[VD]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-    if test x"$vfsmount_lock_lock" != x"" ; then
-        AC_MSG_RESULT([vfsmount lock is BRLOCK])
-        AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")
-    else
-        AC_MSG_RESULT([vfsmount lock is spinlock])
-        # Find vfsmnt_lock address
-        AC_MSG_CHECKING([for vfsmount_lock address])
-        vfsmnt_lock_addr=`${EGREP} " vfsmount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-        if test "$vfsmnt_lock_addr" != ""; then
-            AC_MSG_RESULT([0x$vfsmnt_lock_addr])
-            AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
-        else
-            AC_MSG_ERROR([not found])
-        fi
-    fi
+    
+    AC_MSG_CHECKING([for vfsmount and br lock])
+    if test $((kern_version_code)) -ge 197888; then
+		lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+		if test "$lg_local_lock" != ""; then
+			AC_MSG_RESULT([vfsmountlg lock is LG_BRLOCK])
+			AC_SUBST(vfsmntlglock, "-DTALPA_VFSMOUNT_LG_BRLOCK")
+		fi
+	fi
+	vfsmount_lock_lock=`${EGREP} "[[VD]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+	if test x"$vfsmount_lock_lock" != x"" ; then
+		AC_MSG_RESULT([vfsmount lock is BRLOCK])
+		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")          
+	else
+		AC_MSG_RESULT([vfsmount lock is spinlock])
+		# Find vfsmnt_lock address
+		AC_MSG_CHECKING([for vfsmount_lock address])
+		vfsmnt_lock_addr=`${EGREP} " vfsmount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+		if test "$vfsmnt_lock_addr" != ""; then
+			AC_MSG_RESULT([0x$vfsmnt_lock_addr])
+			AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
+		else
+			AC_MSG_ERROR([not found])
+		fi
+	fi
+	
 
     # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
     AC_MSG_CHECKING([for syscallhook module execve support])
@@ -1692,6 +1701,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
+                s/@vfsmntlglock@/${vfsmntlglock}/; \                
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
@@ -1739,6 +1749,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
+                s/@vfsmntlglock@/${vfsmntlglock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
