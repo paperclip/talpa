@@ -1036,18 +1036,16 @@ if test $((kern_version_code)) -ge 132608; then
     fi
     
     AC_MSG_CHECKING([for vfsmount and br lock])
-    if test $((kern_version_code)) -ge 197888; then
-		lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-		if test "$lg_local_lock" != ""; then
-			AC_MSG_RESULT([vfsmountlg lock is LG_BRLOCK])
-			AC_SUBST(vfsmntlglock, "-DTALPA_VFSMOUNT_LG_BRLOCK")
-		fi
-	fi
-	vfsmount_lock_lock=`${EGREP} "[[VD]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-	if test x"$vfsmount_lock_lock" != x"" ; then
+    vfsmount_lock_lock=`${EGREP} "[[VD]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+	lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+	
+	if test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" == ""  ; then
 		AC_MSG_RESULT([vfsmount lock is BRLOCK])
-		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")          
-	else
+		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")
+	elif test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" != ""  ; then
+		AC_MSG_RESULT([vfsmount lock is LG_BRLOCK])
+		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LG_BRLOCK")
+ 	elif test x"$vfsmount_lock_lock" == x"" ; then 
 		AC_MSG_RESULT([vfsmount lock is spinlock])
 		# Find vfsmnt_lock address
 		AC_MSG_CHECKING([for vfsmount_lock address])
@@ -1058,6 +1056,8 @@ if test $((kern_version_code)) -ge 132608; then
 		else
 			AC_MSG_ERROR([not found])
 		fi
+	else
+		AC_MSG_ERROR([not found])
 	fi
 	
 
@@ -1700,8 +1700,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@needsvacpa@/${needsvacpa}/; \
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
-                s/@notasklistlock@/${notasklistlock}/; \
-                s/@vfsmntlglock@/${vfsmntlglock}/; \                
+                s/@notasklistlock@/${notasklistlock}/; \                          
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
@@ -1749,7 +1748,6 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@nopasymbol@/${nopasymbol}/; \
                 s/@kfuncchpgattraddr@/${kfuncchpgattraddr}/; \
                 s/@notasklistlock@/${notasklistlock}/; \
-                s/@vfsmntlglock@/${vfsmntlglock}/; \
                 s/@vfsmntlock@/${vfsmntlock}/; \
                 s/@samefile@/${samefile}/; \
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
