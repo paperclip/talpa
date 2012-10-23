@@ -162,6 +162,10 @@ LinuxFileInfo* newLinuxFileInfo(EFilesystemOperation operation, const char* file
     root = TALPA_Portability()->systemRoot();
 
     object->mFilename = talpa__d_path(dentry, mnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
+    if (unlikely(object->mFilename == NULL))
+    {
+        critical("newLinuxFileInfo: talpa__d_path returned NULL");
+    }
     object->mOperation = operation;
     object->mFlags = flags;
     object->mDentry = dentry;
@@ -215,6 +219,11 @@ LinuxFileInfo* newLinuxFileInfoFromFd(EFilesystemOperation operation, int fd)
             ISystemRoot* root = TALPA_Portability()->systemRoot();
 
             object->mFilename = talpa__d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), object->mPath, path_size);
+            if (unlikely(object->mFilename == NULL))
+            {
+                critical("newLinuxFileInfoFromFd: talpa__d_path returned NULL");
+            }
+
             object->mOperation = operation;
             object->mFlags = file->f_flags;
             object->mDentry = file->f_dentry;
@@ -288,6 +297,7 @@ LinuxFileInfo* newLinuxFileInfoFromFile(EFilesystemOperation operation, void* fi
     root = TALPA_Portability()->systemRoot();
 
     fi->mFilename = talpa__d_path(file->f_dentry, file->f_vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
+
     fi->mOperation = operation;
     fi->mFlags = file->f_flags;
     fi->mMode = inode->i_mode;
@@ -343,6 +353,11 @@ LinuxFileInfo* newLinuxFileInfoFromDirectoryEntry(EFilesystemOperation operation
     root = TALPA_Portability()->systemRoot();
 
     fi->mFilename = talpa__d_path(dentry, vfsmnt, root->directoryEntry(root->object), root->mountPoint(root->object), fi->mPath, path_size);
+    if (unlikely(fi->mFilename == NULL))
+    {
+        critical("newLinuxFileInfoFromDirectoryEntry: talpa__d_path returned NULL");
+    }
+
     fi->mOperation = operation;
     fi->mFlags = flags;
     fi->mDentry = dentry;

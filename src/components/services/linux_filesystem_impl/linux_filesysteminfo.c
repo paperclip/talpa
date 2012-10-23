@@ -97,7 +97,24 @@ static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt)
     root = TALPA_Portability()->systemRoot();
     apath = talpa__d_path(dentry, mnt, root->directoryEntry(root->object), root->mountPoint(root->object), path, path_size);
 
-    if ( !IS_ERR(apath) )
+    if (unlikely( apath == NULL ))
+    {
+        bool isDeleted = false;
+        if ( dentry )
+        {
+            isDeleted = (!IS_ROOT(dentry) && d_unhashed(dentry));
+        }
+        critical("talpa__d_path failed for mnt=0x%p fstype=%s, dentry=0x%p deleted=%d",
+            mnt,
+            (const char *)mnt->mnt_sb->s_type->name,
+            dentry,
+            isDeleted);
+    }
+    else if (unlikely (IS_ERR(apath)))
+    {
+        apath = NULL;
+    }
+    else
     {
         absolute = talpa_alloc(strlen(apath) + 1);
         if ( absolute )
@@ -199,6 +216,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             if ( !object->mDeviceName )
             {
+                critical("DEBUG: EFS_Mount absolutePath deviceName failed: %s",dev_name);
                 object->mDeviceName = copyString(dev_name);
                 if ( !object->mDeviceName )
                 {
@@ -238,6 +256,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
                 if ( object->mMountPoint == 0 )
                 {
+                    critical("DEBUG: EFS_Mount absolutePath dir_name failed: %s",dir_name);
                     object->mMountPoint = copyString(dir_name);
                 }
             }
@@ -272,6 +291,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             if ( object->mMountPoint == 0 )
             {
+                critical("DEBUG: EFS_Umount absolutePath dir_name failed");
                 object->mMountPoint = copyString(dir_name);
                 if ( !object->mMountPoint )
                 {
@@ -329,6 +349,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
                 if ( !object->mDeviceName )
                 {
+                    critical("DEBUG: EFS_Umount absolutePath mnt_devname failed");
                     object->mDeviceName = copyString(mnt_devname);
                     if ( !object->mDeviceName )
                     {

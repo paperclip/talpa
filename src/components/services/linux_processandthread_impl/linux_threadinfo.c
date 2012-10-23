@@ -240,6 +240,10 @@ static const char* rootDir(const void* self)
         ISystemRoot* root = TALPA_Portability()->systemRoot();
 
         this->mRootDir = talpa__d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPath, path_size);
+        if (unlikely(this->mRootDir == NULL))
+        {
+            critical("threadInfo:rootDir: talpa__d_path returned NULL");
+        }
     }
     else
     {

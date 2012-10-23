@@ -32,6 +32,7 @@
 #endif
 
 #include "platforms/linux/glue.h"
+#include "platforms/linux/log.h"
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && (!defined TALPA_HAS_DPATH)
@@ -150,6 +151,9 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 #   endif
 #endif
 
+
+
+
 #if defined HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH
     spin_lock(&dcache_lock);
 #endif
@@ -183,6 +187,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
     if ( unlikely( IS_ERR(path) != 0 ) )
     {
+        critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
         path = NULL;
     }
 
@@ -213,7 +218,7 @@ void talpa_tasklist_unlock(void)
 #ifdef  TALPA_VFSMOUNT_LG_BRLOCK
 DEFINE_BRLOCK(vfsmount_lock);
 #elif defined TALPA_VFSMOUNT_LOCK_BRLOCK
-DECLARE_BRLOCK(vfsmount_lock); 
+DECLARE_BRLOCK(vfsmount_lock);
 #endif
 
 /*
@@ -240,7 +245,7 @@ void talpa_vfsmount_lock(void)
 
 void talpa_vfsmount_unlock(void)
 {
-    
+
 #if defined  TALPA_USE_VFSMOUNT_LOCK
 #   if defined TALPA_VFSMOUNT_LG_BRLOCK
     br_read_unlock(&vfsmount_lock);

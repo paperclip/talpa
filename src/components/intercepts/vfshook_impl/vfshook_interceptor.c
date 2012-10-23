@@ -274,6 +274,11 @@ static int talpaOpen(struct inode *inode, struct file *file)
 
                 ret = 0;
                 pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
+
+                if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
+                {
+                    critical("talpaOpen - pFInfo filename is NULL");
+                }
                 if ( likely( pFInfo != NULL ) )
                 {
                     /* Make sure our open and close attempts while examining will be excluded */
@@ -313,7 +318,6 @@ static int talpaRelease(struct inode *inode, struct file *file)
     struct patchedFilesystem *patch = NULL;
     int ret = -ESRCH;
 
-
     hookEntry();
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
@@ -338,6 +342,12 @@ static int talpaRelease(struct inode *inode, struct file *file)
             IFileInfo *pFInfo;
 
             pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
+            /*
+             * pFInfo->filename(pFInfo) is likely to be NULL if the file has already been deleted.
+             * e.g. temp files.
+             *
+             * Deleted files are excluded before we do any actual scanning in the targetProcessor
+             */
             /* Make sure our open and close attempts while examining will be excluded */
             current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
@@ -897,6 +907,11 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 
         ret = 0;
         pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, filp);
+
+        if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
+        {
+            critical("maybeScanDentryRevalidate - pFInfo filename is NULL");
+        }
         pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, filp);
         if ( likely( pFInfo != NULL && pFile != NULL))
         {
