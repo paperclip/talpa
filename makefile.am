@@ -134,11 +134,13 @@ dist-hook:
 	rm -f $(distdir)/configure.ac
 	find $(distdir) -type d -print | sort -r | xargs -- rmdir 2>/dev/null || true
 
-talpa-srcpack.tar.gz : distdir
+interface.spec : include/talpa-processexclusion.h include/talpa-vettingclient.h
+	sha1sum $^ | sed -e"s/  / /" >$@
+
+talpa-srcpack.tar.gz : distdir interface.spec
 	echo "" >manifest.sig
 	echo "" >manifest.spec
 	echo "" >source.spec
-	echo "" >interface.spec
 	tar cf - $(distdir) manifest.sig manifest.spec source.spec interface.spec | GZIP=$(GZIP_ENV) gzip -c >$@
 
 exampleclients:
