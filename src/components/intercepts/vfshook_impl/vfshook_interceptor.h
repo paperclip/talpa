@@ -97,12 +97,15 @@ struct patchedFilesystem
   #endif
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
-    int                     (*create)(struct inode *,struct dentry *,umode_t,struct nameidata *);
-  #else
+   #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+    int                     (*create)(struct inode *,struct dentry *,umode_t, bool);
+    struct dentry*          (*lookup)(struct inode *,struct dentry *, unsigned int );
+   #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+    int                     (*create)(struct inode *,struct dentry *,umode_t,struct nameidata *); 
+   #else
     int                     (*create)(struct inode *,struct dentry *,int, struct nameidata *);
-  #endif
     struct dentry*          (*lookup)(struct inode *,struct dentry *, struct nameidata *);
+   #endif
 #else
     int                     (*create)(struct inode *,struct dentry *,int);
     struct dentry*          (*lookup)(struct inode *,struct dentry *);

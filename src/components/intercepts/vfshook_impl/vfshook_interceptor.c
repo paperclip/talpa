@@ -274,11 +274,6 @@ static int talpaOpen(struct inode *inode, struct file *file)
 
                 ret = 0;
                 pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
-
-                if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
-                {
-                    critical("talpaOpen - pFInfo filename is NULL");
-                }
                 if ( likely( pFInfo != NULL ) )
                 {
                     /* Make sure our open and close attempts while examining will be excluded */
@@ -318,6 +313,7 @@ static int talpaRelease(struct inode *inode, struct file *file)
     struct patchedFilesystem *patch = NULL;
     int ret = -ESRCH;
 
+
     hookEntry();
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
@@ -342,12 +338,6 @@ static int talpaRelease(struct inode *inode, struct file *file)
             IFileInfo *pFInfo;
 
             pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
-            /*
-             * pFInfo->filename(pFInfo) is likely to be NULL if the file has already been deleted.
-             * e.g. temp files.
-             *
-             * Deleted files are excluded before we do any actual scanning in the targetProcessor
-             */
             /* Make sure our open and close attempts while examining will be excluded */
             current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
@@ -454,7 +444,7 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   #if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
-static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode, struct nameidata *nd)
+static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode, bool flag)
   #else
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd)
   #endif
@@ -489,7 +479,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
         if ( patch->create )
         {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+			err = patch->create(inode, dentry, mode, flag );
+ #else			
             err = patch->create(inode, dentry, mode, nd);
+ #endif            
 #else
             err = patch->create(inode, dentry, mode);
 #endif
@@ -535,8 +529,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
                 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+ # if LINUX_VERSION_CODE >=  KERNEL_VERSION(3,6,0)
+					pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, NULL, O_CREAT | O_EXCL, mode);
+ #else
                     pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, talpa_nd_mnt(nd), O_CREAT | O_EXCL, mode);
-
+ #endif
                     if ( pFInfo )
                     {
                         /* Make sure our open and close attempts while examining will be excluded */
@@ -575,7 +572,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, struct nameidata *nd)
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, unsigned int dir )
+ #else
+ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, struct nameidata *nd)
+ #endif
 #else
 static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry)
 #endif
@@ -607,7 +608,11 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
         if ( patch->lookup )
         {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+			err = patch->lookup(inode, dentry, dir);
+ #else			
             err = patch->lookup(inode, dentry, nd);
+ #endif           
 #else
             err = patch->lookup(inode, dentry);
 #endif
@@ -907,11 +912,6 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 
         ret = 0;
         pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, filp);
-
-        if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
-        {
-            critical("maybeScanDentryRevalidate - pFInfo filename is NULL");
-        }
         pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, filp);
         if ( likely( pFInfo != NULL && pFile != NULL))
         {
