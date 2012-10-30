@@ -511,7 +511,11 @@ static const char* deviceName(const void* self)
         const char * mnt_devname = getDeviceName(mnt);
         if ( likely(mnt_devname != NULL) )
         {
-            strcpy(this->mDeviceName, mnt_devname);
+            this->mDeviceName = talpa_alloc(strlen(mnt_devname) + 1);
+            if ( likely(this->mDeviceName != NULL) )
+            {
+                strcpy(this->mDeviceName, mnt_devname);
+            }
         }
     }
 
