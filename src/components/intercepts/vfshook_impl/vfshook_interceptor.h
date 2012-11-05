@@ -96,17 +96,16 @@ struct patchedFilesystem
     int                     (*ioctl)(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
   #endif
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-   #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
     int                     (*create)(struct inode *,struct dentry *,umode_t, bool);
     struct dentry*          (*lookup)(struct inode *,struct dentry *, unsigned int );
-   #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0) /* 3.3 - 3.5 */
     int                     (*create)(struct inode *,struct dentry *,umode_t,struct nameidata *); 
-   #else
+    struct dentry*          (*lookup)(struct inode *,struct dentry *, struct nameidata *);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.2 */
     int                     (*create)(struct inode *,struct dentry *,int, struct nameidata *);
     struct dentry*          (*lookup)(struct inode *,struct dentry *, struct nameidata *);
-   #endif
-#else
+#else /* 2.4 */
     int                     (*create)(struct inode *,struct dentry *,int);
     struct dentry*          (*lookup)(struct inode *,struct dentry *);
 #endif

@@ -274,6 +274,11 @@ static int talpaOpen(struct inode *inode, struct file *file)
 
                 ret = 0;
                 pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
+
+                if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
+                {
+                    critical("talpaOpen - pFInfo filename is NULL");
+                }
                 if ( likely( pFInfo != NULL ) )
                 {
                     /* Make sure our open and close attempts while examining will be excluded */
@@ -313,7 +318,6 @@ static int talpaRelease(struct inode *inode, struct file *file)
     struct patchedFilesystem *patch = NULL;
     int ret = -ESRCH;
 
-
     hookEntry();
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
@@ -338,6 +342,12 @@ static int talpaRelease(struct inode *inode, struct file *file)
             IFileInfo *pFInfo;
 
             pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
+            /*
+             * pFInfo->filename(pFInfo) is likely to be NULL if the file has already been deleted.
+             * e.g. temp files.
+             *
+             * Deleted files are excluded before we do any actual scanning in the targetProcessor
+             */
             /* Make sure our open and close attempts while examining will be excluded */
             current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
@@ -442,13 +452,14 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-  #if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+
+#if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode, bool flag)
-  #else
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0) /* 3.3 - 3.5 */
+static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode , struct nameidata *nd)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.2 */
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd)
-  #endif
-#else
+#else /* 2.4 */
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode)
 #endif
 {
@@ -478,13 +489,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
         /* First call the original hook so that the inode gets created */
         if ( patch->create )
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
-			err = patch->create(inode, dentry, mode, flag );
- #else			
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+            err = patch->create(inode, dentry, mode, flag );
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.5 */
             err = patch->create(inode, dentry, mode, nd);
- #endif            
-#else
+#else /* 2.4 */
             err = patch->create(inode, dentry, mode);
 #endif
         }
@@ -497,8 +506,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
             if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
             {
                 IFileInfo *pFInfo;
-
-
+    
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
@@ -529,11 +537,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
                 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
- # if LINUX_VERSION_CODE >=  KERNEL_VERSION(3,6,0)
-					pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, NULL, O_CREAT | O_EXCL, mode);
- #else
+  #if LINUX_VERSION_CODE >=  KERNEL_VERSION(3,6,0)
+                    pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromInode(GL_object.mLinuxFilesystemFactory, EFS_Open, inode , O_CREAT | O_EXCL);
+  #else
                     pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, talpa_nd_mnt(nd), O_CREAT | O_EXCL, mode);
- #endif
+  #endif
                     if ( pFInfo )
                     {
                         /* Make sure our open and close attempts while examining will be excluded */
@@ -571,13 +579,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
- static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, unsigned int dir )
- #else
- static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, struct nameidata *nd)
- #endif
-#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, unsigned int dir )
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.5 */
+static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry, struct nameidata *nd)
+#else /* 2.4 */
 static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentry)
 #endif
 {
@@ -607,12 +613,10 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
         /* First call the original hook so that the inode gets looked up */
         if ( patch->lookup )
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
-			err = patch->lookup(inode, dentry, dir);
- #else			
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+            err = patch->lookup(inode, dentry, dir);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
             err = patch->lookup(inode, dentry, nd);
- #endif           
 #else
             err = patch->lookup(inode, dentry);
 #endif
@@ -685,7 +689,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 {
     struct inode *inode;
     struct file *filp = NULL;
-	int openflags;
+    int openflags;
     int ret = 0;
 
     if (resultCode <= 0)
@@ -730,17 +734,17 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     #define LOOKUP_EMPTY            0x4000
 
 
-     * fs/nfs/dir.c:1021:	return nd->flags & mask;
-     * fs/nfs/dir.c:1052:		if (nd->flags & LOOKUP_REVAL)
-     * fs/nfs/dir.c:1106:	if (nd->flags & LOOKUP_RCU)
-     * fs/nfs/dir.c:1350:	if (nd->flags & LOOKUP_DIRECTORY)
-     * fs/nfs/dir.c:1437:	if (nd->flags & LOOKUP_EXCL)
-     * fs/nfs/dir.c:1449:	if (nd->flags & LOOKUP_CREATE)
-     * fs/jfs/namei.c:1613:	if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
-     * fs/ceph/dir.c:600:	    (nd->flags & LOOKUP_OPEN) &&
-     * fs/namei.c:663:			nd->flags |= LOOKUP_JUMPED;
-     * fs/namei.c:516:		if (!(nd->flags & LOOKUP_ROOT))
-     * fs/namei.c:1567:		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+     * fs/nfs/dir.c:1021:   return nd->flags & mask;
+     * fs/nfs/dir.c:1052:       if (nd->flags & LOOKUP_REVAL)
+     * fs/nfs/dir.c:1106:   if (nd->flags & LOOKUP_RCU)
+     * fs/nfs/dir.c:1350:   if (nd->flags & LOOKUP_DIRECTORY)
+     * fs/nfs/dir.c:1437:   if (nd->flags & LOOKUP_EXCL)
+     * fs/nfs/dir.c:1449:   if (nd->flags & LOOKUP_CREATE)
+     * fs/jfs/namei.c:1613: if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+     * fs/ceph/dir.c:600:       (nd->flags & LOOKUP_OPEN) &&
+     * fs/namei.c:663:          nd->flags |= LOOKUP_JUMPED;
+     * fs/namei.c:516:      if (!(nd->flags & LOOKUP_ROOT))
+     * fs/namei.c:1567:     nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
      */
 
 #if 1
@@ -752,7 +756,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 #endif
 
 
-	openflags = nd->intent.open.flags;
+    openflags = nd->intent.open.flags;
     /*
      * ## Possibly changed in 3.1?
      * openflags possibilities
@@ -785,9 +789,9 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
      * #define O_PATH      010000000                                    0x200000
 
      * O_ACCMODE
-     * ./drivers/staging/pohmelfs/dir.c:515:	if ((nd->intent.open.flags & O_ACCMODE) != O_RDONLY)
-     * ./fs/nfs/dir.c:1474:				if (!(nd->intent.open.flags & O_NOFOLLOW))
-     * ./fs/nfs/dir.c:1354:	    (nd->intent.open.flags & (O_CREAT|O_TRUNC|O_ACCMODE)))
+     * ./drivers/staging/pohmelfs/dir.c:515:    if ((nd->intent.open.flags & O_ACCMODE) != O_RDONLY)
+     * ./fs/nfs/dir.c:1474:             if (!(nd->intent.open.flags & O_NOFOLLOW))
+     * ./fs/nfs/dir.c:1354:     (nd->intent.open.flags & (O_CREAT|O_TRUNC|O_ACCMODE)))
      */
 
 #ifdef O_PATH
@@ -808,8 +812,8 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     }
 #endif
 
-	/* We cannot do exclusive creation on a positive dentry */
-	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
+    /* We cannot do exclusive creation on a positive dentry */
+    if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
     {
         return resultCode;
     }
@@ -831,7 +835,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-	if (!S_ISREG(inode->i_mode))
+    if (!S_ISREG(inode->i_mode))
     {
         dopsdbg("maybeScanDentryRevalidate: !S_ISREG(inode->i_mode)");
         return resultCode;
@@ -912,6 +916,11 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 
         ret = 0;
         pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, filp);
+
+        if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
+        {
+            critical("maybeScanDentryRevalidate - pFInfo filename is NULL");
+        }
         pFile = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.cloneFile(GL_object.mLinuxFilesystemFactory, filp);
         if ( likely( pFInfo != NULL && pFile != NULL))
         {
@@ -2302,17 +2311,17 @@ out:
 
 static int prepend(char **buffer, int *buflen, const char *str, int namelen)
 {
-	*buflen -= namelen;
-	if (*buflen < 0)
-		return -ENAMETOOLONG;
-	*buffer -= namelen;
-	memcpy(*buffer, str, namelen);
-	return 0;
+    *buflen -= namelen;
+    if (*buflen < 0)
+        return -ENAMETOOLONG;
+    *buffer -= namelen;
+    memcpy(*buffer, str, namelen);
+    return 0;
 }
 
 static int prepend_name(char **buffer, int *buflen, struct qstr *name)
 {
-	return prepend(buffer, buflen, name->name, name->len);
+    return prepend(buffer, buflen, name->name, name->len);
 }
 
 /**
@@ -2325,63 +2334,63 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
  * Caller holds the rename_lock.
  */
 static int prepend_path(const struct path *path,
-			const struct path *root,
-			char **buffer, int *buflen)
+            const struct path *root,
+            char **buffer, int *buflen)
 {
-	struct dentry *dentry = path->dentry;
-	struct vfsmount *vfsmnt = path->mnt;
-	bool slash = false;
-	int error = 0;
+    struct dentry *dentry = path->dentry;
+    struct vfsmount *vfsmnt = path->mnt;
+    bool slash = false;
+    int error = 0;
 
-	talpa_vfsmount_lock();
-	while (dentry != root->dentry || vfsmnt != root->mnt) {
-		struct dentry * parent;
+    talpa_vfsmount_lock();
+    while (dentry != root->dentry || vfsmnt != root->mnt) {
+        struct dentry * parent;
 
-		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
-			/* Global root? */
-			if (getParent(vfsmnt) == vfsmnt) {
-				goto global_root;
-			}
-			dentry = getVfsMountPoint(vfsmnt);
-			vfsmnt = getParent(vfsmnt);
-			continue;
-		}
-		parent = dentry->d_parent;
-		prefetch(parent);
-		spin_lock(&dentry->d_lock);
-		error = prepend_name(buffer, buflen, &dentry->d_name);
-		spin_unlock(&dentry->d_lock);
-		if (!error)
-			error = prepend(buffer, buflen, "/", 1);
-		if (error)
-			break;
+        if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
+            /* Global root? */
+            if (getParent(vfsmnt) == vfsmnt) {
+                goto global_root;
+            }
+            dentry = getVfsMountPoint(vfsmnt);
+            vfsmnt = getParent(vfsmnt);
+            continue;
+        }
+        parent = dentry->d_parent;
+        prefetch(parent);
+        spin_lock(&dentry->d_lock);
+        error = prepend_name(buffer, buflen, &dentry->d_name);
+        spin_unlock(&dentry->d_lock);
+        if (!error)
+            error = prepend(buffer, buflen, "/", 1);
+        if (error)
+            break;
 
-		slash = true;
-		dentry = parent;
-	}
+        slash = true;
+        dentry = parent;
+    }
 
-	if (!error && !slash)
-		error = prepend(buffer, buflen, "/", 1);
+    if (!error && !slash)
+        error = prepend(buffer, buflen, "/", 1);
 
 out:
-	talpa_vfsmount_unlock();
-	return error;
+    talpa_vfsmount_unlock();
+    return error;
 
 global_root:
-	/*
-	 * Filesystems needing to implement special "root names"
-	 * should do so with ->d_dname()
-	 */
-	if (IS_ROOT(dentry) &&
-	    (dentry->d_name.len != 1 || dentry->d_name.name[0] != '/')) {
-		WARN(1, "Root dentry has weird name <%.*s>\n",
-		     (int) dentry->d_name.len, dentry->d_name.name);
-	}
-	if (!slash)
-		error = prepend(buffer, buflen, "/", 1);
-	if (!error)
-		error = 1;
-	goto out;
+    /*
+     * Filesystems needing to implement special "root names"
+     * should do so with ->d_dname()
+     */
+    if (IS_ROOT(dentry) &&
+        (dentry->d_name.len != 1 || dentry->d_name.name[0] != '/')) {
+        WARN(1, "Root dentry has weird name <%.*s>\n",
+             (int) dentry->d_name.len, dentry->d_name.name);
+    }
+    if (!slash)
+        error = prepend(buffer, buflen, "/", 1);
+    if (!error)
+        error = 1;
+    goto out;
 }
 
 #endif
@@ -2619,19 +2628,19 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
         return;
     }
 
-	/* Unprotect read-only memory outside locks held. */
-	do
-	{
-		ret = talpa_syscallhook_modify_start();
-		if (ret)
-		{
-			info("Waiting for memory unprotection.");
-			__set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ);
-		}
-	} while (ret);
+    /* Unprotect read-only memory outside locks held. */
+    do
+    {
+        ret = talpa_syscallhook_modify_start();
+        if (ret)
+        {
+            info("Waiting for memory unprotection.");
+            __set_current_state(TASK_UNINTERRUPTIBLE);
+            schedule_timeout(HZ);
+        }
+    } while (ret);
 
-	talpa_rcu_write_lock(&GL_object.mPatchLock);
+    talpa_rcu_write_lock(&GL_object.mPatchLock);
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
@@ -2675,7 +2684,7 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
         talpa_rcu_write_unlock(&GL_object.mPatchLock);
     }
 
-	talpa_syscallhook_modify_finish();
+    talpa_syscallhook_modify_finish();
 
     /* Free list showed to userspace so it will be regenerated on next read */
     destroyStringSet(&GL_object, &GL_object.mPatchListSet);
@@ -2760,20 +2769,20 @@ static void purgePatches(void* self)
     int ret;
 
 
-	/* Unprotect read-only memory outside locks held. */
-	do
-	{
-		ret = talpa_syscallhook_modify_start();
-		if (ret)
-		{
-			info("Waiting to unprotect memory.");
-			__set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(HZ);
-		}
-	} while (ret);
+    /* Unprotect read-only memory outside locks held. */
+    do
+    {
+        ret = talpa_syscallhook_modify_start();
+        if (ret)
+        {
+            info("Waiting to unprotect memory.");
+            __set_current_state(TASK_UNINTERRUPTIBLE);
+            schedule_timeout(HZ);
+        }
+    } while (ret);
 
 nextpatch:
-	talpa_rcu_write_lock(&this->mPatchLock);
+    talpa_rcu_write_lock(&this->mPatchLock);
     talpa_list_for_each_entry_rcu(p, &this->mPatches, head)
     {
         dbg("Restoring %s", p->fstype->name);

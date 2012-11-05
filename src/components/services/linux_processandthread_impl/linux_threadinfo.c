@@ -97,8 +97,14 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
 
         memcpy(object, &template_LinuxThreadInfo, sizeof(template_LinuxThreadInfo));
         object->i_IThreadInfo.object = object;
-
         proc = current;
+        if( unlikely( proc == NULL ) )
+        {
+            critical("proc is NULL \n");
+            talpa_free(object);
+            return NULL;
+        }
+        
         object->mPID = proc->tgid;
         object->mTID = proc->pid;
 
@@ -148,6 +154,12 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
         }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+        if( unlikely(proc->fs == NULL) )
+        {
+            critical("proc->fs is NULL \n");
+            talpa_free(object);
+            return NULL;
+        }
         spin_lock(&proc->fs->lock);
 #else
         read_lock(&proc->fs->lock);

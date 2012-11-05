@@ -315,9 +315,11 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
 #endif
 
 #ifdef current_cred /* Introduced in 2.6.29. */
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)   
-	struct path path = { mntget(mnt), dget(dentry) };
-	file = dentry_open (&path,flags,current_cred());
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) 
+	{
+	   struct path path = { mntget(mnt), dget(dentry) };
+	   file = dentry_open (&path,flags,current_cred());
+	}
  #else	
     file = dentry_open(dget(dentry), mntget(mnt), flags, current_cred());
  #endif

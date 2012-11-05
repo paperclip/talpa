@@ -5,22 +5,26 @@
 #include "platforms/linux/glue.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+ #define TALPA_REPLACE_MOUNT_STRUCT
+#endif
+
+#ifdef TALPA_REPLACE_MOUNT_STRUCT
 struct talpa_mnt_pcp {
 	int mnt_count;
 	int mnt_writers;
 };
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
-struct talpa_replacement_mount_struct {
+ struct talpa_replacement_mount_struct {
 	struct list_head mnt_hash;
 	struct talpa_replacement_mount_struct *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
  #ifdef CONFIG_SMP
 	struct talpa_mnt_pcp __percpu *mnt_pcp;
- #else
+ #else /* ! CONFIG_SMP */
 	int mnt_count;
 	int mnt_writers;
- #endif
+ #endif /* CONFIG_SMP */
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
@@ -33,7 +37,7 @@ struct talpa_replacement_mount_struct {
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 };
- #else
+ #else /* 3.3 - 3.5 */
  struct talpa_replacement_mount_struct {
 	struct list_head mnt_hash;
 	struct talpa_replacement_mount_struct *mnt_parent;
@@ -58,17 +62,17 @@ struct talpa_replacement_mount_struct {
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 };
- #endif
+ #endif /* 3.6 */
 static inline struct talpa_replacement_mount_struct *real_mount(struct vfsmount *mnt)
 {
 	return container_of(mnt, struct talpa_replacement_mount_struct, mnt);
 }
 
-#endif
+#endif /* TALPA_REPLACE_MOUNT_STRUCT */
 
 struct vfsmount* getParent(struct vfsmount* mnt)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+#ifndef TALPA_REPLACE_MOUNT_STRUCT
     return mnt->mnt_parent;
 #else
     struct talpa_replacement_mount_struct *realmnt = real_mount(mnt);
@@ -81,7 +85,7 @@ struct vfsmount* getParent(struct vfsmount* mnt)
  */
 const char *getDeviceName(struct vfsmount* mnt)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+#ifndef TALPA_REPLACE_MOUNT_STRUCT
     return mnt->mnt_devname;
 #else
     struct talpa_replacement_mount_struct *realmnt = real_mount(mnt);
@@ -93,16 +97,17 @@ const char *getDeviceName(struct vfsmount* mnt)
  */
 struct dentry *getVfsMountPoint(struct vfsmount* mnt)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+#ifndef TALPA_REPLACE_MOUNT_STRUCT
     return mnt->mnt_mountpoint;
 #else
     struct talpa_replacement_mount_struct *realmnt = real_mount(mnt);
+    dbg("%p", realmnt->mnt_mountpoint);
     return realmnt->mnt_mountpoint;
 #endif
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+#ifndef TALPA_REPLACE_MOUNT_STRUCT
 int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* mnt, unsigned long flags, bool fromMount))
 {
     struct vfsmount *mnt, *nextmnt, *prevmnt;
@@ -167,7 +172,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
 
     return ret;
 }
-#else
+#else /* TALPA_REPLACE_MOUNT_STRUCT */
 int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* mnt, unsigned long flags, bool fromMount))
 {
     struct talpa_replacement_mount_struct *mnt, *nextmnt, *prevmnt;
@@ -233,4 +238,4 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
 
     return ret;
 }
-#endif
+#endif /* TALPA_REPLACE_MOUNT_STRUCT */
