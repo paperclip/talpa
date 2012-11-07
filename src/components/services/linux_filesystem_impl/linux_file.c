@@ -317,7 +317,7 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
 #ifdef current_cred /* Introduced in 2.6.29. */
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) 
 	{
-	   struct path path = { mntget(mnt), dget(dentry) };
+	   struct path path = { mnt,dentry };
 	   file = dentry_open (&path,flags,current_cred());
 	}
  #else	
@@ -379,10 +379,8 @@ static int open(void* self, const char* filename, unsigned int flags, bool check
     mnt = p.mnt;
     dentry = p.dentry;
 #endif
-
     ret = openDentry(self, dentry, mnt, flags, check_permissions);
-
-#ifdef TALPA_HAVE_PATH_LOOKUP
+ #ifdef TALPA_HAVE_PATH_LOOKUP
     talpa_path_release(&nd);
 #else
     path_put(&p);
