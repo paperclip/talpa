@@ -17,7 +17,7 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod modules/tlp-procfs.${ko}
-./tlp-1-009
+tlp_insmod modules/tlp-personality.${ko}
+./chkpersonality
 
 exit $?

@@ -2,8 +2,6 @@
 #
 # TALPA test script
 #
-# TALPA Filesystem Interceptor
-#
 # Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
 #
 # This program is free software; you can redistribute it and/or modify it under the terms of the
@@ -19,7 +17,7 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod modules/tlp-fileinfo.${ko}
-./tlp-1-002
+tlp_insmod modules/tlp-procfs.${ko}
+./sysctlenable
 
 exit $?

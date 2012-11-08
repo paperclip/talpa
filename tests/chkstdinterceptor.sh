@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# TALPA test script
+# TALPA Filesystem Interceptor
 #
 # Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
 #
@@ -17,7 +17,7 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod modules/tlp-personality.${ko}
-./tlp-1-001
+tlp_insmod modules/tlp-stdinterceptor.${ko}
+./chkstdinterceptor
 
 exit $?

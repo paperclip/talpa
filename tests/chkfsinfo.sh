@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# TALPA Filesystem Interceptor
+# TALPA test script
 #
 # Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
 #
@@ -17,7 +17,22 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod modules/tlp-stdinterceptor.${ko}
-./tlp-1-011
+tlp_insmod modules/tlp-filesysteminfo.${ko}
+./chkfsinfo /dev/hda /mnt ext2 4
+if test $? -eq 77; then
+    ./chkfsinfo /dev/sda /mnt ext2 4
+    if test $? -eq 77; then
+        ./chkfsinfo /dev/vda /mnt ext2 4
+        if test $? -eq 77; then
+            ./chkfsinfo/dev/md0 /mnt ext2 4
+            if test $? -eq 77; then
+                ./chkfsinfo `find /dev/ide/ -name "disc" | head -n 1` /mnt ext2 4
+                if test $? -eq 77; then
+                    ./chkfsinfo `find /dev/scsi/ -name "disc" | head -n 1` /mnt ext2 4
+                fi
+            fi
+        fi
+    fi
+fi
 
 exit $?

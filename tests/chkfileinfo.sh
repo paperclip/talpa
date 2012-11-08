@@ -2,6 +2,8 @@
 #
 # TALPA test script
 #
+# TALPA Filesystem Interceptor
+#
 # Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
 #
 # This program is free software; you can redistribute it and/or modify it under the terms of the
@@ -17,22 +19,7 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod modules/tlp-filesysteminfo.${ko}
-./tlp-1-003 /dev/hda /mnt ext2 4
-if test $? -eq 77; then
-    ./tlp-1-003 /dev/sda /mnt ext2 4
-    if test $? -eq 77; then
-        ./tlp-1-003 /dev/vda /mnt ext2 4
-        if test $? -eq 77; then
-            ./tlp-1-003 /dev/md0 /mnt ext2 4
-            if test $? -eq 77; then
-                ./tlp-1-003 `find /dev/ide/ -name "disc" | head -n 1` /mnt ext2 4
-                if test $? -eq 77; then
-                    ./tlp-1-003 `find /dev/scsi/ -name "disc" | head -n 1` /mnt ext2 4
-                fi
-            fi
-        fi
-    fi
-fi
+tlp_insmod modules/tlp-fileinfo.${ko}
+./chkfileinfo
 
 exit $?

@@ -18,18 +18,18 @@
 
 AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir)
 
-check_PROGRAMS =    tlp-1-001 \
-                    tlp-1-002 \
-                    tlp-1-003 \
+check_PROGRAMS =    chkpersonality \
+                    chkfileinfo \
+                    chkfsinfo \
                     tlp-1-004
 
 if BINARYSYSCTL
-check_PROGRAMS +=   tlp-1-008 \
-                    tlp-1-009 \
-                    tlp-1-010
+check_PROGRAMS +=   sysctldisable \
+                    sysctlenable \
+                    sysctlchk
 endif
 
-check_PROGRAMS +=   tlp-1-011 \
+check_PROGRAMS +=   chkstdinterceptor \
                     tlp-1-012 \
                     tlp-1-013 \
                     tlp-1-014 \
@@ -125,14 +125,14 @@ check_PROGRAMS +=   tlp-1-011 \
 
 PTHREAD_FLAG = -pthread
 
-tlp_1_001_SOURCES = tlp-1-001.c tlp-test.h
-tlp_1_002_SOURCES = tlp-1-002.c
-tlp_1_003_SOURCES = tlp-1-003.c
+tlp_1_001_SOURCES = chkpersonality.c tlp-test.h
+tlp_1_002_SOURCES = chkfileinfo.c
+tlp_1_003_SOURCES = chkfsinfo.c
 tlp_1_004_SOURCES = tlp-1-004.c
-tlp_1_008_SOURCES = tlp-1-008.c
-tlp_1_009_SOURCES = tlp-1-009.c
-tlp_1_010_SOURCES = tlp-1-010.c
-tlp_1_011_SOURCES = tlp-1-011.c
+tlp_1_008_SOURCES = sysctldisable.c
+tlp_1_009_SOURCES = sysctlenable.c
+tlp_1_010_SOURCES = sysctlchk.c
+tlp_1_011_SOURCES = chkstdinterceptor.c
 tlp_1_012_SOURCES = tlp-1-012.c
 tlp_1_013_SOURCES = tlp-1-013.c
 tlp_1_014_SOURCES = tlp-1-014.c
@@ -231,20 +231,20 @@ tlp_8_004_SOURCES = tlp-8-004.c ../clients/vc-lib.c ../clients/pe-lib.c ../clien
 SUBDIRS = modules
 
 TESTS                   = tlp-init.sh \
-                          tlp-1-001.sh \
-                          tlp-1-002.sh \
-                          tlp-1-003.sh \
+                          chkpersonality.sh \
+                          chkfileinfo.sh \
+                          chkfsinfo.sh \
                           tlp-1-004.sh \
-                          tlp-1-005.sh \
-                          tlp-1-006.sh \
+                          tlp_dualfsdisable.sh \
+                          tlp_dualfsenable.sh \
                           tlp-1-007.sh
 if BINARYSYSCTL
-TESTS +=                  tlp-1-008.sh \
-                          tlp-1-009.sh \
-                          tlp-1-010.sh
+TESTS +=                  sysctldisable.sh \
+                          sysctlenable.sh \
+                          sysctlchk.sh
 endif
 
-TESTS +=                  tlp-1-011.sh \
+TESTS +=                  chkstdinterceptor.sh \
                           tlp-1-012.sh \
                           tlp-1-013.sh \
                           tlp-1-014.sh \
@@ -376,9 +376,9 @@ TESTS +=                  tlp-2-072.sh \
                           tlp-cleanup.sh
 
 check_SCRIPTS =           $(TESTS) \
-			  tlp-1-008.sh \
-			  tlp-1-009.sh \
-			  tlp-1-010.sh \
+			  sysctldisable.sh \
+			  sysctlenable.sh \
+			  sysctlchk.sh \
 			  tlp-4-003a.sh \
 			  tlp-4-003b.sh \
 			  tlp-4-004a.sh \
