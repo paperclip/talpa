@@ -30,21 +30,21 @@ check_PROGRAMS +=   sysctldisable \
 endif
 
 check_PROGRAMS +=   chkstdinterceptor \
-                    tlp-1-012 \
-                    tlp-1-013 \
-                    tlp-1-014 \
-                    tlp-1-015 \
-                    tlp-1-016 \
-                    tlp-1-017 \
-                    tlp-1-018 \
-                    tlp-1-019 \
-                    tlp-1-020 \
-                    tlp-1-021 \
-                    tlp-1-022 \
-                    tlp-1-023 \
-                    tlp-1-024 \
-                    tlp-1-025 \
-                    tlp-1-026 \
+                    chkinterceptorfilter \
+                    chkinterceptorfilter1 \
+                    chkinterceptorfilter2 \
+                    chkinterceptorfilter3 \
+                    chkinterceptorfilter4 \
+                    chkinterceptorfilter5 \
+                    chkinterceptorfilter6 \
+                    chkinterceptorfilter7 \
+                    chkinterceptorfilter8 \
+                    chkinterceptorfilter9 \
+                    chkinterceptorfilter10 \
+                    chkinterceptorfilter11 \
+                    chkinterceptorfilter12 \
+                    chkinterceptorfilter13 \
+                    chkinterceptorfilter14 \
                     tlp-1-109 \
                     tlp-1-110 \
                     tlp-1-111 \
@@ -133,21 +133,21 @@ tlp_1_008_SOURCES = sysctldisable.c
 tlp_1_009_SOURCES = sysctlenable.c
 tlp_1_010_SOURCES = sysctlchk.c
 tlp_1_011_SOURCES = chkstdinterceptor.c
-tlp_1_012_SOURCES = tlp-1-012.c
-tlp_1_013_SOURCES = tlp-1-013.c
-tlp_1_014_SOURCES = tlp-1-014.c
-tlp_1_015_SOURCES = tlp-1-015.c
-tlp_1_016_SOURCES = tlp-1-016.c
-tlp_1_017_SOURCES = tlp-1-017.c
-tlp_1_018_SOURCES = tlp-1-018.c
-tlp_1_019_SOURCES = tlp-1-019.c
-tlp_1_020_SOURCES = tlp-1-020.c
-tlp_1_021_SOURCES = tlp-1-021.c
-tlp_1_022_SOURCES = tlp-1-022.c
-tlp_1_023_SOURCES = tlp-1-023.c
-tlp_1_024_SOURCES = tlp-1-024.c
-tlp_1_025_SOURCES = tlp-1-025.c
-tlp_1_026_SOURCES = tlp-1-026.c
+tlp_1_012_SOURCES = chkinterceptorfilter.c
+tlp_1_013_SOURCES = chkinterceptorfilter1.c
+tlp_1_014_SOURCES = chkinterceptorfilter2.c
+tlp_1_015_SOURCES = chkinterceptorfilter3.c
+tlp_1_016_SOURCES = chkinterceptorfilter4.c
+tlp_1_017_SOURCES = chkinterceptorfilter5.c
+tlp_1_018_SOURCES = chkinterceptorfilter6.c
+tlp_1_019_SOURCES = chkinterceptorfilter7.c
+tlp_1_020_SOURCES = chkinterceptorfilter8.c
+tlp_1_021_SOURCES = chkinterceptorfilter9.c
+tlp_1_022_SOURCES = chkinterceptorfilter10.c
+tlp_1_023_SOURCES = chkinterceptorfilter11.c
+tlp_1_024_SOURCES = chkinterceptorfilter12.c
+tlp_1_025_SOURCES = chkinterceptorfilter13.c
+tlp_1_026_SOURCES = chkinterceptorfilter14.c
 tlp_1_109_SOURCES = tlp-1-109.c
 tlp_1_110_SOURCES = tlp-1-110.c
 tlp_1_111_SOURCES = tlp-1-111.c
@@ -245,21 +245,21 @@ TESTS +=                  sysctldisable.sh \
 endif
 
 TESTS +=                  chkstdinterceptor.sh \
-                          tlp-1-012.sh \
-                          tlp-1-013.sh \
-                          tlp-1-014.sh \
-                          tlp-1-015.sh \
-                          tlp-1-016.sh \
-                          tlp-1-017.sh \
-                          tlp-1-018.sh \
-                          tlp-1-019.sh \
-                          tlp-1-020.sh \
-                          tlp-1-021.sh \
-                          tlp-1-022.sh \
-                          tlp-1-023.sh \
-                          tlp-1-024.sh \
-                          tlp-1-025.sh \
-                          tlp-1-026.sh \
+                          chkinterceptorfilter.sh \
+                          chkinterceptorfilter1.sh \
+                          chkinterceptorfilter2.sh \
+                          chkinterceptorfilter3.sh \
+                          chkinterceptorfilter4.sh \
+                          chkinterceptorfilter5.sh \
+                          chkinterceptorfilter6.sh \
+                          chkinterceptorfilter7.sh \
+                          chkinterceptorfilter8.sh \
+                          chkinterceptorfilter9.sh \
+                          chkinterceptorfilter10.sh \
+                          chkinterceptorfilter11.sh \
+                          chkinterceptorfilter12.sh \
+                          chkinterceptorfilter13.sh \
+                          chkinterceptorfilter14.sh \
                           tlp-2-001.sh \
                           tlp-2-002.sh \
                           tlp-2-010.sh \

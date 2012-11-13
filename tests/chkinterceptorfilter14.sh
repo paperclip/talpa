@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-stdinterceptor.${ko}
-./tlp-1-020
+./chkinterceptorfilter14
 
 exit $?
