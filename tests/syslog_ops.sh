@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-syslog.${ko}
-./tlp-1-004
+./syslog_ops
 
 exit $?

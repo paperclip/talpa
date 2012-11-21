@@ -21,13 +21,12 @@ AM_CFLAGS = -I$(srcdir)/../include -I$(srcdir)/../src -O2 -DNDEBUG
 noinst_PROGRAMS =   vc vc-quiet vc-deny vc-count vc-threaded vc-poll \
                     pe pecat
 
-
 vc_SOURCES = vc.c vc.h vc-lib.c talpa.c
 vc_deny_SOURCES = vc-deny.c vc.h vc-lib.c talpa.c
 vc_quiet_SOURCES = vc-quiet.c vc.h vc-lib.c talpa.c
 vc_count_SOURCES = vc-count.c vc.h vc-lib.c talpa.c
 vc_threaded_SOURCES = vc-threaded.c vc.h vc-lib.c talpa.c
-vc_threaded_LDFLAGS = -lpthread
+vc_threaded_LDFLAGS = -pthread
 vc_poll_SOURCES = vc-poll.c vc.h vc-lib.c talpa.c
 
 vc_CFLAGS = ${CLIENTFLAGS} $(AM_CFLAGS)

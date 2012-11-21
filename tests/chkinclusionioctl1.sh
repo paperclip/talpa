@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-inclusion.${ko}
-./tlp-2-002
+./chkinclusionioctl1
 
 exit $?

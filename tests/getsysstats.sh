@@ -16,6 +16,6 @@
 #
 
 . ${srcdir}/talpa-init.sh
-./tlp-1-110
+${srcdir}/getsysstats.pl
 
 exit $?

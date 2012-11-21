@@ -21,7 +21,7 @@ AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir)
 check_PROGRAMS =    chkpersonality \
                     chkfileinfo \
                     chkfsinfo \
-                    tlp-1-004
+                    syslog_ops
 
 if BINARYSYSCTL
 check_PROGRAMS +=   sysctldisable \
@@ -45,46 +45,46 @@ check_PROGRAMS +=   chkstdinterceptor \
                     chkinterceptorfilter12 \
                     chkinterceptorfilter13 \
                     chkinterceptorfilter14 \
-                    tlp-1-109 \
-                    tlp-1-110 \
-                    tlp-1-111 \
-                    tlp-1-113 \
-                    tlp-1-114 \
-                    tlp-1-115 \
-                    tlp-1-116 \
-                    tlp-2-001 \
-                    tlp-2-002 \
-                    tlp-2-010 \
-                    tlp-2-011 \
-                    tlp-2-012 \
-                    tlp-2-013 \
-                    tlp-2-023 \
-                    tlp-2-024 \
-                    tlp-2-030 \
-                    tlp-2-040 \
-                    tlp-2-041 \
-                    tlp-2-042 \
-                    tlp-2-043 \
-                    tlp-2-044 \
-                    tlp-2-045 \
-                    tlp-2-046 \
-                    tlp-2-047 \
-                    tlp-2-048 \
-                    tlp-2-060 \
-                    tlp-2-061 \
-                    tlp-2-062 \
-                    tlp-2-063 \
-                    tlp-2-064 \
-                    tlp-2-065 \
-                    tlp-2-068 \
-                    tlp-2-069 \
-                    tlp-2-070 \
-                    tlp-2-071 \
-                    tlp-2-072 \
-                    tlp-3-001 \
-                    tlp-3-010 \
-                    tlp-3-012 \
-                    tlp-3-020 \
+                    chkext2mnt \
+                    chkext2umnt \
+                    reiserfsmnt \
+                    chkext2fops \
+                    vc_inclusionproc \
+                    chkvc \
+                    chkcacheintcpt \
+                    chkinclusionioctl \
+                    chkinclusionioctl1 \
+                    chkexclusionioctl \
+                    chkexclusionioctl1 \
+                    chkexclusionioctl2 \
+                    chkexclusionioctl3 \
+                    chk_denysyslog3 \
+                    chk_denysyslog4 \
+                    chk_thrdinfo \
+                    chk_ddvc \
+                    chk_ddvc1 \
+                    chk_ddvc2 \
+                    chk_ddvc3 \
+                    chk_ddvc4 \
+                    chk_ddvc5 \
+                    chk_ddvc6 \
+                    chk_ddvc7 \
+                    chk_ddvc8 \
+                    chk_vettingctrl \
+                    chk_vettingctrl1 \
+                    chk_vettingctrl2 \
+                    chk_vettingctrl3 \
+                    chk_vettingctrl4 \
+                    chk_vettingctrl5 \
+                    chk_vettingctrl8 \
+                    chk_vettingctrl9 \
+                    chk_vettingctrl10 \
+                    chk_vettingctrl11 \
+                    chk_vettingctrl12 \
+                    chk_fsexclusion \
+                    chk_fsexclusion8 \
+                    chk_fsexclusion10 \
+                    chk_fsexclusion15 \
                     tlp-4-001 \
                     tlp-4-002 \
                     tlp-4-003 \
@@ -125,69 +125,69 @@ check_PROGRAMS +=   chkstdinterceptor \
 
 PTHREAD_FLAG = -pthread
 
-tlp_1_001_SOURCES = chkpersonality.c tlp-test.h
-tlp_1_002_SOURCES = chkfileinfo.c
-tlp_1_003_SOURCES = chkfsinfo.c
-tlp_1_004_SOURCES = tlp-1-004.c
-tlp_1_008_SOURCES = sysctldisable.c
-tlp_1_009_SOURCES = sysctlenable.c
-tlp_1_010_SOURCES = sysctlchk.c
-tlp_1_011_SOURCES = chkstdinterceptor.c
-tlp_1_012_SOURCES = chkinterceptorfilter.c
-tlp_1_013_SOURCES = chkinterceptorfilter1.c
-tlp_1_014_SOURCES = chkinterceptorfilter2.c
-tlp_1_015_SOURCES = chkinterceptorfilter3.c
-tlp_1_016_SOURCES = chkinterceptorfilter4.c
-tlp_1_017_SOURCES = chkinterceptorfilter5.c
-tlp_1_018_SOURCES = chkinterceptorfilter6.c
-tlp_1_019_SOURCES = chkinterceptorfilter7.c
-tlp_1_020_SOURCES = chkinterceptorfilter8.c
-tlp_1_021_SOURCES = chkinterceptorfilter9.c
-tlp_1_022_SOURCES = chkinterceptorfilter10.c
-tlp_1_023_SOURCES = chkinterceptorfilter11.c
-tlp_1_024_SOURCES = chkinterceptorfilter12.c
-tlp_1_025_SOURCES = chkinterceptorfilter13.c
-tlp_1_026_SOURCES = chkinterceptorfilter14.c
-tlp_1_109_SOURCES = tlp-1-109.c
-tlp_1_110_SOURCES = tlp-1-110.c
-tlp_1_111_SOURCES = tlp-1-111.c
-tlp_1_113_SOURCES = tlp-1-113.c
-tlp_1_114_SOURCES = tlp-1-114.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_1_115_SOURCES = tlp-1-115.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_1_116_SOURCES = tlp-1-116.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_001_SOURCES = tlp-2-001.c
-tlp_2_002_SOURCES = tlp-2-002.c
-tlp_2_010_SOURCES = tlp-2-010.c
-tlp_2_011_SOURCES = tlp-2-011.c
-tlp_2_012_SOURCES = tlp-2-012.c
-tlp_2_013_SOURCES = tlp-2-013.c
-tlp_2_023_SOURCES = tlp-2-023.c tlp-log-search.c
-tlp_2_024_SOURCES = tlp-2-024.c tlp-log-search.c
-tlp_2_030_SOURCES = tlp-2-030.c
-tlp_2_040_SOURCES = tlp-2-040.c tlp-log-search.c ../clients/talpa.c
-tlp_2_041_SOURCES = tlp-2-041.c tlp-log-search.c ../clients/talpa.c
-tlp_2_042_SOURCES = tlp-2-042.c ../clients/talpa.c
-tlp_2_043_SOURCES = tlp-2-043.c ../clients/talpa.c
-tlp_2_044_SOURCES = tlp-2-044.c ../clients/talpa.c
-tlp_2_045_SOURCES = tlp-2-045.c ../clients/talpa.c
-tlp_2_046_SOURCES = tlp-2-046.c ../clients/talpa.c
-tlp_2_047_SOURCES = tlp-2-047.c ../clients/talpa.c
-tlp_2_048_SOURCES = tlp-2-048.c ../clients/talpa.c
-tlp_2_060_SOURCES = tlp-2-060.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_061_SOURCES = tlp-2-061.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_062_SOURCES = tlp-2-062.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_063_SOURCES = tlp-2-063.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_064_SOURCES = tlp-2-064.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_065_SOURCES = tlp-2-065.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_068_SOURCES = tlp-2-068.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_069_SOURCES = tlp-2-069.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_070_SOURCES = tlp-2-070.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_071_SOURCES = tlp-2-071.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_2_072_SOURCES = tlp-2-072.c ../clients/vc-lib.c ../clients/talpa.c
-tlp_3_001_SOURCES = tlp-3-001.c
-tlp_3_010_SOURCES = tlp-3-010.c
-tlp_3_012_SOURCES = tlp-3-012.c
-tlp_3_020_SOURCES = tlp-3-020.c
+chkpersonality_SOURCES = chkpersonality.c tlp-test.h
+chkfileinfo_SOURCES = chkfileinfo.c
+chkfsinfo_SOURCES = chkfsinfo.c
+syslog_ops_SOURCES = syslog_ops.c
+sysctldisable_SOURCES = sysctldisable.c
+sysctlenable_SOURCES = sysctlenable.c
+sysctlchk_SOURCES = sysctlchk.c
+chkstdinterceptor_SOURCES = chkstdinterceptor.c
+chkinterceptorfilter_SOURCES = chkinterceptorfilter.c
+chkinterceptorfilter1_SOURCES = chkinterceptorfilter1.c
+chkinterceptorfilter2_SOURCES = chkinterceptorfilter2.c
+chkinterceptorfilter3_SOURCES = chkinterceptorfilter3.c
+chkinterceptorfilter4_SOURCES = chkinterceptorfilter4.c
+chkinterceptorfilter5_SOURCES = chkinterceptorfilter5.c
+chkinterceptorfilter6_SOURCES = chkinterceptorfilter6.c
+chkinterceptorfilter7_SOURCES = chkinterceptorfilter7.c
+chkinterceptorfilter8_SOURCES = chkinterceptorfilter8.c
+chkinterceptorfilter9_SOURCES = chkinterceptorfilter9.c
+chkinterceptorfilter10_SOURCES = chkinterceptorfilter10.c
+chkinterceptorfilter11_SOURCES = chkinterceptorfilter11.c
+chkinterceptorfilter12_SOURCES = chkinterceptorfilter12.c
+chkinterceptorfilter13_SOURCES = chkinterceptorfilter13.c
+chkinterceptorfilter14_SOURCES = chkinterceptorfilter14.c
+chkext2mnt_SOURCES = chkext2mnt.c
+chkext2umnt_SOURCES = chkext2umnt.c
+reiserfsmnt_SOURCES = reiserfsmnt.c
+chkext2fops_SOURCES = chkext2fops.c
+vc_inclusionproc_SOURCES = vc_inclusionproc.c ../clients/vc-lib.c ../clients/talpa.c
+chkvc_SOURCES = chkvc.c ../clients/vc-lib.c ../clients/talpa.c
+chkcacheintcpt_SOURCES = chkcacheintcpt.c ../clients/vc-lib.c ../clients/talpa.c
+chkinclusionioctl_SOURCES = chkinclusionioctl.c
+chkinclusionioctl1_SOURCES = chkinclusionioctl1.c
+chkexclusionioctl_SOURCES = chkexclusionioctl.c
+chkexclusionioctl1_SOURCES = chkexclusionioctl1.c
+chkexclusionioctl2_SOURCES = chkexclusionioctl2.c
+chkexclusionioctl3_SOURCES = chkexclusionioctl3.c
+chk_denysyslog3_SOURCES = chk_denysyslog3.c tlp-log-search.c
+chk_denysyslog4_SOURCES = chk_denysyslog4.c tlp-log-search.c
+chk_thrdinfo_SOURCES = chk_thrdinfo.c
+chk_ddvc_SOURCES = chk_ddvc.c tlp-log-search.c ../clients/talpa.c
+chk_ddvc1_SOURCES = chk_ddvc1.c tlp-log-search.c ../clients/talpa.c
+chk_ddvc2_SOURCES = chk_ddvc2.c ../clients/talpa.c
+chk_ddvc3_SOURCES = chk_ddvc3.c ../clients/talpa.c
+chk_ddvc4_SOURCES = chk_ddvc4.c ../clients/talpa.c
+chk_ddvc5_SOURCES = chk_ddvc5.c ../clients/talpa.c
+chk_ddvc6_SOURCES = chk_ddvc6.c ../clients/talpa.c
+chk_ddvc7_SOURCES = chk_ddvc7.c ../clients/talpa.c
+chk_ddvc8_SOURCES = chk_ddvc8.c ../clients/talpa.c
+chk_vettingctrl_SOURCES = chk_vettingctrl.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl1_SOURCES = chk_vettingctrl1.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl2_SOURCES = chk_vettingctrl2.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl3_SOURCES = chk_vettingctrl3.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl4_SOURCES = chk_vettingctrl4.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl5_SOURCES = chk_vettingctrl5.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl8_SOURCES = chk_vettingctrl8.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl9_SOURCES = chk_vettingctrl9.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl10_SOURCES = chk_vettingctrl10.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl11_SOURCES = chk_vettingctrl11.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl12_SOURCES = chk_vettingctrl12.c ../clients/vc-lib.c ../clients/talpa.c
+chk_fsexclusion_SOURCES = chk_fsexclusion.c
+chk_fsexclusion8_SOURCES = chk_fsexclusion8.c
+chk_fsexclusion10_SOURCES = chk_fsexclusion10.c
+chk_fsexclusion15_SOURCES = chk_fsexclusion15.c
 tlp_4_001_SOURCES = tlp-4-001.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_002_SOURCES = tlp-4-002.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_003_SOURCES = tlp-4-003.c ../clients/pe-lib.c ../clients/talpa.c
@@ -234,10 +234,10 @@ TESTS                   = tlp-init.sh \
                           chkpersonality.sh \
                           chkfileinfo.sh \
                           chkfsinfo.sh \
-                          tlp-1-004.sh \
+                          syslog_ops.sh \
                           tlp_dualfsdisable.sh \
                           tlp_dualfsenable.sh \
-                          tlp-1-007.sh
+                          chklinuxvfs.sh
 if BINARYSYSCTL
 TESTS +=                  sysctldisable.sh \
                           sysctlenable.sh \
@@ -260,64 +260,64 @@ TESTS +=                  chkstdinterceptor.sh \
                           chkinterceptorfilter12.sh \
                           chkinterceptorfilter13.sh \
                           chkinterceptorfilter14.sh \
-                          tlp-2-001.sh \
-                          tlp-2-002.sh \
-                          tlp-2-010.sh \
-                          tlp-2-011.sh \
-                          tlp-2-012.sh \
-                          tlp-2-013.sh \
-                          tlp-2-020.sh \
-                          tlp-2-021.sh \
-                          tlp-2-022.sh \
-                          tlp-2-023.sh \
-                          tlp-2-024.sh \
-                          tlp-2-030.sh \
-                          tlp-2-040.sh \
-                          tlp-2-041.sh \
-                          tlp-2-042.sh \
-                          tlp-2-043.sh \
-                          tlp-2-044.sh \
-                          tlp-2-045.sh \
-                          tlp-2-046.sh \
-                          tlp-2-047.sh \
-                          tlp-2-048.sh \
-                          tlp-2-060.sh \
-                          tlp-2-061.sh \
-                          tlp-2-062.sh \
-                          tlp-2-063.sh \
-                          tlp-2-064.sh \
-                          tlp-2-065.sh \
-                          tlp-2-066.sh \
-                          tlp-2-067.sh \
-                          tlp-2-068.sh \
-                          tlp-2-069.sh
+                          chkinclusionioctl.sh \
+                          chkinclusionioctl1.sh \
+                          chkexclusionioctl.sh \
+                          chkexclusionioctl1.sh \
+                          chkexclusionioctl2.sh \
+                          chkexclusionioctl3.sh \
+                          chk_denysyslog.sh \
+                          chk_denysyslog1.sh \
+                          chk_denysyslog2.sh \
+                          chk_denysyslog3.sh \
+                          chk_denysyslog4.sh \
+                          chk_thrdinfo.sh \
+                          chk_ddvc.sh \
+                          chk_ddvc1.sh \
+                          chk_ddvc2.sh \
+                          chk_ddvc3.sh \
+                          chk_ddvc4.sh \
+                          chk_ddvc5.sh \
+                          chk_ddvc6.sh \
+                          chk_ddvc7.sh \
+                          chk_ddvc8.sh \
+                          chk_vettingctrl.sh \
+                          chk_vettingctrl1.sh \
+                          chk_vettingctrl2.sh \
+                          chk_vettingctrl3.sh \
+                          chk_vettingctrl4.sh \
+                          chk_vettingctrl5.sh \
+                          chk_vettingctrl6.sh \
+                          chk_vettingctrl7.sh \
+                          chk_vettingctrl8.sh \
+                          chk_vettingctrl9.sh
 
 if TESTXWORKAROUND
-TESTS +=                  tlp-2-070.sh \
-	                  tlp-2-071.sh
+TESTS +=                  chk_vettingctrl10.sh \
+						  chk_vettingctrl11.sh
 endif
 
-TESTS +=                  tlp-2-072.sh \
-                          tlp-3-001.sh \
-                          tlp-3-002.sh \
-                          tlp-3-003.sh \
-                          tlp-3-004.sh \
-                          tlp-3-005.sh \
-                          tlp-3-006.sh \
-                          tlp-3-007.sh \
-                          tlp-3-008.sh \
-                          tlp-3-010.sh \
-                          tlp-3-011.sh \
-                          tlp-3-012.sh \
-                          tlp-3-013.sh \
-                          tlp-3-014.sh \
-                          tlp-3-015.sh \
-                          tlp-3-016.sh \
-                          tlp-3-020.sh \
-                          tlp-3-021.sh \
-                          tlp-3-022.sh \
-                          tlp-3-023.sh \
-                          tlp-3-024.sh \
+TESTS +=                  chk_vettingctrl12.sh \
+                          chk_fsexclusion.sh \
+                          chk_fsexclusion1.sh \
+                          chk_fsexclusion2.sh \
+                          chk_fsexclusion3.sh \
+                          chk_fsexclusion4.sh \
+                          chk_fsexclusion5.sh \
+                          chk_fsexclusion6.sh \
+                          chk_fsexclusion7.sh \
+                          chk_fsexclusion8.sh \
+                          chk_fsexclusion9.sh \
+                          chk_fsexclusion10.sh \
+                          chk_fsexclusion11.sh \
+                          chk_fsexclusion12.sh \
+                          chk_fsexclusion13.sh \
+                          chk_fsexclusion14.sh \
+                          chk_fsexclusion15.sh \
+                          chk_fsexclusion16.sh \
+                          chk_fsexclusion17.sh \
+                          chk_fsexclusion18.sh \
+                          chk_fsexclusion19.sh \
                           tlp-4-001.sh \
                           tlp-4-002.sh \
                           tlp-4-003.sh \
@@ -360,19 +360,19 @@ TESTS +=                  tlp-2-072.sh \
                           tlp-9-002.sh \
                           tlp-9-003.sh \
                           tlp-9-004.sh \
-                          tlp-1-109.sh \
-                          tlp-1-110.sh \
+                          chkext2mnt.sh \
+                          chkext2umnt.sh \
                           $(if $(LOADTEST),\
-                            tlp-1-111.sh \
-                            tlp-1-112.sh) \
-                          tlp-1-113.sh \
-                          tlp-1-114.sh \
-                          tlp-1-115.sh \
-                          tlp-1-116.sh \
-                          tlp-1-120.sh \
-                          tlp-1-121.sh \
-                          tlp-1-122.sh \
-                          tlp-1-123.sh \
+                            reiserfsmnt.sh \
+                          getsysstats.sh) \
+                          chkext2fops.sh \
+                          vc_inclusionproc.sh \
+                          chkvc.sh \
+                          chkcacheintcpt.sh \
+                          chkminix.sh \
+                          chkminix1.sh \
+                          chkminix2.sh \
+                          chk_lsattr.sh \
                           tlp-cleanup.sh
 
 check_SCRIPTS =           $(TESTS) \
@@ -383,7 +383,7 @@ check_SCRIPTS =           $(TESTS) \
 			  tlp-4-003b.sh \
 			  tlp-4-004a.sh \
 			  tlp-4-004b.sh \
-                          tlp-1-112.pl \
+                          getsysstats.pl \
                           talpa-init.sh \
                           tlp-init.sh \
                           tlp-cleanup.sh \

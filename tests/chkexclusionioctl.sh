@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-opexcl.${ko}
-./tlp-2-010
+./chkexclusionioctl
 
 exit $?

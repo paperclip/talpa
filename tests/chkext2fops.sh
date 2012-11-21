@@ -15,7 +15,31 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-. ${srcdir}/talpa-init.sh
-./tlp-1-109
+. ${srcdir}/tlp-cleanup.sh
 
-exit $?
+tmpdir='/tmp/tlp-test'
+
+mkdir -p ${tmpdir}/mnt
+dd if=/dev/zero of=${tmpdir}/fs.img bs=1M count=4 >/dev/null 2>&1
+
+mkfs='/sbin/mkfs.ext2'
+if test ! -x "$mkfs"; then
+    exit 77
+fi
+
+${mkfs} -F ${tmpdir}/fs.img >/dev/null 2>&1
+mount ${tmpdir}/fs.img ${tmpdir}/mnt -o loop
+
+./chkext2fops ${tmpdir}/mnt testfile 64 128
+rc=$?
+
+. ${srcdir}/talpa-init.sh
+
+if test $rc -eq 0; then
+    ./chkext2fops ${tmpdir}/mnt testfile 512 128
+    rc=$?
+fi
+
+umount ${tmpdir}/mnt
+
+exit $rc

@@ -17,7 +17,7 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-tlp_insmod modules/tlp-threadinfo.${ko}
-./tlp-2-030
+tlp_insmod modules/tlp-ddvc.${ko}
+./chk_ddvc5
 
 exit $?

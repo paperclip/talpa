@@ -16,6 +16,14 @@
 #
 
 . ${srcdir}/talpa-init.sh
-${srcdir}/tlp-1-112.pl
 
-exit $?
+tmpdir=/tmp/tlp-test
+testfile=${tmpdir}/tlp-1-115-test-file
+
+mkdir -p $tmpdir
+rm -f $testfile
+./chkvc ${testfile}
+rc=$?
+rm -f $testfile
+
+exit $rc

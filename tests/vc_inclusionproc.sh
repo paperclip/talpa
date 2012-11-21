@@ -18,14 +18,23 @@
 . ${srcdir}/talpa-init.sh
 
 tmpdir=/tmp/tlp-test
-testfile=${tmpdir}/tlp-1-116-test-file
 
-mkdir -p $tmpdir
-rm -f $testfile
-echo disable >${talpafs}/intercept-filters/Cache/status
-./tlp-1-116 ${testfile}
+echo ${tmpdir}/mnt >${talpafs}/intercept-filters/FilesystemInclusionProcessor/include-path
+
+mkdir -p ${tmpdir}/mnt
+dd if=/dev/zero of=${tmpdir}/fs.img bs=1M count=4 >/dev/null 2>&1
+
+mkfs='/sbin/mkfs.ext2'
+if test ! -x "$mkfs"; then
+    exit 77
+fi
+
+${mkfs} -F ${tmpdir}/fs.img >/dev/null 2>&1
+mount ${tmpdir}/fs.img ${tmpdir}/mnt -o loop
+
+./vc_inclusionproc ${tmpdir}/mnt
 rc=$?
-echo enable >${talpafs}/intercept-filters/Cache/status
-rm -f $testfile
+
+umount ${tmpdir}/mnt
 
 exit $rc

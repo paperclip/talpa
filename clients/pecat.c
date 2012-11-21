@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
     size_t size;
     char buffer[4096];
     int args = argc - 1;
+    int ret;
 
     if (  (talpa = pe_init()) < 0 )
     {
@@ -55,7 +56,11 @@ int main(int argc, char *argv[])
         {
             while ( (size = read(fd, buffer, sizeof(buffer))) > 0 )
             {
-                write(STDOUT_FILENO, buffer, size);
+                ret = write(STDOUT_FILENO, buffer, size);
+                if (ret != size)
+                {
+					fprintf(stderr, "Unable to write bytes to stdout");
+				}
             }
             close(fd);
         }

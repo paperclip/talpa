@@ -15,15 +15,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-. ${srcdir}/talpa-init.sh
+. ${srcdir}/tlp-cleanup.sh
 
-tmpdir=/tmp/tlp-test
-testfile=${tmpdir}/tlp-1-115-test-file
+tlp_insmod modules/tlp-ddvc.${ko}
+./chk_ddvc3
 
-mkdir -p $tmpdir
-rm -f $testfile
-./tlp-1-115 ${testfile}
-rc=$?
-rm -f $testfile
-
-exit $rc
+exit $?

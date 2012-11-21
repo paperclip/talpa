@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-ddvc.${ko}
-./tlp-2-047
+./chk_ddvc2
 
 exit $?

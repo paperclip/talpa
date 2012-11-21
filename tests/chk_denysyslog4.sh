@@ -19,12 +19,12 @@
 
 tlp_insmod modules/tlp-denysyslog.${ko}
 
-./tlp-2-024 "Standard interceptor processor failure while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 1
-./tlp-2-024 "Unexpected pass through action request while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 2
-./tlp-2-024 "Unexpected allow action request while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 3
-./tlp-2-024 "Access denied while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 4
-./tlp-2-024 "Timeout occured while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 5
-./tlp-2-024 "Error occured while mounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 4 6
+./chk_denysyslog4 "Standard interceptor processor failure while mounting /dev/sda1 at /mnt (ext2) on behalf of process chk_denysyslog4[" 4 1
+./chk_denysyslog4 "Unexpected pass through action request while mounting /dev/sda1 at /mnt (ext2) on behalf of process chk_denysyslog4[" 4 2
+./chk_denysyslog4 "Unexpected allow action request while mounting /dev/sda1 at /mnt (ext2) on behalf of process chk_denysyslog4[" 4 3
+./chk_denysyslog4 "Access denied while mounting /dev/sda1 at /mnt (ext2) on behalf of process chk_denysyslog4[" 4 4
+./chk_denysyslog4 "Timeout occured while mounting /dev/sda1 at /mnt (ext2) on behalf of process chk_denysyslog4[" 4 5
+./chk_denysyslog4 "Error occured while mounting /dev/sda1 at /mnt (ext2) on behalf of process chk_denysyslog4[" 4 6
 
 # Commented out since reworked FilesystemInfo object does not support creating from fake data.
 #./tlp-2-024 "Standard interceptor processor failure while unmounting /dev/sda1 at /mnt (ext2) on behalf of process tlp-2-024[" 5 1

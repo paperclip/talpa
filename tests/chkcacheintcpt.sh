@@ -15,9 +15,17 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-. ${srcdir}/tlp-cleanup.sh
+. ${srcdir}/talpa-init.sh
 
-tlp_insmod modules/tlp-ddvc.${ko}
-./tlp-2-044
+tmpdir=/tmp/tlp-test
+testfile=${tmpdir}/tlp-1-116-test-file
 
-exit $?
+mkdir -p $tmpdir
+rm -f $testfile
+echo disable >${talpafs}/intercept-filters/Cache/status
+./chkcacheintcpt ${testfile}
+rc=$?
+echo enable >${talpafs}/intercept-filters/Cache/status
+rm -f $testfile
+
+exit $rc

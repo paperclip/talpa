@@ -21,7 +21,7 @@ filesystem=reiserfs
 runs=5
 
 . ${srcdir}/talpa-init.sh
-./tlp-1-111 $device $target $filesystem $runs
+./reiserfsmnt $device $target $filesystem $runs
 
 if [ $? -ge 3 ]; then
     exit 77
