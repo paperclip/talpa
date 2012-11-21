@@ -17,6 +17,6 @@
 
 . ${srcdir}/talpa-init.sh
 echo 1000 >${talpafs}/intercept-filters/VettingController/timeout-ms
-./tlp-2-065 0 /tmp/tlp-test/file
+./chk_vettingctrl5 0 /tmp/tlp-test/file
 
 exit $?

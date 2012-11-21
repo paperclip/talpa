@@ -18,6 +18,6 @@
 . ${srcdir}/talpa-init.sh
 
 echo -open >${talpafs}/intercept-filters/VettingController/ops
-./tlp-2-072 0 /tmp/tlp-test/file
+./chk_vettingctrl12 0 /tmp/tlp-test/file
 
 exit $?

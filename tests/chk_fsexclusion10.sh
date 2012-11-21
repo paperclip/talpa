@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-exclusion.${ko}
-./tlp-3-012 /dev/sda1 2
+./chk_fsexclusion10 /dev/sda1 2
 
 exit $?

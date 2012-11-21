@@ -21,6 +21,6 @@ get_mount_fs /
 
 tlp_insmod modules/tlp-exclusion.${ko}
 echo -n +${_mount_fs} >${talpafs}/intercept-filters/FilesystemExclusionProcessor/fstypes
-./tlp-3-001 /bin/bash ${_mount_fs} 3
+./chk_fsexclusion  /bin/bash ${_mount_fs} 3
 
 exit $?

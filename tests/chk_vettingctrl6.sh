@@ -17,6 +17,6 @@
 
 . ${srcdir}/talpa-init.sh
 echo +path:/tmp/tlp-test/:1 >${talpafs}/intercept-filters/VettingController/routing
-./tlp-2-063 1 /tmp/tlp-test/file
+./chk_vettingctrl3 1 /tmp/tlp-test/file
 
 exit $?

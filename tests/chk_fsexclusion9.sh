@@ -19,6 +19,6 @@
 
 tlp_insmod modules/tlp-exclusion.${ko}
 echo -n "+smbfs" >${talpafs}/intercept-filters/FilesystemExclusionProcessor/mount-fstypes
-./tlp-3-010 smbfs 3
+./chk_fsexclusion8 smbfs 3
 
 exit $?

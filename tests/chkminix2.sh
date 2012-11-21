@@ -58,7 +58,7 @@ if ! mount -t $fs ${tmpdir}/fs2.img ${tmpdir}/mnt2 -o loop; then
     exit 77
 fi
 
-if ! ./tlp-2-063 0 ${tmpdir}/mnt2/file; then
+if ! ./chk_vettingctrl3 0 ${tmpdir}/mnt2/file; then
     umount ${tmpdir}/mnt1
     umount ${tmpdir}/mnt2
     exit $?

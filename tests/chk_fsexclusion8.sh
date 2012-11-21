@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-exclusion.${ko}
-./tlp-3-010 ext2 2
+./chk_fsexclusion8 ext2 2
 
 exit $?

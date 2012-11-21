@@ -16,6 +16,6 @@
 #
 
 . ${srcdir}/talpa-init.sh
-cp ./tlp-2-070 ./X && ./X 0 /tmp/tlp-test/file
+cp ./chk_vettingctrl10 ./X && ./X 0 /tmp/tlp-test/file
 
 exit $?

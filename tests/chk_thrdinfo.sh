@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-threadinfo.${ko}
-./chk_thrdinfo.sh
+./chk_thrdinfo
 
 exit $?

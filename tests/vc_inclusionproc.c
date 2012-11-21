@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
     if ( !rc )
     {
-        if ( execle("./tlp-1-113", "./tlp-1-113",  tmpdir, "testfile",  "512",  "128", NULL, NULL) )
+        if ( execle("./chkext2fops", "./chkext2fops",  tmpdir, "testfile",  "512",  "128", NULL, NULL) )
         {
             fprintf(stderr, "Failed to exec (%d)!\n", errno);
             return -1;

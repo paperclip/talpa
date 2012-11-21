@@ -16,6 +16,6 @@
 #
 
 . ${srcdir}/talpa-init.sh
-./tlp-2-061
+./chk_vettingctrl1
 
 exit $?

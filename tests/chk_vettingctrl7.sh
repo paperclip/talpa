@@ -20,7 +20,7 @@ get_mount_fs /tmp
 echo /tmp/tlp-test/ >${talpafs}/intercept-filters/FilesystemInclusionProcessor/include-path
 echo -${_mount_fs} >${talpafs}/intercept-filters/FilesystemExclusionProcessor/fstypes
 echo +fs:${_mount_fs}:1 >${talpafs}/intercept-filters/VettingController/routing
-./tlp-2-063 1 /tmp/tlp-test/file
+./chk_vettingctrl3 1 /tmp/tlp-test/file
 res=$?
 
 exit $res

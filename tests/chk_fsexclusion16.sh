@@ -19,6 +19,6 @@
 
 tlp_insmod modules/tlp-exclusion.${ko}
 echo -n "+/mnt/" >${talpafs}/intercept-filters/FilesystemExclusionProcessor/mount-paths
-./tlp-3-020 /mnt/point 3
+./chk_fsexclusion15 /mnt/point 3
 
 exit $?

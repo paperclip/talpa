@@ -59,7 +59,7 @@ if ! ls >${tmpdir}/mnt1/file; then
     exit 77
 fi
 
-if ! ./tlp-2-063 0 ${tmpdir}/mnt1/file; then
+if ! ./chk_vettingctrl3 0 ${tmpdir}/mnt1/file; then
     umount ${tmpdir}/mnt1
     umount ${tmpdir}/mnt2
     exit $?

@@ -22,6 +22,6 @@
 get_mount_fs /
 
 tlp_insmod modules/tlp-exclusion.${ko}
-./tlp-3-001 /bin/bash ${_mount_fs} 2
+./chk_fsexclusion  /bin/bash ${_mount_fs} 2
 
 exit $?
