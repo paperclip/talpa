@@ -161,6 +161,7 @@ struct TalpaPacket_VettingDetails* vc_poll(int handle, unsigned int ms)
     if ( rc < 0 )
     {
         free(packet);
+        packet = NULL;
         goto out;
     }
 

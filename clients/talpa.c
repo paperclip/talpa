@@ -66,7 +66,7 @@ static char *get_talpa_device(const char *miscname, const char *container)
     f = fopen("/proc/misc", "r");
     if ( f ) {
         do {
-            n = fscanf(f, "%d %s\n", &minor, devname);
+            n = fscanf(f, "%d %255s\n", &minor, devname);
             if ( (n == 2) && !strcmp(miscname, devname) ) {
                 found = 1;
                 break;

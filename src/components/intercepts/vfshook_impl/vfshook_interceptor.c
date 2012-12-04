@@ -274,8 +274,11 @@ static int talpaOpen(struct inode *inode, struct file *file)
 
                 ret = 0;
                 pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
-
-                if (unlikely ( pFInfo->filename(pFInfo) == NULL) )
+                if ( unlikely( pFInfo == NULL ) )
+                {
+                    critical("talpaOpen - pFInfo is NULL");
+                }
+                else if ( unlikely( pFInfo->filename(pFInfo) == NULL ) )
                 {
                     critical("talpaOpen - pFInfo filename is NULL");
                 }
