@@ -505,6 +505,9 @@ function check_headers_layout
         fi
     fi
     kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include"`
+    if test -d "${kerneldir}/include/generated/uapi"; then
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include/generated/uapi"`
+    fi
     if test -d "${kerneldir}/arch/x86/include/asm"; then
         kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include"`
     fi
