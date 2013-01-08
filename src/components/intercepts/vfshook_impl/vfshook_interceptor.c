@@ -1491,6 +1491,8 @@ exit1:
     return reg;
 }
 
+#define fatal err
+
 static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
 {
     struct patchedFilesystem*   spatch = NULL;
@@ -1572,7 +1574,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
            want to store real pointers for restore. */
         talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
         {
-            if ( p != patch && p->i_ops == patch->i_ops )
+            if ( p != patch && p->i_ops == patch->i_ops && p->lookup != NULL && p->create != NULL)
             {
                 dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
                 spatch = p;
@@ -1587,8 +1589,25 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         }
         else
         {
-            patch->lookup = patch->i_ops->lookup;
-            patch->create = patch->i_ops->create;
+            if (patch->i_ops->lookup == talpaInodeLookup)
+            {
+                patch->lookup = NULL;
+                fatal("FATAL: Copying patch->i_ops->lookup when it already contains talpaInodeLookup");
+            }
+            else
+            {
+                patch->lookup = patch->i_ops->lookup;
+            }
+            
+            if (patch->i_ops->create == talpaInodeCreate)
+            {
+                patch->create = NULL;
+                fatal("FATAL: Copying patch->i_ops->create when it already contains talpaInodeCreate");
+            }
+            else
+            {
+                patch->create = patch->i_ops->create;
+            }
             dbg("  storing original inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
         }
     }
@@ -1626,10 +1645,18 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
                 dbg("WARNING: however f_ops not shared between %s and %s.", spatch->fstype->name, patch->fstype->name);
             }
             patch->d_revalidate = spatch->d_revalidate;
+            if (unlikely(patch->d_revalidate == talpaDentryRevalidate))
+            {
+                fatal("ERROR: spatch->d_revalidate == patch->d_revalidate == talpaDentryRevalidate");
+            }
         }
         else
         {
             patch->d_revalidate = patch->d_ops->d_revalidate;
+            if (unlikely(patch->d_revalidate == talpaDentryRevalidate))
+            {
+                fatal("ERROR: patch->d_ops->d_revalidate == patch->d_revalidate == talpaDentryRevalidate");
+            }
         }
     }
     else
@@ -1648,6 +1675,35 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 #endif
             ||  patch->lookup == talpaInodeLookup || patch->create == talpaInodeCreate )
     {
+        if (patch->open == talpaOpen)
+        {
+            fatal("ERROR: patch->open == talpaOpen on %s!", mnt->mnt_sb->s_type->name);
+        }
+        if (patch->release == talpaRelease)
+        {
+            fatal("ERROR: patch->release == talpaRelease on %s!", mnt->mnt_sb->s_type->name);
+        }
+#ifdef TALPA_HAS_SMBFS
+        if (patch->ioctl == talpaIoctl)
+        {
+            fatal("ERROR: patch->ioctl == talpaIoctl on %s!", mnt->mnt_sb->s_type->name);
+        }
+#endif
+#ifdef TALPA_HOOK_D_OPS
+        if (patch->d_revalidate == talpaDentryRevalidate)
+        {
+            fatal("ERROR: patch->d_revalidate == talpaDentryRevalidate on %s!", mnt->mnt_sb->s_type->name);
+        }
+#endif
+        if (patch->lookup == talpaInodeLookup)
+        {
+            fatal("ERROR: patch->lookup == talpaInodeLookup on %s!", mnt->mnt_sb->s_type->name);
+        }
+        if (patch->d_revalidate == talpaDentryRevalidate)
+        {
+            fatal("ERROR: patch->create == talpaInodeCreate on %s!", mnt->mnt_sb->s_type->name);
+        }
+        
         err("Double patching detected on %s!", mnt->mnt_sb->s_type->name);
         return -EBADSLT;
     }
@@ -1698,7 +1754,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
 #ifdef TALPA_HOOK_D_OPS
     if (patch->mHookDOps && patch->d_ops && patch->d_revalidate)
     {
-        if ( patch->d_ops->d_revalidate != talpaDentryRevalidate )
+        if ( patch->d_ops->d_revalidate != talpaDentryRevalidate)
         {
             dbg("  patching dentry operations 0x%p for %s", patch->d_ops, patch->fstype->name);
             dbg("     revalidate 0x%p", patch->d_revalidate);
@@ -1798,6 +1854,7 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
 #endif
 
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
+        patch->i_ops = NULL;
         /* Sometimes filesystems share operation tables in which case we
            want to store real pointers for restore. */
         talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
