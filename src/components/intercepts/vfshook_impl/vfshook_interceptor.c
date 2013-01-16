@@ -2321,14 +2321,14 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
         return 0;
     }
 
-    dev = talpa_getname(dev_name);
+    dev = getname(dev_name);
 
     if ( IS_ERR(dev) )
     {
         goto out;
     }
 
-    dir = talpa_getname(dir_name);
+    dir = getname(dir_name);
 
     if ( IS_ERR(dir) )
     {
@@ -2358,11 +2358,11 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
         dbg("[intercepted %u-%u-%u] Failed to examine mount!", processParentPID(current), current->tgid, current->pid);
     }
 
-    talpa_putname(fstype);
+    putname(fstype);
 out2:
-    talpa_putname(dir);
+    putname(dir);
 out1:
-    talpa_putname(dev);
+    putname(dev);
 out:
     return decision;
 }
@@ -2487,7 +2487,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
     {
         char* abs_dir;
 
-        dir = talpa_getname(dir_name);
+        dir = getname(dir_name);
         if (IS_ERR(dir))
         {
             ret = PTR_ERR(dir);
@@ -2539,7 +2539,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 #else
         ret = kern_path(abs_dir, TALPA_LOOKUP, &p);
 #endif
-        talpa_putname(dir); abs_dir = NULL; dir = NULL;
+        putname(dir); abs_dir = NULL; dir = NULL;
         if ( ret == 0 )
         {
 
@@ -2637,7 +2637,7 @@ out:
 
 static void talpaPreUmount(char* name, int flags, void** ctx)
 {
-    char* kname = talpa_getname(name);
+    char* kname = getname(name);
 
 
     if ( !IS_ERR(kname) )
@@ -2665,7 +2665,7 @@ static void talpaPreUmount(char* name, int flags, void** ctx)
             dbg("Failed to examine umount! (no info)");
         }
 
-        talpa_putname(kname);
+        putname(kname);
     }
     else
     {
