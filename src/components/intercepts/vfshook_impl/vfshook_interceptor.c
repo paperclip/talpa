@@ -1699,7 +1699,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             fatal("ERROR: patch->lookup == talpaInodeLookup on %s!", mnt->mnt_sb->s_type->name);
         }
-        if (patch->d_revalidate == talpaDentryRevalidate)
+        if (patch->create == talpaInodeCreate)
         {
             fatal("ERROR: patch->create == talpaInodeCreate on %s!", mnt->mnt_sb->s_type->name);
         }
@@ -2321,14 +2321,14 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
         return 0;
     }
 
-    dev = getname(dev_name);
+    dev = talpa_getname(dev_name);
 
     if ( IS_ERR(dev) )
     {
         goto out;
     }
 
-    dir = getname(dir_name);
+    dir = talpa_getname(dir_name);
 
     if ( IS_ERR(dir) )
     {
@@ -2358,11 +2358,11 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
         dbg("[intercepted %u-%u-%u] Failed to examine mount!", processParentPID(current), current->tgid, current->pid);
     }
 
-    putname(fstype);
+    talpa_putname(fstype);
 out2:
-    putname(dir);
+    talpa_putname(dir);
 out1:
-    putname(dev);
+    talpa_putname(dev);
 out:
     return decision;
 }
@@ -2487,7 +2487,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
     {
         char* abs_dir;
 
-        dir = getname(dir_name);
+        dir = talpa_getname(dir_name);
         if (IS_ERR(dir))
         {
             ret = PTR_ERR(dir);
@@ -2539,7 +2539,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 #else
         ret = kern_path(abs_dir, TALPA_LOOKUP, &p);
 #endif
-        putname(dir); abs_dir = NULL; dir = NULL;
+        talpa_putname(dir); abs_dir = NULL; dir = NULL;
         if ( ret == 0 )
         {
 
@@ -2637,7 +2637,7 @@ out:
 
 static void talpaPreUmount(char* name, int flags, void** ctx)
 {
-    char* kname = getname(name);
+    char* kname = talpa_getname(name);
 
 
     if ( !IS_ERR(kname) )
@@ -2665,7 +2665,7 @@ static void talpaPreUmount(char* name, int flags, void** ctx)
             dbg("Failed to examine umount! (no info)");
         }
 
-        putname(kname);
+        talpa_putname(kname);
     }
     else
     {
