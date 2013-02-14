@@ -216,7 +216,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             if ( !object->mDeviceName )
             {
-                critical("DEBUG: EFS_Mount absolutePath deviceName failed: %s",dev_name);
+                dbg("DEBUG: EFS_Mount absolutePath deviceName failed: %s",dev_name);
                 object->mDeviceName = copyString(dev_name);
                 if ( !object->mDeviceName )
                 {
@@ -256,7 +256,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
                 if ( object->mMountPoint == 0 )
                 {
-                    critical("DEBUG: EFS_Mount absolutePath dir_name failed: %s",dir_name);
+                    dbg("DEBUG: EFS_Mount absolutePath dir_name failed: %s",dir_name);
                     object->mMountPoint = copyString(dir_name);
                 }
             }
@@ -291,7 +291,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
             if ( object->mMountPoint == 0 )
             {
-                critical("DEBUG: EFS_Umount absolutePath dir_name failed");
+                dbg("DEBUG: EFS_Umount absolutePath dir_name failed");
                 object->mMountPoint = copyString(dir_name);
                 if ( !object->mMountPoint )
                 {
@@ -349,7 +349,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char
 
                 if ( !object->mDeviceName )
                 {
-                    critical("DEBUG: EFS_Umount absolutePath mnt_devname failed");
+                    dbg("DEBUG: EFS_Umount absolutePath mnt_devname failed");
                     object->mDeviceName = copyString(mnt_devname);
                     if ( !object->mDeviceName )
                     {
