@@ -509,7 +509,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
             if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
             {
                 IFileInfo *pFInfo;
-    
+
                 /* Re-patch, this time using file operations */
                 if (!talpa_syscallhook_modify_start())
                 {
@@ -1598,7 +1598,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             {
                 patch->lookup = patch->i_ops->lookup;
             }
-            
+
             if (patch->i_ops->create == talpaInodeCreate)
             {
                 patch->create = NULL;
@@ -1703,7 +1703,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             fatal("ERROR: patch->create == talpaInodeCreate on %s!", mnt->mnt_sb->s_type->name);
         }
-        
+
         err("Double patching detected on %s!", mnt->mnt_sb->s_type->name);
         return -EBADSLT;
     }
@@ -3037,6 +3037,11 @@ static void deleteVFSHookInterceptor(struct tag_VFSHookInterceptor* object)
     {
         object->mInterceptMask = 0;
         strcpy(object->mConfigData.value, CFG_VALUE_DISABLED);
+
+        if ( atomic_dec_and_test(&object->mUseCnt) != 0 )
+        {
+        }
+        module_put(THIS_MODULE);
     }
 
     object->mInitialized = false;
@@ -3441,9 +3446,16 @@ static void doSpecialString(void* self, const char* value)
 
 static bool enable(void* self)
 {
+    /* Already locked */
+
     if ( !this->mTargetProcessor )
     {
         err("No processor!");
+        return false;
+    }
+
+    if ( !this->mInitialized )
+    {
         return false;
     }
 
@@ -3472,7 +3484,7 @@ static void disable(void* self)
     {
         this->mInterceptMask = 0;
         strcpy(this->mConfigData.value, CFG_VALUE_DISABLED);
-        if ( atomic_dec_and_test(&this->mUseCnt) != 0 )
+        if ( atomic_dec_and_test(&this->mUseCnt) != 0 ) /* mUseCnt == 0 */
         {
             wake_up(&this->mUnload);
         }
