@@ -18,6 +18,6 @@
 . ${srcdir}/tlp-cleanup.sh
 
 tlp_insmod modules/tlp-procfs.${ko}
-./tlp-1-008
+./sysctldisable
 
 exit $?
