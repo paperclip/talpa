@@ -125,8 +125,8 @@ static char* actmsg_restart = "Standard interceptor processor failure";
 static char* actmsg_next = "Unexpected pass through action request";
 static char* actmsg_allow = "Unexpected allow action request";
 static char* actmsg_deny = "Access denied";
-static char* actmsg_error = "Error occured";
-static char* actmsg_timeout = "Timeout occured";
+static char* actmsg_error = "Error occurred";
+static char* actmsg_timeout = "Timeout occurred";
 
 static char* opmsg_default = "processing unsupported object type";
 static char* opmsg_open = "opening";
