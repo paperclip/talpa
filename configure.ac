@@ -1534,7 +1534,7 @@ if test $((kern_version_code)) -ge 132608; then
 
     ## Hook d_ops on 2.6.37 and above by default
     if test "$auto_hookdops" = yes ; then
-        if test $((kern_version_code)) -ge 132645; then
+        if test $((kern_version_code)) -ge 132640; then
             AC_SUBST(hookdops,"-DTALPA_CONFIG_HOOK_DOPS")
         fi
     fi
