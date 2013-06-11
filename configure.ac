@@ -1532,7 +1532,7 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
-    ## Hook d_ops on 2.6.37 and above by default
+    ## Hook d_ops on 2.6.32 (RHEL6,SLES11SP1,OEL6) and above by default
     if test "$auto_hookdops" = yes ; then
         if test $((kern_version_code)) -ge 132640; then
             AC_SUBST(hookdops,"-DTALPA_CONFIG_HOOK_DOPS")
