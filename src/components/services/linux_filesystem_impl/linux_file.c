@@ -315,12 +315,12 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
 #endif
 
 #ifdef current_cred /* Introduced in 2.6.29. */
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) 
-	{
-	   struct path path = { mnt,dentry };
-	   file = dentry_open (&path,flags,current_cred());
-	}
- #else	
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+    {
+       struct path path = { mnt,dentry };
+       file = dentry_open (&path,flags,current_cred());
+    }
+ #else
     file = dentry_open(dget(dentry), mntget(mnt), flags, current_cred());
  #endif
 #else
@@ -381,27 +381,27 @@ static int open(void* self, const char* filename, unsigned int flags, bool check
     dentry = p.dentry;
 #endif
     ret = openDentry(self, dentry, mnt, flags, check_permissions);
-    
+
     // NFSv4 doesn't implement openDentry, so we need to go up a level
     // and use filp_do_open
     if (ret == -ENOTDIR)
     {
-		err("NFSv4 backup route - -ENOTDIR -> filp_open\n");
-		file = filp_open(filename, flags, 0);
-		if (IS_ERR(file))
-		{
-			ret = PTR_ERR(file);
-			err("NFSv4 backup route failure %d\n",ret);
-		}
-		else
-		{
-			err("NFSv4 backup route success\n");
-		    this->mOpenType = Dentry;
-		    this->mFile = file;
-		    this->mOffset = 0;
-		    ret = 0;
-		}
-	}
+        dbg("NFSv4 backup route - -ENOTDIR -> filp_open\n");
+        file = filp_open(filename, flags, 0);
+        if (IS_ERR(file))
+        {
+            ret = PTR_ERR(file);
+            err("NFSv4 backup route failure %d\n",ret);
+        }
+        else
+        {
+            dbg("NFSv4 backup route success\n");
+            this->mOpenType = Dentry;
+            this->mFile = file;
+            this->mOffset = 0;
+            ret = 0;
+        }
+    }
  #ifdef TALPA_HAVE_PATH_LOOKUP
     talpa_path_release(&nd);
 #else

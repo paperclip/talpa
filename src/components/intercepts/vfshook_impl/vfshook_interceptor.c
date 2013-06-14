@@ -903,9 +903,9 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 
-    err("maybeScanDentryRevalidate details: nd->intent.open.file=%p, beforeFilp=%p openflags=0x%x create_mode=0x%x ndflags=0x%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
-    err("fileFlags=0x%x",filp->f_flags);
-    err("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
+    dbg("maybeScanDentryRevalidate details: nd->intent.open.file=%p, beforeFilp=%p openflags=0x%x create_mode=0x%x ndflags=0x%x",filp,filpBefore,openflags,nd->intent.open.create_mode,nd->flags);
+    dbg("fileFlags=0x%x",filp->f_flags);
+    dbg("File has been pre-opened - we could scan it now? dentry=%p",filp->TALPA_f_dentry);
 
 
     /* First check with the examineInode method */
