@@ -455,7 +455,6 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 }
 #endif
 
-
 #if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode, bool flag)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0) /* 3.3 - 3.5 */
@@ -470,9 +469,9 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
     struct patchedFilesystem *patch = NULL;
     int err = -ESRCH;
 
-
     hookEntry();
 
+    BUG_ON(NULL == inode);
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
@@ -480,6 +479,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
         if ( inode->i_op == p->i_ops )
         {
             patch = getPatch(p);
+            BUG_ON(NULL == patch->fstype);
             dbg("Create on %s", patch->fstype->name);
             break;
         }
@@ -525,6 +525,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     /* repatchFilesystem needs patch list lock held... */
                     talpa_rcu_read_lock(&GL_object.mPatchLock);
                     /* ... and patch lock itself. */
+                    BUG_ON(NULL == &patch->lock);
                     talpa_simple_lock(&patch->lock);
                     (void)repatchFilesystem(dentry, smbfs, patch); /* Ref count has already been increased when i_ops were patched */
                     talpa_simple_unlock(&patch->lock);
@@ -537,23 +538,43 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                 }
 
                 /* Do not examine if we should not intercept opens or we are already examining one */
+                BUG_ON(NULL == current);
                 if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
                 {
+                    BUG_ON(NULL == GL_object.mLinuxFilesystemFactory);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   #if LINUX_VERSION_CODE >=  KERNEL_VERSION(3,6,0)
                     pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromInode(GL_object.mLinuxFilesystemFactory, EFS_Open, inode , O_CREAT | O_EXCL);
   #else
-                    pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromDirectoryEntry(GL_object.mLinuxFilesystemFactory, EFS_Open, dentry, talpa_nd_mnt(nd), O_CREAT | O_EXCL, mode);
+                    if (likely(NULL != nd))
+                    {
+                        pFInfo = GL_object.mLinuxFilesystemFactory->
+                            i_IFilesystemFactory.newFileInfoFromDirectoryEntry(
+                                GL_object.mLinuxFilesystemFactory,
+                                EFS_Open,
+                                dentry,
+                                talpa_nd_mnt(nd),
+                                O_CREAT | O_EXCL,
+                                mode);
+                    }
+                    else
+                    {
+                        err("talpaInodeCreate called with NULL nd");
+                    }
   #endif
+
+
                     if ( pFInfo )
                     {
                         /* Make sure our open and close attempts while examining will be excluded */
                         current->flags |= PF_TALPA_INTERNAL;
+                        BUG_ON(NULL == GL_object.mTargetProcessor);
                         err = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
                         /* Restore normal process examination */
                         current->flags &= ~PF_TALPA_INTERNAL;
                         pFInfo->delete(pFInfo);
                     }
+
 #else
                     pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromInode(GL_object.mLinuxFilesystemFactory, EFS_Open, inode, O_CREAT | O_EXCL);
 
