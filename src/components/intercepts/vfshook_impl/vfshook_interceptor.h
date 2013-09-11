@@ -70,8 +70,10 @@ typedef struct
 #undef TALPA_HAVE_INTENT
 #endif
 
-/* Adjust as appropriate - TALPA_CONFIG_HOOK_DOPS set by configure by default on 2.6.37+ */
-#if defined(CONFIG_NFS_V4) && defined(TALPA_HAVE_INTENT) && defined(TALPA_CONFIG_HOOK_DOPS)
+/* Adjust as appropriate - TALPA_CONFIG_HOOK_DOPS set by configure by default on 2.6.18+
+ * Moved defined(CONFIG_NFS_V4) && defined(TALPA_HAVE_INTENT) into the code now we hook anyway
+ */
+#if defined(TALPA_CONFIG_HOOK_DOPS)
 #define TALPA_HOOK_D_OPS
 #endif
 
@@ -100,7 +102,7 @@ struct patchedFilesystem
     int                     (*create)(struct inode *,struct dentry *,umode_t, bool);
     struct dentry*          (*lookup)(struct inode *,struct dentry *, unsigned int );
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0) /* 3.3 - 3.5 */
-    int                     (*create)(struct inode *,struct dentry *,umode_t,struct nameidata *); 
+    int                     (*create)(struct inode *,struct dentry *,umode_t,struct nameidata *);
     struct dentry*          (*lookup)(struct inode *,struct dentry *, struct nameidata *);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.2 */
     int                     (*create)(struct inode *,struct dentry *,int, struct nameidata *);
@@ -144,6 +146,7 @@ typedef struct tag_VFSHookInterceptor
     talpa_list_head                 mGoodFilesystems;
     talpa_list_head                 mSkipFilesystems;
     talpa_list_head                 mNoScanFilesystems;
+    talpa_list_head                 mHookDopsFilesystems;
     PODConfigurationElement         mConfig[7];
     VFSHookStatusConfigData         mConfigData;
     VFSHookOpsConfigData            mOpsConfigData;

@@ -95,6 +95,7 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx);
 static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMount);
 
 static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch);
+static int lockAndRepatchFilesystem(struct dentry* dentry, struct patchedFilesystem* patch);
 
 #ifdef TALPA_HAS_SMBFS
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
@@ -172,6 +173,7 @@ static VFSHookInterceptor GL_object =
         TALPA_LIST_HEAD_INIT(GL_object.mGoodFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mSkipFilesystems),
         TALPA_LIST_HEAD_INIT(GL_object.mNoScanFilesystems),
+        TALPA_LIST_HEAD_INIT(GL_object.mHookDopsFilesystems),
         {
             {GL_object.mConfigData.name, GL_object.mConfigData.value, VFSHOOK_CFGDATASIZE, true, true },
             {GL_object.mOpsConfigData.name, GL_object.mOpsConfigData.value, VFSHOOK_OPSCFGDATASIZE, true, false },
@@ -510,32 +512,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
             {
                 IFileInfo *pFInfo;
 
-                /* Re-patch, this time using file operations */
-                if (!talpa_syscallhook_modify_start())
-                {
-                    bool smbfs = false;
-
-
-#ifdef TALPA_HAS_SMBFS
-                    if ( !strcmp(patch->fstype->name, "smbfs") )
-                    {
-                        smbfs = true;
-                    }
-#endif
-                    /* repatchFilesystem needs patch list lock held... */
-                    talpa_rcu_read_lock(&GL_object.mPatchLock);
-                    /* ... and patch lock itself. */
-                    BUG_ON(NULL == &patch->lock);
-                    talpa_simple_lock(&patch->lock);
-                    (void)repatchFilesystem(dentry, smbfs, patch); /* Ref count has already been increased when i_ops were patched */
-                    talpa_simple_unlock(&patch->lock);
-                    talpa_rcu_read_unlock(&GL_object.mPatchLock);
-                    talpa_syscallhook_modify_finish();
-                }
-                else
-                {
-                    err("Failed to unprotect memory on inode create!");
-                }
+                (void)lockAndRepatchFilesystem(dentry, patch);
 
                 /* Do not examine if we should not intercept opens or we are already examining one */
                 BUG_ON(NULL == current);
@@ -560,6 +537,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                     else
                     {
                         err("talpaInodeCreate called with NULL nd");
+                        pFInfo = NULL;
                     }
   #endif
 
@@ -653,31 +631,10 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
             /* Check if this is a regular file */
             if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
             {
-                /* Re-patch, this time using file operations */
-                if (!talpa_syscallhook_modify_start())
+                int err2 = lockAndRepatchFilesystem(dentry, patch);
+                if (err2 != 0)
                 {
-                    bool smbfs = false;
-
-
-#ifdef TALPA_HAS_SMBFS
-                    if ( !strcmp(patch->fstype->name, "smbfs") )
-                    {
-                        smbfs = true;
-                    }
-#endif
-                    /* repatchFilesystem needs patch list lock held... */
-                    talpa_rcu_read_lock(&GL_object.mPatchLock);
-                    /* ... and patch lock itself. */
-                    talpa_simple_lock(&patch->lock);
-                    (void)repatchFilesystem(dentry, smbfs, patch); /* Ref count has already been increased when i_ops were patched */
-                    talpa_simple_unlock(&patch->lock);
-                    talpa_rcu_read_unlock(&GL_object.mPatchLock);
-                    talpa_syscallhook_modify_finish();
-                }
-                else
-                {
-                    err("Failed to unprotect memory on inode lookup!");
-                    err = ERR_PTR(-ENOMEM);
+                    err = ERR_PTR(err2);
                 }
             }
         }
@@ -1012,6 +969,15 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         else
         {
            err("Dentry revalidate patched without d_revalidate!");
+        }
+
+        if (unlikely(patch->f_ops == NULL && dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode)))
+        {
+            int resultCode2 = lockAndRepatchFilesystem(dentry, patch);
+            if (resultCode2 != 0)
+            {
+                resultCode = resultCode2;
+            }
         }
 
         putPatch(patch);
@@ -1819,15 +1785,60 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
         {
             dbg("     lookup 0x%p for %s", patch->lookup,patch->fstype->name);
             talpa_syscallhook_poke(&patch->i_ops->lookup, talpaInodeLookup);
+            if ( patch->i_ops->lookup != talpaInodeLookup )
+            {
+                err("     failed to patch talpaInodeLookup into patch->i_ops->lookup");
+                return -1;
+            }
         }
         if ( patch->i_ops->create != talpaInodeCreate )
         {
             dbg("     create 0x%p for %s", patch->create, patch->fstype->name);
             talpa_syscallhook_poke(&patch->i_ops->create, talpaInodeCreate);
+            if ( patch->i_ops->create != talpaInodeCreate )
+            {
+                err("     failed to patch talpaInodeCreate into patch->i_ops->create");
+                return -1;
+            }
         }
     }
 
     return 0;
+}
+
+
+static int lockAndRepatchFilesystem(struct dentry* dentry, struct patchedFilesystem* patch)
+{
+    int err = 0;
+
+    /* Re-patch, this time using file operations */
+    if (!talpa_syscallhook_modify_start())
+    {
+        bool smbfs = false;
+
+
+#ifdef TALPA_HAS_SMBFS
+        if ( !strcmp(patch->fstype->name, "smbfs") )
+        {
+            smbfs = true;
+        }
+#endif
+        /* repatchFilesystem needs patch list lock held... */
+        talpa_rcu_read_lock(&GL_object.mPatchLock);
+        /* ... and patch lock itself. */
+        talpa_simple_lock(&patch->lock);
+        (void)repatchFilesystem(dentry, smbfs, patch); /* Ref count has already been increased when i_ops were patched */
+        talpa_simple_unlock(&patch->lock);
+        talpa_rcu_read_unlock(&GL_object.mPatchLock);
+        talpa_syscallhook_modify_finish();
+    }
+    else
+    {
+        err("Failed to unprotect memory during lockAndRepatchFilesystem!");
+        err = -ENOMEM;
+    }
+
+    return err;
 }
 
 static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedFilesystem* patch)
@@ -2123,6 +2134,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     bool                        smbfs = false;
     const char*                 fsname = (const char *)mnt->mnt_sb->s_type->name;
     bool                        good_fs = false;
+    bool                        hook_dops = false;
 
 
     /* We don't want to patch some filesystems, and for some we want
@@ -2146,6 +2158,18 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             break;
         }
     }
+
+#ifdef TALPA_HOOK_D_OPS
+    talpa_list_for_each_entry_rcu(obj, &GL_object.mHookDopsFilesystems, head)
+    {
+        if ( !strcmp(fsname, obj->value) )
+        {
+            hook_dops = true;
+            break;
+        }
+    }
+#endif
+
     talpa_rcu_read_unlock(&GL_object.mListLock);
 
     if (!good_fs)
@@ -2214,15 +2238,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         atomic_set(&patch->refcnt, 1);
         patch->fstype = mnt->mnt_sb->s_type;
         talpa_simple_init(&patch->lock);
-        patch->mHookDOps = false;
-
-#ifdef TALPA_HOOK_D_OPS
-        /* TODO: If we get more than nfs4, then we should make this a list, and move inside the list lock above */
-        if ( !strcmp(fsname, "nfs4") )
-        {
-            patch->mHookDOps = true;
-        }
-#endif
+        patch->mHookDOps = hook_dops;
     }
 
     /* Lock patch record for manipulation */
@@ -2978,6 +2994,9 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "ecryptfs", true);
     /* WKI80362 - Add ezncryptfs to no_scan list */
     appendObject(&GL_object, &GL_object.mNoScanFilesystems, "ezncryptfs", true);
+
+    appendObject(&GL_object, &GL_object.mHookDopsFilesystems, "nfs", false);
+    appendObject(&GL_object, &GL_object.mHookDopsFilesystems, "nfs4", false);
 
     /* Parse module parameters - addition and removals from the above lists */
     parseParams(&GL_object, good_list, &GL_object.mGoodFilesystems, &GL_object.mGoodFilesystemsSet);
