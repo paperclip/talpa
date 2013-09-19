@@ -283,6 +283,27 @@ static __inline const void* talpa_get_symbol(const char* name, const void* ptr)
 }
 #endif
 
+#if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#define TALPA_FILENAME_T struct filename
+static __inline const char* getCStr(const TALPA_FILENAME_T* filenameObj)
+{
+    return filenameObj->name;
+}
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0) */
+#define TALPA_FILENAME_T char
+static __inline const char* getCStr(const TALPA_FILENAME_T* filenameObj)
+{
+    return filenameObj;
+}
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) */
+
+
+#ifndef TALPA_PUTNAME_EXPORTED
+void talpa_putname(TALPA_FILENAME_T* filename);
+#else
+# define talpa_putname putname
+#endif
+
 #endif
 /*
  * End of linux_glue.h

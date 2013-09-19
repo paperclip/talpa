@@ -324,6 +324,7 @@ int talpa_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsign
             ret = copy_from_user(&tfs, (void *)parm, sizeof(struct talpa_filesystem));
             if ( !ret )
             {
+                err("dev=%s, target=%s, type=%s",tfs.dev, tfs.target, tfs.type);
                 fsi = newLinuxFilesystemInfo(tfs.operation, tfs.dev, tfs.target, tfs.type);
                 if ( fsi )
                 {

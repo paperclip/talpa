@@ -46,7 +46,7 @@ static long talpaDummyUselib(const char* library)
     return 0;
 }
 
-static int  talpaDummyExecve(const char* name)
+static int  talpaDummyExecve(const TALPA_FILENAME_T* name)
 {
     return 0;
 }

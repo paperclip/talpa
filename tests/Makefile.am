@@ -393,3 +393,7 @@ check_SCRIPTS =           $(TESTS) \
                           test-script4.sh
 
 EXTRA_DIST  = $(check_SCRIPTS) configure
+
+testProgs : $(check_PROGRAMS)
+
+.PHONY : testProgs

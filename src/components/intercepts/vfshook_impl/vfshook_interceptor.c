@@ -86,7 +86,7 @@ static void destroyStringSet(void *self, char **set);
 static long talpaDummyOpen(unsigned int fd);
 static void talpaDummyClose(unsigned int fd);
 static long talpaDummyUselib(const char* library);
-static int  talpaDummyExecve(const char* name);
+static int  talpaDummyExecve(const TALPA_FILENAME_T* name);
 static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 static void talpaPreUmount(char* name, int flags, void** ctx);
@@ -651,6 +651,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
 
 
 #ifdef TALPA_HOOK_D_OPS
+#ifdef TALPA_HAVE_INTENT
 
 /* Change this to err from dbg to get extra debug without turning on debug */
 #define dopsdbg dbg
@@ -736,6 +737,18 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
     }
 #endif
 
+    inode = dentry->d_inode;
+    if (inode == NULL)
+    {
+        dopsdbg("maybeScanDentryRevalidate: inode == NULL");
+        return resultCode;
+    }
+
+    if (!S_ISREG(inode->i_mode))
+    {
+        dopsdbg("maybeScanDentryRevalidate: !S_ISREG(inode->i_mode)");
+        return resultCode;
+    }
 
     openflags = nd->intent.open.flags;
     /*
@@ -808,19 +821,6 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
         return resultCode;
     }
 #endif
-
-    inode = dentry->d_inode;
-    if (inode == NULL)
-    {
-        dopsdbg("maybeScanDentryRevalidate: inode == NULL");
-        return resultCode;
-    }
-
-    if (!S_ISREG(inode->i_mode))
-    {
-        dopsdbg("maybeScanDentryRevalidate: !S_ISREG(inode->i_mode)");
-        return resultCode;
-    }
 
     /* Pick up the filp from the open intent */
     filp = nd->intent.open.file;
@@ -931,13 +931,18 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 
     return resultCode;
 }
+#endif /* TALPA_HAVE_INTENT */
 
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+static int talpaDentryRevalidate(struct dentry * dentry, unsigned int flags)
+#else /* < 3.8.0 */
 static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0) */
 {
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
-    struct file *filpBefore = NULL;
 
     hookEntry();
 
@@ -959,11 +964,16 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         if ( likely(patch->d_revalidate != NULL) )
         {
 #ifdef TALPA_HAVE_INTENT
+            struct file *filpBefore = NULL;
             filpBefore = nd->intent.open.file;
             resultCode = patch->d_revalidate(dentry,nd);
             resultCode = maybeScanDentryRevalidate(resultCode,dentry,nd,filpBefore);
 #else
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+            resultCode = patch->d_revalidate(dentry,flags);
+# else
             resultCode = patch->d_revalidate(dentry,nd);
+# endif
 #endif
         }
         else
@@ -989,8 +999,49 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
 
     hookExitRv(resultCode);
 }
+#endif /* TALPA_HOOK_D_OPS */
 
-#endif
+#ifdef TALPA_HOOK_ATOMIC_OPEN
+static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
+                    struct file* file, unsigned open_flag,
+                    umode_t create_mode, int *opened)
+{
+
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int resultCode = -ENXIO;
+
+    hookEntry();
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( inode->i_op == p->i_ops )
+        {
+            patch = getPatch(p);
+            break;
+        }
+    }
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+    if ( likely( patch != NULL ) )
+    {
+        if (unlikely (patch->atomic_open == NULL) )
+        {
+            err("Patched atomic_open without saving original value for fs=%s",patch->fstype->name);
+            resultCode = -ENXIO;
+        }
+        else
+        {
+            resultCode = patch->atomic_open(inode,dentry,file,open_flag,create_mode,opened);
+        }
+
+        putPatch(patch);
+    }
+
+    hookExitRv(resultCode);
+}
+#endif /* TALPA_HOOK_ATOMIC_OPEN */
 
 /* Structure which holds info on one entry as we scan the directory tree */
 struct dentryContext
@@ -1484,6 +1535,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 {
     struct patchedFilesystem*   spatch = NULL;
     struct patchedFilesystem*   p;
+    bool hookLookupCreate = true;
 
 
     if ( !mnt )
@@ -1498,7 +1550,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         return -ENOMEM;
     }
 
-    if ( patch->f_ops || patch->i_ops )
+    if ( patch->f_ops || ( patch->i_ops && patch->mLookupCreateHooked ) )
     {
         dbg("Filesystem %s already patched", mnt->mnt_sb->s_type->name);
         return 0;
@@ -1529,7 +1581,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             }
             patch->open = spatch->open;
             patch->release = spatch->release;
-            dbg("  storing shared file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release,patch->fstype->name);
+            dbg("  storing shared file operations [0x%p][0x%p 0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->atomic_open,patch->fstype->name);
         }
         else
         {
@@ -1537,6 +1589,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             patch->release = patch->f_ops->release;
             dbg("  storing original file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release,patch->fstype->name);
         }
+        hookLookupCreate = false; // Already hooked file operations
     }
 #ifdef TALPA_HAS_SMBFS
     /* If called directly from smbfs mount prepare for ioctl patching (we never have regular file here) */
@@ -1545,10 +1598,13 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         patch->sf_ops = (struct file_operations *)dentry->d_inode->i_fop;
         patch->ioctl = patch->sf_ops->smbfs_ioctl;
         dbg("  storing original smbfs file operations [0x%p][0x%p]", patch->sf_ops, patch->ioctl);
+
+        hookLookupCreate = false; // For smbfs we need to wait for ioctl before hooking i_ops
     }
 #endif
     /* Otherwise prepare for inode_operations patching */
-    else
+
+    if (hookLookupCreate || !smbfs)
     {
         if ( !dentry )
         {
@@ -1559,43 +1615,88 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         /* Sometimes filesystems share operation tables in which case we
            want to store real pointers for restore. */
-        talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+
+#ifdef TALPA_HOOK_ATOMIC_OPEN
+        if (patch->i_ops->atomic_open == talpaAtomicOpen)
         {
-            if ( p != patch && p->i_ops == patch->i_ops && p->lookup != NULL && p->create != NULL)
+            // i_ops is shared and we must find the real function pointer
+            if (spatch == NULL || spatch->i_ops != patch->i_ops)
             {
-                dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
-                spatch = p;
-                break;
+                spatch = NULL;
+                talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+                {
+                    if ( p != patch && p->i_ops == patch->i_ops)
+                    {
+                        dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                        spatch = p;
+                        break;
+                    }
+                }
             }
-        }
-        if ( spatch )
-        {
-            patch->lookup = spatch->lookup;
-            patch->create = spatch->create;
-            dbg("  storing shared inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
+
+            if ( spatch )
+            {
+                patch->atomic_open = spatch->atomic_open;
+            }
+            else
+            {
+                fatal("patch->i_ops->atomic_open is talpaAtomicOpen already, and can't find matching patch for %s",patch->fstype->name);
+            }
         }
         else
         {
-            if (patch->i_ops->lookup == talpaInodeLookup)
+            /* i_ops not shared */
+            patch->atomic_open = patch->i_ops->atomic_open;
+            dbg("  storing shared inode operations [0x%p][atomic_open=0x%p] for %s", patch->i_ops, patch->atomic_open, patch->fstype->name);
+        }
+#endif /* TALPA_HOOK_ATOMIC_OPEN */
+
+        if (hookLookupCreate)
+        {
+            /* Find a patch which has the lookup and create saved */
+            if (spatch == NULL || patch->i_ops != spatch->i_ops || spatch->lookup == NULL || spatch->create == NULL)
             {
-                patch->lookup = NULL;
-                fatal("FATAL: Copying patch->i_ops->lookup when it already contains talpaInodeLookup");
-            }
-            else
-            {
-                patch->lookup = patch->i_ops->lookup;
+                spatch = NULL;
+                talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+                {
+                    if ( p != patch && p->i_ops == patch->i_ops && p->lookup != NULL && p->create != NULL)
+                    {
+                        dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                        spatch = p;
+                        break;
+                    }
+                }
             }
 
-            if (patch->i_ops->create == talpaInodeCreate)
+            if ( spatch )
             {
-                patch->create = NULL;
-                fatal("FATAL: Copying patch->i_ops->create when it already contains talpaInodeCreate");
+                patch->lookup = spatch->lookup;
+                patch->create = spatch->create;
+                dbg("  storing shared inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
             }
             else
             {
-                patch->create = patch->i_ops->create;
+                if (patch->i_ops->lookup == talpaInodeLookup)
+                {
+                    patch->lookup = NULL;
+                    fatal("FATAL: Copying patch->i_ops->lookup when it already contains talpaInodeLookup");
+                }
+                else
+                {
+                    patch->lookup = patch->i_ops->lookup;
+                }
+
+                if (patch->i_ops->create == talpaInodeCreate)
+                {
+                    patch->create = NULL;
+                    fatal("FATAL: Copying patch->i_ops->create when it already contains talpaInodeCreate");
+                }
+                else
+                {
+                    patch->create = patch->i_ops->create;
+                }
+                dbg("  storing original inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
             }
-            dbg("  storing original inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
         }
     }
 
@@ -1756,6 +1857,28 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
 #endif
 
 
+#ifdef TALPA_HOOK_ATOMIC_OPEN
+    dbg("  patching atomic_open in inode operations 0x%p for %s", patch->i_ops, patch->fstype->name);
+    if ( patch->i_ops->atomic_open == talpaAtomicOpen)
+    {
+        dbg("     atomic_open already patched to talpaAtomicOpen for %s", patch->fstype->name);
+    }
+    else if (patch->i_ops->atomic_open == NULL)
+    {
+        dbg("     atomic_open is NULL for %s", patch->fstype->name);
+    }
+    else
+    {
+        dbg("     atomic_open 0x%p for %s", patch->atomic_open,patch->fstype->name);
+        talpa_syscallhook_poke(&patch->i_ops->atomic_open, talpaAtomicOpen);
+        if ( patch->i_ops->atomic_open != talpaAtomicOpen )
+        {
+            err("     failed to patch talpaAtomicOpen into patch->i_ops->atomic_open");
+            return -1;
+        }
+    }
+#endif
+
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
@@ -1801,6 +1924,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
                 return -1;
             }
         }
+        patch->mLookupCreateHooked = true;
     }
 
     return 0;
@@ -1886,7 +2010,7 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
 #endif
 
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
-        patch->i_ops = NULL;
+        patch->mLookupCreateHooked = false;
         /* Sometimes filesystems share operation tables in which case we
            want to store real pointers for restore. */
         talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
@@ -1959,6 +2083,7 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
                     dbg("  patching inode creation [0x%p][0x%p]", patch->i_ops, patch->create);
                     talpa_syscallhook_poke(&patch->i_ops->create, talpaInodeCreate);
                 }
+                patch->mLookupCreateHooked = true;
             }
         }
     }
@@ -2025,6 +2150,15 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     {
         err("Restore on an unpatched filesystem!");
         return 0;
+    }
+#endif
+
+#ifdef TALPA_HOOK_ATOMIC_OPEN
+    dbg("  restoring atomic_open in inode operations 0x%p for %s", patch->i_ops, patch->fstype->name);
+    if ( patch->i_ops->atomic_open == talpaAtomicOpen )
+    {
+        dbg("     atomic_open 0x%p for %s", patch->atomic_open,patch->fstype->name);
+        talpa_syscallhook_poke(&patch->i_ops->atomic_open, patch->atomic_open);
     }
 #endif
 
@@ -2239,6 +2373,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         patch->fstype = mnt->mnt_sb->s_type;
         talpa_simple_init(&patch->lock);
         patch->mHookDOps = hook_dops;
+        patch->mLookupCreateHooked = false;
     }
 
     /* Lock patch record for manipulation */
@@ -2336,7 +2471,7 @@ static long talpaDummyUselib(const char* library)
     return 0;
 }
 
-static int  talpaDummyExecve(const char* name)
+static int  talpaDummyExecve(const TALPA_FILENAME_T* name)
 {
     /* We do not want to intercept this through talpa-syscallhook! */
     err("Incorrect usage of talpa-syscallhook and talpa-vfshook modules!");
@@ -2344,11 +2479,28 @@ static int  talpaDummyExecve(const char* name)
     return 0;
 }
 
-static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
+static int talpa_copy_mount_string(const void __user *data, char **where)
 {
-    char* dev;
-    char* dir;
-    char* fstype;
+	char *tmp;
+
+	if (!data) {
+		*where = NULL;
+		return 0;
+	}
+
+	tmp = strndup_user(data, PAGE_SIZE);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	*where = tmp;
+	return 0;
+}
+
+static long talpaPreMount(char __user * dev_name, char __user * dir_name, char __user * type, unsigned long flags, void* data)
+{
+    char* dev = 0;
+    TALPA_FILENAME_T* dir;
+    char* fstype = 0;
     int decision = 0;
     IFilesystemInfo *pFSInfo;
 
@@ -2358,28 +2510,25 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
         return 0;
     }
 
-    dev = getname(dev_name);
-
-    if ( IS_ERR(dev) )
+    decision = talpa_copy_mount_string(dev_name,&dev);
+    if ( decision < 0 )
     {
         goto out;
     }
 
     dir = getname(dir_name);
-
     if ( IS_ERR(dir) )
     {
         goto out1;
     }
 
-    fstype = getname(type);
-
-    if ( IS_ERR(fstype) )
+    decision = talpa_copy_mount_string(type,&fstype);
+    if ( decision < 0 )
     {
         goto out2;
     }
 
-    pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Mount, dev, dir, fstype);
+    pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Mount, dev, getCStr(dir), fstype);
 
     if ( likely(pFSInfo != NULL) )
     {
@@ -2395,11 +2544,11 @@ static long talpaPreMount(char* dev_name, char* dir_name, char* type, unsigned l
         dbg("[intercepted %u-%u-%u] Failed to examine mount!", processParentPID(current), current->tgid, current->pid);
     }
 
-    putname(fstype);
+    kfree(fstype);
 out2:
-    putname(dir);
+    talpa_putname(dir);
 out1:
-    putname(dev);
+    kfree(dev);
 out:
     return decision;
 }
@@ -2492,14 +2641,14 @@ global_root:
 
 #endif
 
-static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
+static long talpaPostMount(int err, char __user * dev_name, char __user * dir_name, char __user * type, unsigned long flags, void* data)
 {
 #ifdef TALPA_HAVE_PATH_LOOKUP
     struct nameidata nd;
 #else
     struct path p;
 #endif
-    char* dir;
+    TALPA_FILENAME_T* dir;
 #ifdef TALPA_HAS_SMBFS
     char* path;
     size_t path_size;
@@ -2522,7 +2671,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
        We also ignore bind mounts and subtree moves. */
     if ( !err && !(flags & VFSHOOK_MS_IGNORE) )
     {
-        char* abs_dir;
+        const char* abs_dir;
 
         dir = getname(dir_name);
         if (IS_ERR(dir))
@@ -2531,10 +2680,10 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
             goto out;
         }
 
-        abs_dir = dir;
+        abs_dir = getCStr(dir);
 
 #ifdef TALPA_HANDLE_RELATIVE_PATH_IN_MOUNT
-        if (dir[0] != '/')
+        if (getCStr(dir)[0] != '/')
         {
             /*
              * Rel -> Abs copied from fs/dcache.c syscall - getcwd
@@ -2576,7 +2725,7 @@ static long talpaPostMount(int err, char* dev_name, char* dir_name, char* type, 
 #else
         ret = kern_path(abs_dir, TALPA_LOOKUP, &p);
 #endif
-        putname(dir); abs_dir = NULL; dir = NULL;
+        talpa_putname(dir); abs_dir = NULL; dir = NULL;
         if ( ret == 0 )
         {
 
@@ -2672,14 +2821,14 @@ out:
     return ret;
 }
 
-static void talpaPreUmount(char* name, int flags, void** ctx)
+static void talpaPreUmount(char __user * name, int flags, void** ctx)
 {
-    char* kname = getname(name);
+    TALPA_FILENAME_T* kname = getname(name);
 
 
     if ( !IS_ERR(kname) )
     {
-        IFilesystemInfo *pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Umount, NULL, kname, NULL);
+        IFilesystemInfo *pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Umount, NULL, getCStr(kname), NULL);
 
         if ( likely(pFSInfo != NULL) )
         {
@@ -2702,7 +2851,7 @@ static void talpaPreUmount(char* name, int flags, void** ctx)
             dbg("Failed to examine umount! (no info)");
         }
 
-        putname(kname);
+        talpa_putname(kname);
     }
     else
     {

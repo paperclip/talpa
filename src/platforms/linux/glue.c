@@ -264,6 +264,18 @@ void talpa_vfsmount_unlock(void)
 
 }
 
+#ifndef TALPA_PUTNAME_EXPORTED
+void talpa_putname(TALPA_FILENAME_T* filename)
+{
+    /*
+     * Uses putname if available, or final_putname - but they come from the same define
+     */
+    typedef void(*putname_func)(TALPA_FILENAME_T *);
+    putname_func putname = (putname_func)talpa_get_symbol("putname", (void *)TALPA_PUTNAME_ADDRESS);
+    putname(filename);
+}
+#endif
+
 /*
 * End of linux_glue.c
 */

@@ -19,6 +19,7 @@
 #ifndef H_TALPASYSCALLHOOK
 #define H_TALPASYSCALLHOOK
 
+#include "platforms/linux/glue.h"
 
 #define TALPA_SYSCALLHOOK_IFACE_VERSION (2)
 #define TALPA_SYSCALLHOOK_IFACE_VERSION_STR "2"
@@ -32,11 +33,11 @@ struct talpa_syscall_operations
     long    (*open_post)    (unsigned int fd);
     void    (*close_pre)    (unsigned int fd);
     long    (*uselib_pre)   (const char* library);
-    int     (*execve_pre)   (const char* name);
-    long    (*mount_pre)    (char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-    long    (*mount_post)   (int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
-    void    (*umount_pre)   (char* name, int flags, void** ctx);
-    void    (*umount_post)  (int err, char* name, int flags, void* ctx);
+    int     (*execve_pre)   (const TALPA_FILENAME_T* name);
+    long    (*mount_pre)    (char __user * dev_name, char __user * dir_name, char __user * type, unsigned long flags, void* data);
+    long    (*mount_post)   (int err, char __user * dev_name, char __user * dir_name, char __user * type, unsigned long flags, void* data);
+    void    (*umount_pre)   (char __user * name, int flags, void** ctx);
+    void    (*umount_post)  (int err, char __user * name, int flags, void* ctx);
 };
 
 /*

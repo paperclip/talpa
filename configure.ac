@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.92)
+AC_INIT(talpa, 0.9.93)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2013 Sophos Limited)
 
@@ -60,6 +60,11 @@ AC_ARG_WITH(kernel,
             [ kernver=`${UNAME} -r`
               AC_SUBST(kerneldir,[/lib/modules/${kernver}/build])
               AC_SUBST(sourcedir,[/lib/modules/${kernver}/source]) ])
+
+AC_ARG_WITH(symvers,
+            [  --with-symvers=FILE                  specify the kernel Module.symvers that should be built against],
+            [ AC_SUBST(symvers,[$withval]) ],
+            [ AC_SUBST(symvers,[${kerneldir}/Module.symvers]) ])
 
 AC_ARG_WITH(kernel-include,
             [  --with-kernel-include=DIR:DIR        specify the include path for kernel header files that should be built against],
@@ -1039,7 +1044,7 @@ if test $((kern_version_code)) -ge 132608; then
     fi
 
     AC_MSG_CHECKING([for vfsmount and br lock])
-    vfsmount_lock_lock=`${EGREP} "[[VD]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    vfsmount_lock_lock=`${EGREP} "[[VDd]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
 	lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
 
 	if test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" == ""  ; then
@@ -1665,6 +1670,27 @@ if test $((kern_version_code)) -ge 132608; then
         AC_MSG_RESULT([not present])
     fi
 
+    AC_MSG_CHECKING([for putname])
+    ${EGREP} "\s+putname.*EXPORT_SYMBOL" ${symvers} >/dev/null 2>&1
+    if test $? -eq 0 ; then
+        AC_MSG_RESULT([putname present and exported])
+        AC_SUBST(putname,"-DTALPA_PUTNAME_SYMBOL -DTALPA_PUTNAME_EXPORTED")
+    else
+        putname_addr=`${EGREP} " putname\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$putname_addr" != ""; then
+            AC_MSG_RESULT([putname present but not exported])
+            AC_SUBST(putname, "-DTALPA_PUTNAME_SYMBOL -DTALPA_PUTNAME_ADDRESS=0x$putname_addr")
+        else
+            final_putname_addr=`${EGREP} " final_putname\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+            if test "$final_putname_addr" != ""; then
+                AC_MSG_RESULT([not available; final_putname present but not exported])
+                AC_SUBST(putname, "-DTALPA_FINAL_PUTNAME_SYMBOL -DTALPA_PUTNAME_ADDRESS=0x$final_putname_addr")
+            else
+                AC_MSG_ERROR([putname not available])
+            fi
+        fi
+    fi
+
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
@@ -1710,6 +1736,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@buildsymbolver@/${buildsymbolver}/; \
+                s/@putname@/${putname}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -1756,6 +1783,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@samefile@/${samefile}/; \
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
+                s/@putname@/${putname}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])

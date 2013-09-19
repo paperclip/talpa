@@ -49,7 +49,7 @@ static void deleteSyscallInterceptor(struct tag_SyscallInterceptor* object);
 static long talpaOpenHook(unsigned int fd);
 static void talpaCloseHook(unsigned int fd);
 static long talpaUselibHook(const char* library);
-static int  talpaExecveHook(const char* name);
+static int  talpaExecveHook(const TALPA_FILENAME_T* name);
 static long talpaMountHook(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 static long talpaMountDummy(int err, char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 static void talpaUmountHook(char* name, int flags, void** ctx);
@@ -190,18 +190,18 @@ static void deleteSyscallInterceptor(struct tag_SyscallInterceptor* object)
 static inline int examineFile(EFilesystemOperation op, const char *filename, int flags, int mode)
 {
     int decision = 0;
-    char* tmp = getname(filename);
+    TALPA_FILENAME_T* tmp = getname(filename);
 
     if ( !IS_ERR(tmp) )
     {
-        IFileInfo *pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfo(GL_object.mLinuxFilesystemFactory, op, tmp, flags, mode);
+        IFileInfo *pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfo(GL_object.mLinuxFilesystemFactory, op, getCStr(tmp), flags, mode);
         if ( likely(pFInfo != NULL) )
         {
             decision = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
             pFInfo->delete(pFInfo);
         }
 
-        putname(tmp);
+        talpa_putname(tmp);
     }
 
     return decision;
@@ -221,7 +221,7 @@ static inline int examineFd(EFilesystemOperation op, int fd)
     return decision;
 }
 
-static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
+static inline const char* getRealExecutable(IFile *pFile, const char* filename, char* buf)
 {
     char* interpreter = NULL;
     int rc;
@@ -301,7 +301,7 @@ static inline char* getRealExecutable(IFile *pFile, char* filename, char* buf)
     return filename;
 }
 
-static inline int examineExecve(const char *filename)
+static inline int examineExecve(const TALPA_FILENAME_T *filename)
 {
     int    decision = 0;
     IFile* pFile    = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFile(GL_object.mLinuxFilesystemFactory);
@@ -311,11 +311,11 @@ static inline int examineExecve(const char *filename)
     {
         IFileInfo* pFInfo;
         char buf[BINPRM_BUF_SIZE + 1];
-        char* real;
-        char* fname = (char *)filename;
+        const char* real;
+        const char* fname = getCStr(filename);
 
 
-        decision = pFile->openExec(pFile->object, filename);
+        decision = pFile->openExec(pFile->object, getCStr(filename));
 
         if (  unlikely(decision < 0) )
         {
@@ -334,7 +334,7 @@ static inline int examineExecve(const char *filename)
 
             return PTR_ERR(real);
         }
-        else if ( unlikely( real != filename ) )
+        else if ( unlikely( real != fname ) )
         {
             pFile->close(pFile->object);
             decision = pFile->openExec(pFile->object, real);
@@ -362,17 +362,33 @@ static inline int examineExecve(const char *filename)
     return decision;
 }
 
+static int talpa_copy_mount_string(const void __user *data, char **where)
+{
+	char *tmp;
+
+	if (!data) {
+		*where = NULL;
+		return 0;
+	}
+
+	tmp = strndup_user(data, PAGE_SIZE);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	*where = tmp;
+	return 0;
+}
+
 static int examineMount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
 {
-    char* dev;
-    char* dir;
-    char* fstype;
+    char* dev = 0;
+    TALPA_FILENAME_T* dir;
+    char* fstype = 0;
     int decision = 0;
     IFilesystemInfo *pFSInfo;
 
-    dev = getname(dev_name);
-
-    if ( IS_ERR(dev) )
+    decision = talpa_copy_mount_string(dev_name,&dev);
+    if ( decision < 0 )
     {
         goto out;
     }
@@ -384,14 +400,13 @@ static int examineMount(char* dev_name, char* dir_name, char* type, unsigned lon
         goto out1;
     }
 
-    fstype = getname(type);
-
-    if ( IS_ERR(fstype) )
+    decision = talpa_copy_mount_string(type,&fstype);
+    if ( decision < 0 )
     {
         goto out2;
     }
 
-    pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Mount, dev, dir, fstype);
+    pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Mount, dev, getCStr(dir), fstype);
 
     if ( likely(pFSInfo != NULL) )
     {
@@ -409,25 +424,25 @@ static int examineMount(char* dev_name, char* dir_name, char* type, unsigned lon
     }
 
 out3:
-    putname(fstype);
+    kfree(fstype);
 out2:
-    putname(dir);
+    talpa_putname(dir);
 out1:
-    putname(dev);
+    kfree(dev);
 out:
     return decision;
 }
 
 static void examineUmount(char* name, int flags)
 {
-    char* kname;
+    TALPA_FILENAME_T* kname;
 
 
     kname = getname(name);
 
     if ( !IS_ERR(kname) )
     {
-        IFilesystemInfo *pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Umount, NULL, kname, NULL);
+        IFilesystemInfo *pFSInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFilesystemInfo(GL_object.mLinuxFilesystemFactory, EFS_Umount, NULL, getCStr(kname), NULL);
 
         if ( likely(pFSInfo != NULL) )
         {
@@ -439,7 +454,7 @@ static void examineUmount(char* name, int flags)
             dbg("Failed to examine umount!");
         }
 
-        putname(kname);
+        talpa_putname(kname);
     }
 }
 
@@ -497,7 +512,7 @@ static long talpaUselibHook(const char* library)
     return decision;
 }
 
-static int  talpaExecveHook(const char* name)
+static int  talpaExecveHook(const TALPA_FILENAME_T* name)
 {
     int decision;
 

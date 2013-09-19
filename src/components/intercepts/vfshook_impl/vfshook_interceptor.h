@@ -63,11 +63,15 @@ typedef struct
     bool            protected;
 } VFSHookObject;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15) && LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0)
  /* Got the struct namei->intent.open.file member */
 #define TALPA_HAVE_INTENT
 #else
 #undef TALPA_HAVE_INTENT
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+# define TALPA_HOOK_ATOMIC_OPEN
 #endif
 
 /* Adjust as appropriate - TALPA_CONFIG_HOOK_DOPS set by configure by default on 2.6.18+
@@ -113,12 +117,19 @@ struct patchedFilesystem
 #endif
 #ifdef TALPA_HOOK_D_OPS
     struct dentry_operations *d_ops;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+    int                     (*d_revalidate)(struct dentry *, unsigned int);
+#else /* < 3.8.0 */
     int                     (*d_revalidate)(struct dentry *, struct nameidata *);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0) */
+#endif /* TALPA_HOOK_D_OPS */
+#ifdef TALPA_HOOK_ATOMIC_OPEN
+    int                     (*atomic_open)(struct inode *, struct dentry *,
+                                           struct file *, unsigned open_flag,
+                                           umode_t create_mode, int *opened);
 #endif
-    bool                    mAlwaysHookLookup;
-    bool                    mCreatePatched;
-    bool                    mIoctlPatched;
     bool                    mHookDOps;
+    bool                    mLookupCreateHooked;
 };
 
 typedef struct tag_VFSHookInterceptor

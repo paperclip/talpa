@@ -483,10 +483,13 @@ out:
 /* This is a original sys_execve with talpa code injected */
 #ifdef TALPA_EXECVE_SUPPORT
   #ifdef CONFIG_X86_64
-static asmlinkage long talpa_execve(char *name, char **argv, char **envp, struct pt_regs regs)
+static asmlinkage long talpa_execve(char __user * name,
+                                    char __user * __user *argv,
+                                    char __user * __user *envp,
+                                    struct pt_regs regs)
 {
     long error;
-    char * filename;
+    TALPA_FILENAME_T * filename;
     struct talpa_syscall_operations* ops;
     #ifdef TALPA_HIDDEN_EXECVE
     long (*talpa_do_execve)(char *filename, char **argv, char **envp, struct pt_regs * regs) = (long (*)(char *filename, char **argv, char **envp, struct pt_regs * regs))TALPA_HIDDEN_EXECVE_ADDRESS;
@@ -511,7 +514,7 @@ static asmlinkage long talpa_execve(char *name, char **argv, char **envp, struct
         }
     }
 
-    error = talpa_do_execve(filename, argv, envp, &regs);
+    error = talpa_do_execve(name, argv, envp, &regs);
     if (error == 0)
     {
         task_lock(current);
@@ -522,7 +525,7 @@ static asmlinkage long talpa_execve(char *name, char **argv, char **envp, struct
     }
 
 out2:
-    putname(filename);
+    talpa_putname(filename);
 out:
     if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
     {
@@ -584,7 +587,7 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
     }
 
 out2:
-    putname(filename);
+    talpa_putname(filename);
 out:
     if ( unlikely( atomic_dec_and_test(&usecnt) != 0 ) )
     {
@@ -601,7 +604,11 @@ out:
 /* This is not a #warning, as some kernels compile modules with -Werror */
 #endif
 
-static asmlinkage long talpa_mount(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data)
+static asmlinkage long talpa_mount(char __user *dev_name,
+                                   char __user *dir_name,
+                                   char __user *type,
+                                   unsigned long flags,
+                                   void __user *data)
 {
     struct talpa_syscall_operations* ops;
     int err, err2;
@@ -636,7 +643,7 @@ out:
     {
         wake_up(&unregister_wait);
     }
-    
+
     prevent_tail_call(err);
     return err;
 }
@@ -726,7 +733,9 @@ static void **ia32_sys_call_table;
    It is confirmed to work on 2.6 (x86, x86_64) and
    patched 2.4 (x86) kernels. */
 
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+static void *lower_bound = 0;
+  #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     #include <linux/kallsyms.h>
 static void *lower_bound = &kernel_thread;
   #else

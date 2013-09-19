@@ -42,7 +42,7 @@ typedef struct tag_LinuxFilesystemInfo
 /*
  * Object Creators.
  */
-LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char* dev_name, char* dir_name, char* type);
+LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, const char* dev_name, const char* dir_name, const char* type);
 
 #endif
 

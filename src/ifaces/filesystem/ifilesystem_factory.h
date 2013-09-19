@@ -33,7 +33,7 @@ typedef struct
     IFileInfo*            (*newFileInfoFromFile)            (const void* self, EFilesystemOperation operation, void* file);
     IFileInfo*            (*newFileInfoFromDirectoryEntry)  (const void* self, EFilesystemOperation operation, void* dentry, void* mnt, int flags, int mode);
     IFileInfo*            (*newFileInfoFromInode)           (const void* self, EFilesystemOperation operation, void* inode, int flags);
-    IFilesystemInfo*      (*newFilesystemInfo)              (const void* self, EFilesystemOperation operation, char* dev_name, char* dir_name, char* type);
+    IFilesystemInfo*      (*newFilesystemInfo)              (const void* self, EFilesystemOperation operation, const char* dev_name, const char* dir_name, const char* type);
     /*
      *  Object supporting this interface instance.
      */

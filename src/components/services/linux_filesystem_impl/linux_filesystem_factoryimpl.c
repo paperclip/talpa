@@ -31,7 +31,7 @@ static IFileInfo* newFileInfoFromFd(const void* self, EFilesystemOperation opera
 static IFileInfo* newFileInfoFromFile(const void* self, EFilesystemOperation operation, void* file);
 static IFileInfo* newFileInfoFromDirectoryEntry(const void* self, EFilesystemOperation operation, void* dentry, void* mnt, int flags, int mode);
 static IFileInfo* newFileInfoFromInode(const void* self, EFilesystemOperation operation, void* inode, int flags);
-static IFilesystemInfo* newFilesystemInfo(const void* self, EFilesystemOperation operation, char* dev_name, char* dir_name, char* type);
+static IFilesystemInfo* newFilesystemInfo(const void* self, EFilesystemOperation operation, const char* dev_name, const char* dir_name, const char* type);
 static void deleteLinuxFilesystemFactoryImpl(struct tag_LinuxFilesystemFactoryImpl* object);
 
 /*
@@ -135,7 +135,7 @@ static IFileInfo* newFileInfoFromInode(const void* self, EFilesystemOperation op
     return (fi != NULL) ? &fi->i_IFileInfo : NULL;
 }
 
-static IFilesystemInfo* newFilesystemInfo(const void* self, EFilesystemOperation operation, char* dev_name, char* dir_name, char* type)
+static IFilesystemInfo* newFilesystemInfo(const void* self, EFilesystemOperation operation, const char* dev_name, const char* dir_name, const char* type)
 {
     LinuxFilesystemInfo*  object;
 

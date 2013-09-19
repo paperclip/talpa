@@ -148,7 +148,7 @@ static char* copyString(const char* string)
 /*
  * Object creation/destruction.
  */
-LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, char* dev_name, char* dir_name, char* type)
+LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, const char* dev_name, const char* dir_name, const char* type)
 {
     LinuxFilesystemInfo* object;
 #ifdef TALPA_HAVE_PATH_LOOKUP
