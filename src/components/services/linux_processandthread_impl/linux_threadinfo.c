@@ -104,7 +104,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
             talpa_free(object);
             return NULL;
         }
-        
+
         object->mPID = proc->tgid;
         object->mTID = proc->pid;
 
@@ -157,6 +157,10 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
         if( unlikely(proc->fs == NULL) )
         {
             critical("proc->fs is NULL \n");
+            if (object->mEnv != NULL)
+            {
+                talpa_free(object->mEnv);
+            }
             talpa_free(object);
             return NULL;
         }

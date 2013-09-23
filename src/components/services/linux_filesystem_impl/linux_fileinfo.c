@@ -33,6 +33,13 @@
 #include "app_ctrl/iportability_app_ctrl.h"
 
 
+
+#if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+# ifndef f_vfsmnt
+#  define f_vfsmnt      f_path.mnt
+# endif
+#endif
+
 /*
 * Forward declare implementation methods.
 */

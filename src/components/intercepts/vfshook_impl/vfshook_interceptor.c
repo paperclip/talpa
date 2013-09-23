@@ -347,6 +347,8 @@ static int talpaRelease(struct inode *inode, struct file *file)
             IFileInfo *pFInfo;
 
             pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
+
+
             /*
              * pFInfo->filename(pFInfo) is likely to be NULL if the file has already been deleted.
              * e.g. temp files.
@@ -357,8 +359,16 @@ static int talpaRelease(struct inode *inode, struct file *file)
             current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
             {
+                if (pFInfo->filename(pFInfo) == NULL)
+                {
+                    err("talpaRelease: filename=NULL: fstype=%s",patch->fstype->name);
+                }
                 GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
                 pFInfo->delete(pFInfo);
+            }
+            else
+            {
+                err("talpaRelease: pFInfo=NULL");
             }
             if ( patch->release )
             {
@@ -1002,6 +1012,9 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
 #endif /* TALPA_HOOK_D_OPS */
 
 #ifdef TALPA_HOOK_ATOMIC_OPEN
+
+#define atomic_open_dbg dbg
+
 static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
                     struct file* file, unsigned open_flag,
                     umode_t create_mode, int *opened)
@@ -1010,8 +1023,10 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
+    bool writable = flags_to_writable(file->f_flags);
 
     hookEntry();
+    atomic_open_dbg("atomic_open start, writable=%d, flags=%x, open_flag=%x",writable,file->f_flags, open_flag);
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
@@ -1026,6 +1041,8 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
 
     if ( likely( patch != NULL ) )
     {
+        atomic_open_dbg("atomic_open found patch");
+
         if (unlikely (patch->atomic_open == NULL) )
         {
             err("Patched atomic_open without saving original value for fs=%s",patch->fstype->name);
@@ -1036,9 +1053,55 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
             resultCode = patch->atomic_open(inode,dentry,file,open_flag,create_mode,opened);
         }
 
+        atomic_open_dbg("atomic_open patch->atomic_open => %d",resultCode);
+        if ( likely( resultCode == 0 && ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
+        {
+            atomic_open_dbg("want to scan file open: writable=%d, flags=%x, open_flag=%x file->f_path=%s",writable,file->f_flags, open_flag, file->f_path.dentry->d_name.name);
+
+            /* First check with the examineInode method */
+            resultCode = GL_object.mTargetProcessor->examineInode(GL_object.mTargetProcessor, EFS_Open, writable, open_flag, kdev_t_to_nr(inode_dev(inode)), inode->i_ino);
+
+            atomic_open_dbg("atomic_open examineInode => %d",resultCode);
+
+            if ( resultCode == -EAGAIN )
+            {
+                critical("atomic_open rescan with file object");
+                resultCode = 0;
+                    //~ pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
+                    //~ if ( unlikely( pFInfo == NULL ) )
+                    //~ {
+                        //~ critical("talpaAtomicOpen - pFInfo is NULL");
+                    //~ }
+                    //~ else if ( unlikely( pFInfo->filename(pFInfo) == NULL ) )
+                    //~ {
+                        //~ critical("talpaAtomicOpen - pFInfo filename is NULL");
+                    //~ }
+                    //~ if ( likely( pFInfo != NULL ) )
+                    //~ {
+                        //~ /* Make sure our open and close attempts while examining will be excluded */
+                        //~ current->flags |= PF_TALPA_INTERNAL;
+                        //~ /* Examine this file */
+                        //~ resultCode = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+                        //~ /* Restore normal process examination */
+                        //~ current->flags &= ~PF_TALPA_INTERNAL;
+                        //~ pFInfo->delete(pFInfo);
+                    //~ }
+            }
+        }
+
+        if (unlikely(patch->f_ops == NULL && dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode)))
+        {
+            int resultCode2 = lockAndRepatchFilesystem(dentry, patch);
+            if (resultCode2 != 0)
+            {
+                resultCode = resultCode2;
+            }
+        }
+
         putPatch(patch);
     }
 
+    err("atomic_open exit %d",resultCode);
     hookExitRv(resultCode);
 }
 #endif /* TALPA_HOOK_ATOMIC_OPEN */
@@ -1581,7 +1644,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             }
             patch->open = spatch->open;
             patch->release = spatch->release;
-            dbg("  storing shared file operations [0x%p][0x%p 0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->atomic_open,patch->fstype->name);
+            dbg("  storing shared file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
         }
         else
         {

@@ -27,6 +27,8 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 
+#include <linux/dcache.h>
+
 #if defined TALPA_VFSMOUNT_LOCK_BRLOCK || defined TALPA_VFSMOUNT_LG_BRLOCK
 #include <linux/lglock.h>
 #endif
@@ -152,8 +154,6 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 #endif
 
 
-
-
 #if defined HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH
     spin_lock(&dcache_lock);
 #endif
@@ -165,6 +165,13 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     pathPath.mnt = vfsmnt;
     rootPath.dentry = root;
     rootPath.mnt = rootmnt;
+#endif
+
+#if defined TALPA_DPATH_PATH
+    if (dentry->d_op && dentry->d_op->d_dname)
+    {
+        return d_path(&pathPath, buffer, buflen);
+    }
 #endif
 
 #   if defined TALPA_DPATH_SLES11
@@ -189,6 +196,24 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     {
         critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
         path = NULL;
+    }
+    else if ( unlikely( NULL == path ) )
+    {
+        critical("talpa__d_path: kernel_d_path returned NULL");
+        if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
+            err("    file deleted");
+        }
+        err("    basename=%s",dentry->d_name.name);
+
+#if defined TALPA_DPATH_PATH
+        path = d_path(&pathPath, buffer, buflen);
+        err("    dpath=%s",path);
+
+        if (dentry->d_op && dentry->d_op->d_dname)
+        {
+            err("    dentry has d_op and d_dname=%p",dentry->d_op->d_dname);
+        }
+#endif
     }
 
     return path;
