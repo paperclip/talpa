@@ -154,7 +154,7 @@ static void **sys_call_table;
    It is confirmed to work on 2.6 (x86, x86_64) and
    patched 2.4 (x86) kernels. */
 
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 static void *lower_bound = 0;
   #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     #include <linux/kallsyms.h>

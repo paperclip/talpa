@@ -63,14 +63,14 @@ typedef struct
     bool            protected;
 } VFSHookObject;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15) && LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15) && LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
  /* Got the struct namei->intent.open.file member */
 #define TALPA_HAVE_INTENT
 #else
 #undef TALPA_HAVE_INTENT
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 # define TALPA_HOOK_ATOMIC_OPEN
 #endif
 
