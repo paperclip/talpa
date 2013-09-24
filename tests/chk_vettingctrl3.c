@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
 
     if ( !rc )
     {
+        /* Child process */
         if ( open(file, O_RDONLY) < 0 )
         {
             return -1;
