@@ -1,5 +1,5 @@
 /*
- * findRegular.h
+ * getPath.h
  *
  * TALPA Filesystem Interceptor
  *
@@ -17,13 +17,13 @@
  *
  */
 
-#define TALPA_SCAN_ON_MOUNT 1
-
-#ifdef TALPA_SCAN_ON_MOUNT
-
 #include <linux/fs.h>
+#include <linux/slab.h>
 
-/* Find a regular file on a given vfsmount. dgets it's dentry. */
-struct dentry *findRegular(struct vfsmount* root);
+#if defined __GFP_NOWARN && defined __GFP_NORETRY
+# define TALPA_MAX_ORDER 3
+#else
+# define TALPA_MAX_ORDER 0
+#endif
 
-#endif /* TALPA_SCAN_ON_MOUNT */
+char* getPath(struct vfsmount* root, char** pathPtr, int* mnt_orderPtr, size_t* path_size);

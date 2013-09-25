@@ -58,8 +58,13 @@
 #include "platforms/linux/list.h"
 
 #include "findRegular.h"
+#include "getPath.h"
 
 #ifdef TALPA_SCAN_ON_MOUNT
+
+#ifndef LOOKUP_NO_AUTOMOUNT
+# define LOOKUP_NO_AUTOMOUNT 0
+#endif
 
 /* Structure which holds info on one entry as we scan the directory tree */
 struct dentryContext
@@ -390,11 +395,7 @@ rescan:
         err = talpa_path_lookup(dc->dirent, 0, &nd);
 #else
         dbg("kern_path on %s", dc->dirent);
-# ifdef LOOKUP_NO_AUTOMOUNT
         err = kern_path(dc->dirent, LOOKUP_NO_AUTOMOUNT, &p);
-# else
-        err = kern_path(dc->dirent, 0, &p);
-# endif
 #endif
 
         if ( err == 0 )
@@ -448,6 +449,7 @@ out:
     return reg;
 }
 
+
 /* Find a regular file on a given vfsmount. dgets it's dentry. */
 struct dentry *findRegular(struct vfsmount* root)
 {
@@ -459,60 +461,22 @@ struct dentry *findRegular(struct vfsmount* root)
     bool overflow;
     char *rootbuf, *buf;
     size_t root_size = 0;
-#if defined __GFP_NOWARN && defined __GFP_NORETRY
-    unsigned int max_order = 3;
-#else
-    unsigned int max_order = 0;
-#endif
-    unsigned int mnt_order, dir_order;
+    unsigned int dir_order;
+    unsigned int mnt_order;
 
 
     /* Allocate storage and build mount point path */
     droot = dget(root->mnt_root);
     mntroot = mntget(root);
-    for (mnt_order = 0; mnt_order <= max_order; mnt_order++)
-    {
-        path = talpa_alloc_path_order(mnt_order, &path_size);
-        /* Fail immediately if allocation failed since chances are low
-           the higher order one will succeed. */
-        if ( !path )
-        {
-            dbg("failed to allocate order %u", mnt_order);
-            goto exit1;
-        }
-        name = talpa_d_path(root->mnt_root, root, path, path_size);
-        if ( IS_ERR(name) )
-        {
-            talpa_free_path_order(path, mnt_order);
-            if ( PTR_ERR(name) == -EOVERFLOW )
-            {
-                /* Try with a larger buffer if there was not enough room for a path */
-                dbg("order %u is insufficient", mnt_order);
-            }
-            else
-            {
-                /* Unexpected failure */
-                dbg("unexpected failure %ld", PTR_ERR(name));
-                goto exit1;
-            }
-        }
-        else
-        {
-            /* Success */
-            dbg("mount point path %s (%u)", name, mnt_order);
-            break;
-        }
-    }
 
-    /* Failed to build mount point path? */
+    name = getPath(root, &path, &mnt_order, &root_size);
     if ( IS_ERR(name) )
     {
-        dbg("max order of %u was insufficient (%ld)", max_order, PTR_ERR(name));
         goto exit1;
     }
 
     /* Now scan the mount point path */
-    for (dir_order = 0; dir_order <= max_order; dir_order++)
+    for (dir_order = 0; dir_order <= TALPA_MAX_ORDER; dir_order++)
     {
         rootbuf = talpa_alloc_path_order(dir_order, &root_size);
         buf = talpa_alloc_path_order(dir_order, &path_size);

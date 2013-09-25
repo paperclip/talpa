@@ -1140,8 +1140,13 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         return 0;
     }
 
+    if (dentry && !dentry->d_inode)
+    {
+        err("dentry without dentry->d_inode");
+    }
+
     /* If we have a regular file prepare for file_operations patching */
-    if ( dentry && S_ISREG(dentry->d_inode->i_mode) )
+    if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
         patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         dbg("  storing original inode operations [0x%p] for %s", patch->i_ops, patch->fstype->name);
