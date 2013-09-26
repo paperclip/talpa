@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
+#include <linux/fs_struct.h>
 
 #include <linux/dcache.h>
 
@@ -298,6 +299,21 @@ void talpa_putname(TALPA_FILENAME_T* filename)
     typedef void(*putname_func)(TALPA_FILENAME_T *);
     putname_func putname = (putname_func)talpa_get_symbol("putname", (void *)TALPA_PUTNAME_ADDRESS);
     putname(filename);
+}
+#endif
+
+#ifndef TALPA_SYSTEM_GET_FS_ROOT_AND_PWD
+void talpa_get_fs_root_and_pwd(
+                struct fs_struct *fs,
+                struct path *root,
+                struct path *pwd)
+{
+    spin_lock(&fs->lock);
+    *root = fs->root;
+    path_get(root);
+    *pwd = fs->pwd;
+    path_get(pwd);
+    spin_unlock(&fs->lock);
 }
 #endif
 

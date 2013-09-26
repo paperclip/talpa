@@ -2314,7 +2314,7 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
                 goto out;
             }
 
-            get_fs_root_and_pwd(current->fs, &root, &pwd);
+            talpa_get_fs_root_and_pwd(current->fs, &root, &pwd);
             cwd = page + PAGE_SIZE;
             buflen = PAGE_SIZE;
             prepend(&cwd, &buflen, "\0", 1);

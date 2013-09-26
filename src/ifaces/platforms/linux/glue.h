@@ -304,6 +304,21 @@ void talpa_putname(TALPA_FILENAME_T* filename);
 # define talpa_putname putname
 #endif
 
+
+/**
+ * Implement our own copy, since kernel 3.12 gets rid of this exported function
+ */
+
+#if  LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0)
+# define TALPA_SYSTEM_GET_FS_ROOT_AND_PWD
+#endif
+
+#ifdef TALPA_SYSTEM_GET_FS_ROOT_AND_PWD
+# define talpa_get_fs_root_and_pwd get_fs_root_and_pwd
+#else
+void talpa_get_fs_root_and_pwd(struct fs_struct *fs, struct path *root, struct path *pwd);
+#endif
+
 #endif
 /*
  * End of linux_glue.h
