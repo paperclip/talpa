@@ -31,7 +31,6 @@ typedef struct
     unsigned long           (*environmentSize)  (const void* self);
     const unsigned char*    (*environment)      (const void* self);
     unsigned long           (*controllingTTY)   (const void* self);
-    bool                    (*atSystemRoot)     (const void* self);
     const char*             (*rootDir)          (const void* self);
     /*
      *  Object supporting this interface instance.

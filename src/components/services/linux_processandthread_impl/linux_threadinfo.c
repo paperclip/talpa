@@ -43,7 +43,6 @@ static pid_t threadId(const void* self);
 static unsigned long environmentSize(const void* self);
 static const unsigned char* environment(const void* self);
 static unsigned long controllingTTY(const void* self);
-static bool atSystemRoot(const void* self);
 static const char* rootDir(const void* self);
 static void deleteLinuxThreadInfo(struct tag_LinuxThreadInfo* object);
 
@@ -60,7 +59,6 @@ static LinuxThreadInfo template_LinuxThreadInfo =
             environmentSize,
             environment,
             controllingTTY,
-            atSystemRoot,
             rootDir,
             NULL,
             (void (*)(const void*))deleteLinuxThreadInfo
@@ -79,6 +77,13 @@ static LinuxThreadInfo template_LinuxThreadInfo =
     };
 #define this    ((LinuxThreadInfo*)self)
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+#define talpa_proc_fs_lock   spin_lock
+#define talpa_proc_fs_unlock spin_unlock
+#else
+#define talpa_proc_fs_lock   read_lock
+#define talpa_proc_fs_unlock read_unlock
+#endif
 
 /*
 * Object creation/destruction.
@@ -100,7 +105,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
         proc = current;
         if( unlikely( proc == NULL ) )
         {
-            critical("proc is NULL \n");
+            critical("proc is NULL");
             talpa_free(object);
             return NULL;
         }
@@ -132,7 +137,24 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
 
         if ( likely(mm != NULL) )
             atomic_inc(&mm->mm_users);
+
+
+        if( unlikely(proc->fs == NULL) )
+        {
+            dbg("proc->fs is NULL for PID=%d",object->mPID);
+            object->mRootMount = NULL;
+            object->mRootDentry = NULL;
+        }
+        else
+        {
+            talpa_proc_fs_lock(&proc->fs->lock);
+            object->mRootMount = mntget(talpa_task_root_mnt(proc));
+            object->mRootDentry = dget(talpa_task_root_dentry(proc));
+            talpa_proc_fs_unlock(&proc->fs->lock);
+        }
+
         task_unlock(proc);
+
         if ( likely(mm != NULL) )
         {
             object->mEnvSize = mm->env_end - mm->env_start;
@@ -153,28 +175,6 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
             atomic_dec(&mm->mm_users);
         }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-        if( unlikely(proc->fs == NULL) )
-        {
-            critical("proc->fs is NULL \n");
-            if (object->mEnv != NULL)
-            {
-                talpa_free(object->mEnv);
-            }
-            talpa_free(object);
-            return NULL;
-        }
-        spin_lock(&proc->fs->lock);
-#else
-        read_lock(&proc->fs->lock);
-#endif
-        object->mRootMount = mntget(talpa_task_root_mnt(proc));
-        object->mRootDentry = dget(talpa_task_root_dentry(proc));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-        spin_unlock(&proc->fs->lock);
-#else
-        read_unlock(&proc->fs->lock);
-#endif
     }
 
     return object;
@@ -186,8 +186,13 @@ static void deleteLinuxThreadInfo(struct tag_LinuxThreadInfo* object)
     {
         talpa_free(object->mEnv);
         talpa_free_path(object->mPath);
-        dput(object->mRootDentry);
-        mntput(object->mRootMount);
+
+        if (object->mRootDentry)
+            dput(object->mRootDentry);
+
+        if (object->mRootMount)
+            mntput(object->mRootMount);
+
         talpa_free(object);
     }
     return;
@@ -228,18 +233,6 @@ static unsigned long controllingTTY(const void* self)
     return this->mTTY;
 }
 
-static bool atSystemRoot(const void* self)
-{
-    ISystemRoot* root = TALPA_Portability()->systemRoot();
-
-    if ( likely( root->directoryEntry(root->object) == this->mRootDentry ) )
-    {
-        return true;
-    }
-
-    return false;
-}
-
 static const char* rootDir(const void* self)
 {
     size_t path_size = 0;
@@ -253,13 +246,32 @@ static const char* rootDir(const void* self)
     this->mPath = talpa_alloc_path(&path_size);
     if ( likely(this->mPath != NULL) )
     {
-        ISystemRoot* root = TALPA_Portability()->systemRoot();
-
-        this->mRootDir = talpa__d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPath, path_size);
-        if (unlikely(this->mRootDir == NULL))
+        if (this->mRootDentry == NULL || this->mRootMount == NULL)
         {
-            critical("threadInfo:rootDir: talpa__d_path returned NULL");
+            strcpy(this->mPath, "/");
         }
+        else
+        {
+            ISystemRoot* root = TALPA_Portability()->systemRoot();
+
+            this->mRootDir = talpa__d_path(this->mRootDentry, this->mRootMount, root->directoryEntry(root->object), root->mountPoint(root->object), this->mPath, path_size);
+            if (unlikely(this->mRootDir == NULL))
+            {
+                critical("threadInfo:rootDir: talpa__d_path returned NULL");
+            }
+        }
+
+        /* Immediately delete the dentry and mount, since we aren't going to need them again */
+        if (this->mRootDentry)
+        {
+            dput(this->mRootDentry); this->mRootDentry = NULL;
+        }
+
+        if (this->mRootMount)
+        {
+            mntput(this->mRootMount); this->mRootMount = NULL;
+        }
+
     }
     else
     {

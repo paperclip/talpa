@@ -732,8 +732,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
             if ( local_filename )
             {
                 /* Use just the process relative part of the filename if the process is
-                    not at the system root. It was intended to call threadInfo->atSystemRoot
-                    here, but rootdir_len > 0 is currently equivalent to that. It used
+                    not at the system root. It used
                     to be rootdir_len > 1 but userspace wants to have a special case. */
                 if ( unlikely( rootdir_len > 0 ) )
                 {
@@ -769,7 +768,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         }
         else
         {
-            dbg("[intercepted %u-%u-%u] Opened readonly", processParentPID(current), current->tgid, current->pid);
+            dbg("[intercepted %u-%u-%u] Opened readonly for op=%d", processParentPID(current), current->tgid, current->pid, operation);
         }
     }
     else
