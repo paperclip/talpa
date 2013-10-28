@@ -539,7 +539,7 @@ out:
 static asmlinkage int talpa_execve(struct pt_regs regs)
 {
     int error;
-    char * filename;
+    TALPA_FILENAME_T * filename;
     struct talpa_syscall_operations* ops;
     #ifdef TALPA_HIDDEN_EXECVE
     int (*talpa_do_execve)(char *filename, char **argv, char **envp, struct pt_regs * regs) = (int (*)(char *filename, char **argv, char **envp, struct pt_regs * regs))TALPA_HIDDEN_EXECVE_ADDRESS;
@@ -569,9 +569,9 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
     }
 
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
-    error = talpa_do_execve(filename, (char **) regs.cx, (char **) regs.dx, &regs);
+    error = talpa_do_execve((char *) regs.bx, (char **) regs.cx, (char **) regs.dx, &regs);
     #else
-    error = talpa_do_execve(filename, (char **) regs.ecx, (char **) regs.edx, &regs);
+    error = talpa_do_execve((char *) regs.ebx, (char **) regs.ecx, (char **) regs.edx, &regs);
     #endif
     if (error == 0)
     {

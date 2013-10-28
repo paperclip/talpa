@@ -47,7 +47,6 @@ check_PROGRAMS +=   chkstdinterceptor \
                     chkinterceptorfilter14 \
                     chkext2mnt \
                     chkext2umnt \
-                    reiserfsmnt \
                     chkext2fops \
                     vc_inclusionproc \
                     chkvc \
@@ -150,7 +149,6 @@ chkinterceptorfilter13_SOURCES = chkinterceptorfilter13.c
 chkinterceptorfilter14_SOURCES = chkinterceptorfilter14.c
 chkext2mnt_SOURCES = chkext2mnt.c
 chkext2umnt_SOURCES = chkext2umnt.c
-reiserfsmnt_SOURCES = reiserfsmnt.c
 chkext2fops_SOURCES = chkext2fops.c
 vc_inclusionproc_SOURCES = vc_inclusionproc.c ../clients/vc-lib.c ../clients/talpa.c
 chkvc_SOURCES = chkvc.c ../clients/vc-lib.c ../clients/talpa.c
@@ -227,6 +225,14 @@ tlp_8_001_SOURCES = tlp-8-001.c ../clients/vc-lib.c ../clients/pe-lib.c ../clien
 tlp_8_002_SOURCES = tlp-8-002.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_8_003_SOURCES = tlp-8-003.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_8_004_SOURCES = tlp-8-004.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+
+if LOADTEST
+
+check_PROGRAMS +=  reiserfsmnt
+
+reiserfsmnt_SOURCES = reiserfsmnt.c
+
+endif
 
 SUBDIRS = modules
 
@@ -361,11 +367,14 @@ TESTS +=                  chk_vettingctrl12.sh \
                           tlp-9-003.sh \
                           tlp-9-004.sh \
                           chkext2mnt.sh \
-                          chkext2umnt.sh \
-                          $(if $(LOADTEST),\
-                            reiserfsmnt.sh \
-                          getsysstats.sh) \
-                          chkext2fops.sh \
+                          chkext2umnt.sh
+
+if LOADTEST
+TESTS +=                  reiserfsmnt.sh \
+                          getsysstats.sh
+endif
+
+TESTS +=                  chkext2fops.sh \
                           vc_inclusionproc.sh \
                           chkvc.sh \
                           chkcacheintcpt.sh \

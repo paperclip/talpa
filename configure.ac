@@ -337,6 +337,17 @@ AC_ARG_ENABLE(securityfs,
                     fi ],
                 [   auto_securityfs=yes])
 
+AC_ARG_ENABLE(loadtest,
+                [  --enable-loadtest            Run load tests [[no]]],
+                [   loadtests="$enableval"
+                    if test "$enableval" = "yes"; then
+                        AM_CONDITIONAL(LOADTEST, test 1 -eq 1)
+                    else
+                        AM_CONDITIONAL(LOADTEST, test 0 -eq 1)
+                    fi ],
+                [   auto_securityfs=yes
+                    AM_CONDITIONAL(LOADTEST, test 0 -eq 1)  ])
+
 AC_ARG_WITH(legacy-configurator,
                 [  --without-legacy-configurator        keep procfs configuration system when securityfs is in use [[enabled]]],
                 [ wantdualfs="$withval" ],
@@ -510,9 +521,6 @@ function check_headers_layout
         fi
     fi
     kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include"`
-    if test -d "${kerneldir}/include/generated/uapi"; then
-        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include/generated/uapi"`
-    fi
     if test -d "${kerneldir}/arch/x86/include/asm"; then
         kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include"`
     fi
@@ -539,6 +547,12 @@ function check_headers_layout
     fi
     if test -d "${sourcedir}/arch/x86/include/asm/mach-default"; then
         kernelhdrspath=`append_path "${kernelhdrspath}" "${sourcedir}/arch/x86/include/asm/mach-default"`
+    fi
+    if test -d "${kerneldir}/include/generated/uapi"; then
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include/generated/uapi"`
+    fi
+    if test -d "${kerneldir}/include/uapi"; then
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include/uapi"`
     fi
     AC_MSG_RESULT([$kernelhdrspath])
 }
@@ -603,6 +617,7 @@ AC_MSG_CHECKING([for compilation environment])
 if test "$auto_warnings" = "yes"; then
     if ! ${CC} ${kernccflags} -Werror TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/kernelheaders.c -o /dev/null 1>/dev/null 2>&1; then
         if ! ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/kernelheaders.c -o /dev/null; then
+            echo ${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/kernelheaders.c -o /dev/null
             AC_MSG_ERROR([unable to compile test programs])
         else
             AC_MSG_RESULT([warnings as errors turned off])
