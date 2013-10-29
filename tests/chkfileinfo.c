@@ -23,6 +23,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mount.h>
+#include <linux/magic.h>
+#include <sys/vfs.h>
 
 #include "tlp-test.h"
 #include "modules/tlp-test.h"
@@ -35,10 +37,11 @@ int main(int argc, char *argv[])
     int fd;
     struct talpa_file tf;
     int ret;
-    struct stat fstat;
+    struct statfs statfsBuf;
     int major;
     int minor;
     int filefd;
+    int ignoreMajorMinor = 0;
 
 
     if ( argc == 3 )
@@ -51,6 +54,17 @@ int main(int argc, char *argv[])
         strcpy(file,"/bin/bash");
         operation = 1;
     }
+
+#ifdef BTRFS_SUPER_MAGIC
+    ret = statfs(file,&statfsBuf);
+    if (ret == 0)
+    {
+        if (statfsBuf.f_type == BTRFS_SUPER_MAGIC)
+        {
+            ignoreMajorMinor = 1;
+        }
+    }
+#endif
 
     fd = open("/dev/talpa-test",O_RDWR,0);
 
@@ -72,17 +86,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    ret = stat(file, &fstat);
-    if ( ret < 0 )
-    {
-        fprintf(stderr,"STAT error!\n");
-        close(fd);
-        return 1;
-    }
-
-    major = major(fstat.st_dev);
-    minor = minor(fstat.st_dev);
-
     if ( strcmp(file,tf.name) )
     {
         fprintf(stderr,"Filename mismatch! %s != %s\n",file, tf.name);
@@ -97,18 +100,35 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if ( major != tf.major )
-    {
-        fprintf(stderr,"Major mismatch! %d != %d\n",major, tf.major);
-        close(fd);
-        return 1;
-    }
 
-    if ( minor != tf.minor )
+    if (!ignoreMajorMinor)
     {
-        fprintf(stderr,"Minor mismatch! %d != %d\n",minor, tf.minor);
-        close(fd);
-        return 1;
+        struct stat fstat;
+
+        ret = stat(file, &fstat);
+        if ( ret < 0 )
+        {
+            fprintf(stderr,"STAT error!\n");
+            close(fd);
+            return 1;
+        }
+
+        major = major(fstat.st_dev);
+        minor = minor(fstat.st_dev);
+
+        if ( major != tf.major )
+        {
+            fprintf(stderr,"Major mismatch! %d != %d\n",major, tf.major);
+            close(fd);
+            return 1;
+        }
+
+        if ( minor != tf.minor )
+        {
+            fprintf(stderr,"Minor mismatch! %d != %d\n",minor, tf.minor);
+            close(fd);
+            return 1;
+        }
     }
 
     filefd = open(file,O_RDONLY);
@@ -146,18 +166,21 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if ( major != tf.major )
+    if (!ignoreMajorMinor)
     {
-        fprintf(stderr,"FD Major mismatch! %d != %d\n",major, tf.major);
-        close(fd);
-        return 1;
-    }
+        if ( major != tf.major )
+        {
+            fprintf(stderr,"FD Major mismatch! %d != %d\n",major, tf.major);
+            close(fd);
+            return 1;
+        }
 
-    if ( minor != tf.minor )
-    {
-        fprintf(stderr,"FD Minor mismatch! %d != %d\n",minor, tf.minor);
-        close(fd);
-        return 1;
+        if ( minor != tf.minor )
+        {
+            fprintf(stderr,"FD Minor mismatch! %d != %d\n",minor, tf.minor);
+            close(fd);
+            return 1;
+        }
     }
 
     close(fd);
