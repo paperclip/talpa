@@ -2088,19 +2088,23 @@ static int  talpaDummyExecve(const TALPA_FILENAME_T* name)
 
 static int talpa_copy_mount_string(const void __user *data, char **where)
 {
-	char *tmp;
+    char *tmp;
 
-	if (!data) {
-		*where = NULL;
-		return 0;
-	}
+    if (!data) {
+        *where = NULL;
+        return 0;
+    }
 
-	tmp = strndup_user(data, PAGE_SIZE);
-	if (IS_ERR(tmp))
-		return PTR_ERR(tmp);
+#ifdef TALPA_HAS_STRNDUP_USER
+    tmp = strndup_user(data, PAGE_SIZE);
+#else
+    tmp = getname(data);
+#endif
+    if (IS_ERR(tmp))
+        return PTR_ERR(tmp);
 
-	*where = tmp;
-	return 0;
+    *where = tmp;
+    return 0;
 }
 
 static long talpaPreMount(char __user * dev_name, char __user * dir_name, char __user * type, unsigned long flags, void* data)
