@@ -15,6 +15,8 @@
  *
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -23,7 +25,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mount.h>
+
+#ifdef HAVE_LINUXMAGIC
 #include <linux/magic.h>
+#endif
+
 #include <sys/vfs.h>
 
 #include "tlp-test.h"

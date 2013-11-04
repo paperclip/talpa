@@ -567,6 +567,16 @@ fi
 #
 TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
 
+TALPA_LOCATE_HEADER(linux/magic.h, $kernelhdrspath, linuxmagicfound=yes, linuxmagicfound=no)
+AC_MSG_RESULT([$linuxmagicfound - $TALPA_HEADER_LOCATION])
+if test "$linuxmagicfound" = "yes" ; then
+    linux_magic_include="-I$TALPA_HEADER_LOCATION"
+    AC_DEFINE([HAVE_LINUXMAGIC],1,[Defined when we have linux/magic.h])
+else
+    linux_magic_include=""
+fi
+AC_SUBST(linux_magic_include, "$linux_magic_include")
+
 AC_MSG_CHECKING([for kernel configuration])
 TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
 if test "$autoconffound" = "yes"; then
@@ -1799,7 +1809,9 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@putname@/${putname}/; \
-                s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
+                s/@builddualfs@/${builddualfs}/; \
+                s/@linux_magic_include@/${linux_magic_include}/; \
+                s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
     AC_SUBST(ko,o)
