@@ -371,7 +371,11 @@ static int talpa_copy_mount_string(const void __user *data, char **where)
 		return 0;
 	}
 
+#ifdef TALPA_HAS_STRNDUP_USER
 	tmp = strndup_user(data, PAGE_SIZE);
+#else
+    tmp = getname(data);
+#endif
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 

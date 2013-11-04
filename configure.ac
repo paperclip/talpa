@@ -666,6 +666,7 @@ AC_MSG_RESULT([${kern_version_code}])
 ## 3.0.0  == 196608     0x030000
 ## 3.3.0  == 197376     0x030300
 ## 3.5.0  == 197888     0x030500
+## 3.7.0  == 198400     0x030700
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
 TALPA_LOCATE_HEADER($utsrelease_h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
@@ -866,6 +867,15 @@ if test $((kern_version_code)) -lt 132106; then
     else
         AC_MSG_RESULT([not present])
     fi
+fi
+TALPA_LOCATE_HEADER(linux/string.h, $kernelhdrspath)
+AC_MSG_CHECKING([for strndup_user])
+${EGREP} strndup_user $TALPA_HEADER_LOCATION/linux/string.h >/dev/null 2>&1
+if test $? -eq 0; then
+    AC_MSG_RESULT([present])
+    AC_SUBST(strdupuser,"-DTALPA_HAS_STRNDUP_USER")
+else
+    AC_MSG_RESULT([not present])
 fi
 
 # Check for tasklist_lock export
@@ -1711,7 +1721,11 @@ if test $((kern_version_code)) -ge 132608; then
                 AC_MSG_RESULT([not available; final_putname present but not exported])
                 AC_SUBST(putname, "-DTALPA_FINAL_PUTNAME_SYMBOL -DTALPA_PUTNAME_ADDRESS=0x$final_putname_addr")
             else
-                AC_MSG_ERROR([putname not available])
+                if test $((kern_version_code)) -lt 198400; then ## 3.7
+                    AC_SUBST(putname, "-DTALPA_PUTNAME_DEFINE  -DTALPA_PUTNAME_EXPORTED")
+                else
+                    AC_MSG_ERROR([putname not available])
+                fi
             fi
         fi
     fi
@@ -1762,6 +1776,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@buildsymbolver@/${buildsymbolver}/; \
                 s/@putname@/${putname}/; \
+                s/@strdupuser@/${strdupuser}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -1809,6 +1824,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@putname@/${putname}/; \
+                s/@strdupuser@/${strdupuser}/; \
                 s/@builddualfs@/${builddualfs}/; \
                 s!@linuxmagicinclude@!${linuxmagicinclude}!; \
                 s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
