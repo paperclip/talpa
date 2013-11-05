@@ -37,6 +37,9 @@
 #include "platforms/linux/glue.h"
 #include "platforms/linux/log.h"
 
+#if defined(TALPA_DPATH_PATH) && LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#define TALPA_D_DNAME_DIRECT_DPATH
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) && (!defined TALPA_HAS_DPATH)
 /**
@@ -168,7 +171,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     rootPath.mnt = rootmnt;
 #endif
 
-#if defined TALPA_DPATH_PATH
+#if defined TALPA_D_DNAME_DIRECT_DPATH
     if (dentry->d_op && dentry->d_op->d_dname)
     {
         return d_path(&pathPath, buffer, buflen);
@@ -200,13 +203,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     }
     else if ( unlikely( NULL == path ) )
     {
-        critical("talpa__d_path: kernel_d_path returned NULL");
-        if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
-            err("    file deleted");
-        }
-        err("    basename=%s",dentry->d_name.name);
-
-#if defined TALPA_DPATH_PATH
+#ifdef TALPA_D_DNAME_DIRECT_DPATH
         path = d_path(&pathPath, buffer, buflen);
         err("    dpath=%s",path);
 
@@ -215,6 +212,19 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
             err("    dentry has d_op and d_dname=%p",dentry->d_op->d_dname);
         }
 #endif
+        if ( NULL == path )
+        {
+            critical("talpa__d_path: kernel_d_path returned NULL");
+            if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
+                err("    file deleted");
+            }
+            err("    basename=%s",dentry->d_name.name);
+        }
+        else
+        {
+            info("    talpa__d_path: kernel_d_path returned NULL but d_path returned path");
+        }
+
     }
 
     return path;
