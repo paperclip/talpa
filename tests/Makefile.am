@@ -50,6 +50,7 @@ check_PROGRAMS +=   chkstdinterceptor \
                     chkext2fops \
                     vc_inclusionproc \
                     chkvc \
+                    chkvc_timeout \
                     chkcacheintcpt \
                     chkinclusionioctl \
                     chkinclusionioctl1 \
@@ -152,6 +153,7 @@ chkext2umnt_SOURCES = chkext2umnt.c
 chkext2fops_SOURCES = chkext2fops.c
 vc_inclusionproc_SOURCES = vc_inclusionproc.c ../clients/vc-lib.c ../clients/talpa.c
 chkvc_SOURCES = chkvc.c ../clients/vc-lib.c ../clients/talpa.c
+chkvc_timeout_SOURCES = chkvc_timeout.c ../clients/vc-lib.c ../clients/talpa.c
 chkcacheintcpt_SOURCES = chkcacheintcpt.c ../clients/vc-lib.c ../clients/talpa.c
 chkinclusionioctl_SOURCES = chkinclusionioctl.c
 chkinclusionioctl1_SOURCES = chkinclusionioctl1.c
@@ -377,6 +379,7 @@ endif
 TESTS +=                  chkext2fops.sh \
                           vc_inclusionproc.sh \
                           chkvc.sh \
+                          chkvc_timeout.sh \
                           chkcacheintcpt.sh \
                           chkminix.sh \
                           chkminix1.sh \

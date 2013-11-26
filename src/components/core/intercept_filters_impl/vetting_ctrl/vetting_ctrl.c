@@ -513,6 +513,7 @@ static inline void waitVettingResponse(const void* self, VettingGroup* group, Ve
         }
     } while (true); /* We are sleeping until success or error breaks the loop */
 
+    atomic_set(&details->clientGone, 1);
     return;
 }
 
@@ -664,6 +665,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
     init_waitqueue_head(&details->interceptedWaitQueue);
     talpa_init_completion(&details->reopenCompletion);
     atomic_set(&details->reopen, 0);
+    atomic_set(&details->clientGone, 0);
     details->externalOperation = false;
     details->lastActivity = jiffies;
     details->report = report;
@@ -2058,6 +2060,12 @@ static inline void streamMaybeReopenWritable(VettingDetails* job)
 {
     if ( !job->file->isWritable(job->file->object) )
     {
+        if ( unlikely(atomic_read(&job->clientGone) == 1) )
+        {
+            dbg("request has gone away - not reopening writable!");
+            return;
+        }
+
         dbg("file not writable, will request reopen");
         atomic_set(&job->reopen, 1);
         wake_up(&job->interceptedWaitQueue);

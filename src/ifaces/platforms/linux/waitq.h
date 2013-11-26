@@ -408,7 +408,17 @@ static inline void talpa_complete(struct talpa_completion *c)
 
 #define talpa_completion            completion
 #define talpa_init_completion       init_completion
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
 #define talpa_wait_for_completion   wait_for_completion
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
+#define talpa_wait_for_completion           wait_for_completion_interruptible
+#define talpa_wait_for_completion_timeout   wait_for_completion_interruptible_timeout
+#else
+#define talpa_wait_for_completion           wait_for_completion_killable
+#define talpa_wait_for_completion_timeout   wait_for_completion_killable_timeout
+#endif
+
 #define talpa_complete              complete
 
 #endif /* < 2.4.6 (completion) */

@@ -76,6 +76,10 @@ typedef struct
 
     /* Stream server support */
     IFile*                              file;
+
+    /** The call to waitVettingResponse has finished so don't expect a response */
+    atomic_t                            clientGone;
+
     atomic_t                            reopen;
     struct talpa_completion             reopenCompletion;
     bool                                externalOperation;
