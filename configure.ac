@@ -291,6 +291,16 @@ AC_ARG_ENABLE(x-workaround,
 
                 ])
 
+AC_ARG_ENABLE(struct-filename,
+              [  --enable-struct-filename         putname and getname deal with struct filename rather than char* [[autodetected]]],
+                [   if test "$enableval" = "yes"; then
+                        AC_SUBST(structfilename,"-DTALPA_HAS_STRUCT_FILENAME")
+                    fi
+                    auto_struct_filename=no
+                ],
+                [   auto_struct_filename=yes
+                ])
+
 AC_ARG_WITH(stacker,
               [  --with-stacker                       should additional and unsupported LSM stacking module be built [[no]]],
               [ buildstacker=$withval
@@ -1590,6 +1600,35 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    AC_MSG_CHECKING([for struct filename])
+    if test "$auto_struct_filename" == "yes"
+    then
+        TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, , , [quiet])
+        if ${EGREP} "struct filename" $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
+        then
+            AC_SUBST(structfilename,"-DTALPA_HAS_STRUCT_FILENAME")
+            AC_MSG_RESULT([present])
+        else
+            AC_MSG_RESULT([not present])
+        fi
+    else
+        if test "$structfilename" = "-DTALPA_HAS_STRUCT_FILENAME"; then
+            AC_MSG_RESULT([forced])
+        else
+            AC_MSG_RESULT([disabled])
+        fi
+    fi
+
+    AC_MSG_CHECKING([for correct getname])
+    echo ${CC} ${kernccflags} $structfilename -Werror TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/structfilename.c
+    ${CC} -c ${kernccflags} $structfilename -Werror TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/structfilename.c
+    if test $? -eq 0
+    then
+        AC_MSG_RESULT([passed])
+    else
+        AC_MSG_ERROR([failed])
+    fi
+
     # Check whether to use securityfs
     AC_MSG_CHECKING([for securityfs support])
     if test "$auto_securityfs" = "yes"; then
@@ -1759,6 +1798,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@hidden@/${hidden}/; \
                 s/@execve@/${execve}/; \
                 s/@xhack@/${xhack}/; \
+                s/@structfilename@/${structfilename}/; \
                 s/@hrtimers@/${hrtimers}/; \
                 s/@hookdops@/${hookdops}/; \
                 s/@imapathcheck@/${imapathcheck}/; \
@@ -1808,6 +1848,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@hidden@/${hidden}/; \
                 s/@execve@/${execve}/; \
                 s/@xhack@/${xhack}/; \
+                s/@structfilename@/${structfilename}/; \
                 s/@hrtimers@/${hrtimers}/; \
                 s/@hookdops@/${hookdops}/; \
                 s/@imapathcheck@/${imapathcheck}/; \

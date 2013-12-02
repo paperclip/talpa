@@ -283,19 +283,19 @@ static __inline const void* talpa_get_symbol(const char* name, const void* ptr)
 }
 #endif
 
-#if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#ifdef TALPA_HAS_STRUCT_FILENAME
 #define TALPA_FILENAME_T struct filename
 static __inline const char* getCStr(const TALPA_FILENAME_T* filenameObj)
 {
     return filenameObj->name;
 }
-#else /* LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0) */
+#else /* ! TALPA_HAS_STRUCT_FILENAME */
 #define TALPA_FILENAME_T char
 static __inline const char* getCStr(const TALPA_FILENAME_T* filenameObj)
 {
     return filenameObj;
 }
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) */
+#endif /* TALPA_HAS_STRUCT_FILENAME */
 
 
 #ifndef TALPA_PUTNAME_EXPORTED
