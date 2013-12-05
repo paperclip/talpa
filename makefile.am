@@ -137,10 +137,16 @@ dist-hook:
 interface.spec : include/talpa-processexclusion.h include/talpa-vettingclient.h
 	sha1sum $^ | sed -e"s/  / /" >$@
 
-talpa-srcpack.tar.gz : distdir interface.spec
+manifest.spec : distdir
+	( cd $(distdir) && find * -type f | sort | xargs sha1sum | sed -e"s/  / /" ) >$@
+
+source.spec : distdir
+	( cd $(distdir) && find include src -type f | sort | xargs sha1sum | sed -e"s/  / /" ) >$@
+
+manifest.sig : manifest.spec
 	echo "" >manifest.sig
-	echo "" >manifest.spec
-	echo "" >source.spec
+
+talpa-srcpack.tar.gz : distdir interface.spec manifest.spec source.spec manifest.sig
 	tar cf - $(distdir) manifest.sig manifest.spec source.spec interface.spec | GZIP=$(GZIP_ENV) gzip -c >$@
 
 exampleclients:
