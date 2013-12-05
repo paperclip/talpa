@@ -1,5 +1,6 @@
 
-#include <linux/autoconf.h>
+/* Build by configure */
+#include "autoconf.h"
 #include <asm-generic/fcntl.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>
