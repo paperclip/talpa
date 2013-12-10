@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.93)
+AC_INIT(talpa, 0.9.94)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2013 Sophos Limited)
 
@@ -822,7 +822,7 @@ if test $? -eq 0; then
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_2")
     AC_MSG_RESULT([type 2])
 fi
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate3.c
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate3.c  -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_3")

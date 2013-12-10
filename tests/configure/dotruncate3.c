@@ -18,6 +18,10 @@ typedef unsigned long   __kernel_ulong_t;
 #endif
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+#include <linux/kconfig.h>
+#endif
+
 #include <linux/fs.h>
 
 /* do_truncate(struct dentry*, loff_t, unsigned int, struct file*) */

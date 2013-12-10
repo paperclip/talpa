@@ -620,6 +620,8 @@ static int unlink(void* self)
     mntput(this->mFile->f_vfsmnt);
 #elif defined TALPA_VFSUNLINK_VSERVER
     error = vfs_unlink(parenti, filed, NULL);
+#elif defined TALPA_VFSUNLINK_DELEGATE
+    error = vfs_unlink(parenti, filed, NULL);
 #else
     error = vfs_unlink(parenti, filed);
 #endif

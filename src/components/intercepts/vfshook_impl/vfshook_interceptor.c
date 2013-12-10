@@ -2198,8 +2198,10 @@ static int prepend_path(const struct path *path,
     struct vfsmount *vfsmnt = path->mnt;
     bool slash = false;
     int error = 0;
+    unsigned m_seq = 1;
 
-    talpa_vfsmount_lock();
+restart_mnt:
+    talpa_vfsmount_lock(&m_seq);
     while (dentry != root->dentry || vfsmnt != root->mnt) {
         struct dentry * parent;
 
@@ -2230,7 +2232,10 @@ static int prepend_path(const struct path *path,
         error = prepend(buffer, buflen, "/", 1);
 
 out:
-    talpa_vfsmount_unlock();
+    if (talpa_vfsmount_unlock(&m_seq))
+    {
+        goto restart_mnt;
+    }
     return error;
 
 global_root:

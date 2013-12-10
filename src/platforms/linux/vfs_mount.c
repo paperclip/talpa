@@ -19,6 +19,9 @@ struct talpa_mnt_pcp {
 	struct talpa_replacement_mount_struct *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
+ # if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+    struct rcu_head mnt_rcu;
+ # endif
  #ifdef CONFIG_SMP
 	struct talpa_mnt_pcp __percpu *mnt_pcp;
  #else /* ! CONFIG_SMP */
@@ -113,6 +116,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
     struct vfsmount *mnt, *nextmnt, *prevmnt;
     struct list_head *nexthead = NULL;
     int ret;
+    unsigned m_seq = 1;
 
 
     mnt = mntget(root); /* Extra reference count for the loop */
@@ -126,7 +130,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
             break;
         }
 
-        talpa_vfsmount_lock(); /* locks dcache_lock on 2.4 */
+        talpa_vfsmount_lock(&m_seq); /* locks dcache_lock on 2.4 */
 
         /* Go down the tree for a child if there is one */
         if ( !list_empty(&mnt->mnt_mounts) )
@@ -152,7 +156,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
             /* Abort if we are at the root */
             if ( nextmnt == getParent(nextmnt) )
             {
-                talpa_vfsmount_unlock(); /* unlocks dcache_lock on 2.4 */
+                talpa_vfsmount_unlock(&m_seq); /* unlocks dcache_lock on 2.4 */
                 mntput(mnt);
                 break;
             }
@@ -164,7 +168,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
         mntget(nextmnt);
         prevmnt = mnt;
         mnt = nextmnt;
-        talpa_vfsmount_unlock(); /* unlocks dcache_lock on 2.4 */
+        talpa_vfsmount_unlock(&m_seq); /* unlocks dcache_lock on 2.4 */
         mntput(prevmnt);
     } while (mnt);
 
@@ -178,6 +182,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
     struct talpa_replacement_mount_struct *mnt, *nextmnt, *prevmnt;
     struct list_head *nexthead = NULL;
     int ret;
+    unsigned m_seq = 1;
 
 
     mnt = real_mount(root);
@@ -194,7 +199,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
             break;
         }
 
-        talpa_vfsmount_lock(); /* locks dcache_lock on 2.4 */
+        talpa_vfsmount_lock(&m_seq); /* locks dcache_lock on 2.4 */
 
         /* Go down the tree for a child if there is one */
         if ( !list_empty(&mnt->mnt_mounts) )
@@ -220,7 +225,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
             /* Abort if we are at the root */
             if ( nextmnt == nextmnt->mnt_parent )
             {
-                talpa_vfsmount_unlock(); /* unlocks dcache_lock on 2.4 */
+                talpa_vfsmount_unlock(&m_seq); /* unlocks dcache_lock on 2.4 */
                 mntput(&mnt->mnt);
                 break;
             }
@@ -232,7 +237,7 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
         mntget(&nextmnt->mnt);
         prevmnt = mnt;
         mnt = nextmnt;
-        talpa_vfsmount_unlock(); /* unlocks dcache_lock on 2.4 */
+        talpa_vfsmount_unlock(&m_seq); /* unlocks dcache_lock on 2.4 */
         mntput(&prevmnt->mnt);
     } while (mnt);
 

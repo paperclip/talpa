@@ -66,6 +66,7 @@ static LinuxSystemRoot template_LinuxSystemRoot =
 LinuxSystemRoot* newLinuxSystemRoot(void)
 {
     LinuxSystemRoot* object;
+    unsigned m_seq = 0;
 
 
     object = talpa_alloc(sizeof(template_LinuxSystemRoot));
@@ -116,11 +117,16 @@ LinuxSystemRoot* newLinuxSystemRoot(void)
                 write_lock(&init_fs->lock);
 #endif
 
-                talpa_vfsmount_lock(); // locks dcache_lock on 2.4
+
+restart_mnt:
+                talpa_vfsmount_lock(&m_seq); // locks dcache_lock on 2.4
                 for (rootmnt = talpa_fs_mnt(init_fs); rootmnt != getParent(rootmnt); rootmnt = getParent(rootmnt));
                 object->mMnt = mntget(rootmnt);
                 object->mDentry = dget(rootmnt->mnt_root);
-                talpa_vfsmount_unlock(); // unlocks dcache_lock on 2.4
+                if (talpa_vfsmount_unlock(&m_seq)) // unlocks dcache_lock on 2.4
+                {
+                    goto restart_mnt;
+                }
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
                 init_fs->users--;
   #else
