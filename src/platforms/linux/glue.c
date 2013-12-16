@@ -260,7 +260,7 @@ DECLARE_BRLOCK(vfsmount_lock);
 /*
  * hidden vfsmnt_lock handling
  */
-void talpa_vfsmount_lock(void)
+void talpa_vfsmount_lock(unsigned* m_seq)
 {
 #if defined TALPA_USE_VFSMOUNT_LOCK
 #   if defined TALPA_VFSMOUNT_LG_BRLOCK
@@ -272,6 +272,9 @@ void talpa_vfsmount_lock(void)
 
     spin_lock(talpa_vfsmount_lock_addr);
 #   endif
+#elif defined TALPA_USE_MOUNT_LOCK
+    seqlock_t* mount_lock_addr = (seqlock_t *)talpa_get_symbol("mount_lock", (void *)TALPA_MOUNT_LOCK_ADDR);
+    read_seqbegin_or_lock(mount_lock_addr,m_seq);
 #else
     // On 2.4 we don't have vfsmount_lock - we use dcache_lock instead
     spin_lock(&dcache_lock);
@@ -279,9 +282,8 @@ void talpa_vfsmount_lock(void)
 
 }
 
-void talpa_vfsmount_unlock(void)
+bool talpa_vfsmount_unlock(unsigned* m_seq)
 {
-
 #if defined  TALPA_USE_VFSMOUNT_LOCK
 #   if defined TALPA_VFSMOUNT_LG_BRLOCK
     br_read_unlock(&vfsmount_lock);
@@ -293,11 +295,18 @@ void talpa_vfsmount_unlock(void)
 
     spin_unlock(talpa_vfsmount_lock_addr);
 #   endif
+#elif defined TALPA_USE_MOUNT_LOCK
+    seqlock_t* mount_lock_addr = (seqlock_t *)talpa_get_symbol("mount_lock", (void *)TALPA_MOUNT_LOCK_ADDR);
+    if (need_seqretry(mount_lock_addr, *m_seq)) {
+       *m_seq = 1;
+       return true;
+    }
+    done_seqretry(mount_lock_addr, *m_seq);
 #else
     // On 2.4 we don't have vfsmount_lock - we use dcache_lock instead
     spin_unlock(&dcache_lock);
 #endif
-
+    return false;
 }
 
 #ifndef TALPA_PUTNAME_EXPORTED

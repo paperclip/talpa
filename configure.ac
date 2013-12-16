@@ -19,7 +19,7 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.93)
+AC_INIT(talpa, 0.9.94)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2013 Sophos Limited)
 
@@ -587,6 +587,16 @@ else
 fi
 AC_SUBST(linuxmagicinclude, "$linuxmagicinclude")
 
+TALPA_LOCATE_HEADER(linux/compiler.h, $kernelhdrspath, linuxcompilerfound=yes, linuxcompilerfound=no)
+AC_MSG_RESULT([$linuxcompilerfound - $TALPA_HEADER_LOCATION])
+if test "$linuxcompilerfound" = "yes" ; then
+    linuxcompilerinclude="-I$TALPA_HEADER_LOCATION"
+    AC_DEFINE([HAVE_LINUXCOMPILER],1,[Defined when we have linux/compiler.h])
+else
+    linuxcompilerinclude=""
+fi
+AC_SUBST(linuxcompilerinclude, "$linuxcompilerinclude")
+
 AC_MSG_CHECKING([for kernel configuration])
 TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
 if test "$autoconffound" = "yes"; then
@@ -800,31 +810,31 @@ fi
 TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
 AC_MSG_CHECKING([for do_truncate type])
 let hitcnt=0
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate1.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate1.c  -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_1")
     AC_MSG_RESULT([type 1])
 fi
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate2.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate2.c  -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_2")
     AC_MSG_RESULT([type 2])
 fi
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate3.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncate3.c  -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_3")
     AC_MSG_RESULT([type 3])
 fi
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncaterh4.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncaterh4.c  -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_RH4")
     AC_MSG_RESULT([type rh4])
 fi
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncatesuse103.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/dotruncatesuse103.c  -o /dev/null 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(dotruncatetype, "-DTALPA_DOTRUNCATE_SUSE103")
@@ -841,7 +851,13 @@ fi
 TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath)
 AC_MSG_CHECKING([for vfs_unlink type])
 let hitcnt=0
-${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/unlink.c -o /dev/null 1>/dev/null 2>&1
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/unlink_delegate.c 1>/dev/null 2>&1
+if test $? -eq 0; then
+    let hitcnt=$hitcnt+1
+    AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_DELEGATE")
+    AC_MSG_RESULT([with inode])
+fi
+${CC} ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure -c ${srcdir}/tests/configure/unlink.c 1>/dev/null 2>&1
 if test $? -eq 0; then
     let hitcnt=$hitcnt+1
     AC_SUBST(vfsunlink, "-DTALPA_VFSUNLINK_STANDARD")
@@ -1091,6 +1107,7 @@ if test $((kern_version_code)) -ge 132608; then
     AC_MSG_CHECKING([for vfsmount and br lock])
     vfsmount_lock_lock=`${EGREP} "[[VDd]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
 	lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+	mount_lock=`${EGREP} " mount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
 
 	if test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" == ""  ; then
 		AC_MSG_RESULT([vfsmount lock is BRLOCK])
@@ -1098,6 +1115,9 @@ if test $((kern_version_code)) -ge 132608; then
 	elif test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" != ""  ; then
 		AC_MSG_RESULT([vfsmount lock is LG_BRLOCK])
 		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LG_BRLOCK")
+    elif test x"$mount_lock" != x"" ; then
+		AC_MSG_RESULT([vfsmount lock is mount_lock seqlock])
+        AC_SUBST(vfsmntlock, "-DTALPA_USE_MOUNT_LOCK -DTALPA_MOUNT_LOCK_ADDR=0x$mount_lock")
  	elif test x"$vfsmount_lock_lock" == x"" ; then
 		AC_MSG_RESULT([vfsmount lock is spinlock])
 		# Find vfsmnt_lock address
@@ -1868,6 +1888,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@strdupuser@/${strdupuser}/; \
                 s/@builddualfs@/${builddualfs}/; \
                 s!@linuxmagicinclude@!${linuxmagicinclude}!; \
+                s!@linuxcompilerinclude@!${linuxcompilerinclude}!; \
                 s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])

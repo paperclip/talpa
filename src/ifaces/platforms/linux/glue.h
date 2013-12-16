@@ -215,8 +215,8 @@ static inline void talpa_tasklist_unlock(void)
 /*
  * hidden vfsmnt_lock handling
  */
-void talpa_vfsmount_lock(void);
-void talpa_vfsmount_unlock(void);
+void talpa_vfsmount_lock(unsigned* m_seq);
+bool talpa_vfsmount_unlock(unsigned* m_seq);
 
 /* various helpers */
 #define flags_to_writable(f)   ((f)&(O_WRONLY|O_RDWR|O_APPEND|O_CREAT|O_TRUNC)?true:false)

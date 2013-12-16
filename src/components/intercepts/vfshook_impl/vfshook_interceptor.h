@@ -81,6 +81,10 @@ typedef struct
 #define TALPA_HOOK_D_OPS
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+# define TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+#endif
+
 struct patchedFilesystem
 {
     talpa_list_head         head;
@@ -127,6 +131,9 @@ struct patchedFilesystem
     int                     (*atomic_open)(struct inode *, struct dentry *,
                                            struct file *, unsigned open_flag,
                                            umode_t create_mode, int *opened);
+#endif
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+    int                     (*flush)(struct file *,fl_owner_t);
 #endif
     bool                    mHookDOps;
     bool                    mLookupCreateHooked;

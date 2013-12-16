@@ -1,5 +1,7 @@
+#ifndef KBUILD_BASENAME
+#define KBUILD_BASENAME "#unlinktest"
+#endif
 
-/* Build by configure */
 #include "autoconf.h"
 
 #include <linux/version.h>
@@ -20,21 +22,12 @@ typedef unsigned long   __kernel_ulong_t;
 #include <linux/kconfig.h>
 #endif
 
-#include <asm-generic/fcntl.h>
-#include <linux/fcntl.h>
 #include <linux/fs.h>
 
-#ifdef TALPA_HAS_STRUCT_FILENAME
-#define TALPA_FILENAME_T struct filename
-#else /* ! TALPA_HAS_STRUCT_FILENAME */
-#define TALPA_FILENAME_T char
-#endif /* TALPA_HAS_STRUCT_FILENAME */
-
-void testfunc();
-
-// Deliberately not called
-void testfunc()
+int main()
 {
-    char* x = "A";
-    TALPA_FILENAME_T* y = getname(x);
+    struct dentry *dentry = NULL;
+    struct inode *inode = NULL;
+
+    return vfs_unlink(inode, dentry, &inode);
 }
