@@ -318,7 +318,9 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
     {
        struct path path = { mnt,dentry };
+       path_get(&path);
        file = dentry_open (&path,flags,current_cred());
+       path_put(&path);
     }
  #else
     file = dentry_open(dget(dentry), mntget(mnt), flags, current_cred());
@@ -360,6 +362,11 @@ static int open(void* self, const char* filename, unsigned int flags, bool check
     if ( unlikely(this->mFile != NULL) )
     {
         return -EBUSY;
+    }
+
+    if ( unlikely(filename == NULL) )
+    {
+        return -EINVAL;
     }
 
 #ifdef TALPA_HAVE_PATH_LOOKUP

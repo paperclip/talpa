@@ -25,7 +25,6 @@
 #include <asm/fcntl.h>
 
 
-
 #define TALPA_SUBSYS "vetting"
 #include "common/bool.h"
 #include "common/talpa.h"
@@ -35,6 +34,10 @@
 #include "platform/glue.h"
 #include "platform/quirks.h"
 #include "platform/alloc.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+# define TALPA_RESTRICT_OPEN_DURING_EXIT
+#endif
 
 /*
  * Forward declare implementation methods.
@@ -720,7 +723,13 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
         void* fsobj1;
         void* fsobj2;
         unsigned int openFlags = O_RDONLY | O_LARGEFILE;
-        unsigned int openDentryFlags = openFlags;
+        unsigned int openDentryFlags;
+
+#ifdef FMODE_NONOTIFY
+        openFlags |= FMODE_NONOTIFY;
+#endif
+
+        openDentryFlags = openFlags;
 
         /* If low-level filesystem objects are available open the file using them. */
         if ( likely( (operation != EFS_Exec) && (info->fsObjects(info, &fsobj1, &fsobj2) == true) ) )
@@ -741,22 +750,35 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
                     local_filename += rootdir_len;
                 }
 
-                /* Open the file for the stream server. Use the appropriate method depending on operation code. */
-                if ( unlikely( operation == EFS_Exec ) )
+
+#ifdef TALPA_RESTRICT_OPEN_DURING_EXIT
+                if ((current->flags & PF_EXITING) == 0)
                 {
-                    ret = details->file->openExec(file->object, local_filename);
-                }
-                else
-                {
-                    ret = details->file->open(file->object, local_filename, openFlags, operation != EFS_Close);
-                    /* We cannot distinguish between open and exec with vfs interceptor
-                    so it is possible that this failed because of the lack of read permission.
-                    Try to with open_exec as a last resort. */
-                    if ( unlikely( ret == -EACCES ) )
+#endif
+                    /* Open the file for the stream server. Use the appropriate method depending on operation code. */
+                    if ( unlikely( operation == EFS_Exec ) )
                     {
                         ret = details->file->openExec(file->object, local_filename);
                     }
+                    else
+                    {
+                        err("[intercepted %u-%u-%u] failed to openDentry %d - trying open of %s",processParentPID(current), current->tgid, current->pid, ret,local_filename);
+                        ret = details->file->open(file->object, local_filename, openFlags, operation != EFS_Close);
+                        /* We cannot distinguish between open and exec with vfs interceptor
+                        so it is possible that this failed because of the lack of read permission.
+                        Try to with open_exec as a last resort. */
+                        if ( unlikely( ret == -EACCES ) )
+                        {
+                            ret = details->file->openExec(file->object, local_filename);
+                        }
+                    }
+#ifdef TALPA_RESTRICT_OPEN_DURING_EXIT
                 }
+                else
+                {
+                    err("[intercepted %u-%u-%u] failed to openDentry %d - can't open %s due to process exiting",processParentPID(current), current->tgid, current->pid, ret,local_filename);
+                }
+#endif
             }
             else
             {

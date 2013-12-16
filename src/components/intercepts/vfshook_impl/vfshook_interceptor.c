@@ -345,16 +345,31 @@ static int talpaRelease(struct inode *inode, struct file *file)
 
     talpa_rcu_read_unlock(&GL_object.mPatchLock);
 
+
+
     if ( likely( patch != NULL ) )
     {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+        struct path *path = &file->f_path;
+        path_get(path);
+#endif
+
         ret = 0;
         /* Do not examine if we should not intercept closes and we are already examining one */
-        if ( likely( ((GL_object.mInterceptMask & HOOK_CLOSE) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
+        if ( likely(
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            (current->flags & PF_EXITING) == 0 &&
+#endif
+            ((GL_object.mInterceptMask & HOOK_CLOSE) != 0) &&
+            !(current->flags & PF_TALPA_INTERNAL) )
+            )
         {
             IFileInfo *pFInfo;
 
-            pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
+            /* Make sure our open and close attempts while examining will be excluded */
+            current->flags |= PF_TALPA_INTERNAL;
 
+            pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Close, file);
 
             /*
              * pFInfo->filename(pFInfo) is likely to be NULL if the file has already been deleted.
@@ -362,8 +377,6 @@ static int talpaRelease(struct inode *inode, struct file *file)
              *
              * Deleted files are excluded before we do any actual scanning in the targetProcessor
              */
-            /* Make sure our open and close attempts while examining will be excluded */
-            current->flags |= PF_TALPA_INTERNAL;
             if ( likely( pFInfo != NULL ) )
             {
                 if (pFInfo->filename(pFInfo) == NULL)
@@ -377,6 +390,13 @@ static int talpaRelease(struct inode *inode, struct file *file)
             {
                 err("talpaRelease: pFInfo=NULL");
             }
+
+            if (talpafile != NULL)
+            {
+                talpafile->delete(talpafile->object);
+                talpafile = NULL;
+            }
+
             if ( patch->release )
             {
                 ret = patch->release(inode, file);
@@ -389,7 +409,13 @@ static int talpaRelease(struct inode *inode, struct file *file)
             ret = patch->release(inode, file);
         }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+        path_put(path);
+        path = NULL;
+#endif
+
         putPatch(patch);
+        patch = NULL;
     }
     else
     {
@@ -398,6 +424,84 @@ static int talpaRelease(struct inode *inode, struct file *file)
 
     hookExitRv(ret);
 }
+
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+static int talpaFlush(struct file *filp, fl_owner_t id)
+{
+    struct patchedFilesystem *p;
+    struct patchedFilesystem *patch = NULL;
+    int ret = -ESRCH;
+
+    hookEntry();
+
+    talpa_rcu_read_lock(&GL_object.mPatchLock);
+
+    talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
+    {
+        if ( filp->f_op == p->f_ops )
+        {
+            patch = getPatch(p);
+            break;
+        }
+    }
+    talpa_rcu_read_unlock(&GL_object.mPatchLock);
+
+
+    if ( likely( patch != NULL ) )
+    {
+        if (patch->flush != 0)
+        {
+            ret = patch->flush(filp,id);
+        }
+        else
+        {
+            ret = 0;
+        }
+
+        /*
+         * If this process is exiting then we want to scan the file
+         */
+        if (
+            (current->flags & PF_EXITING) != 0 &&
+            likely( ((GL_object.mInterceptMask & HOOK_CLOSE) != 0) &&
+            !(current->flags & PF_TALPA_INTERNAL) )
+            )
+        {
+            IFileInfo *pFInfo;
+
+            /* Make sure our open and close attempts while examining will be excluded */
+            current->flags |= PF_TALPA_INTERNAL;
+
+            pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(
+                GL_object.mLinuxFilesystemFactory, EFS_Close, filp);
+
+            if ( likely( pFInfo != NULL ) )
+            {
+                if (pFInfo->filename(pFInfo) == NULL)
+                {
+                    err("talpaFlush: filename=NULL: fstype=%s",patch->fstype->name);
+                }
+
+                GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
+                pFInfo->delete(pFInfo);
+            }
+
+            /* Restore normal process examination */
+            current->flags &= ~PF_TALPA_INTERNAL;
+        }
+
+        putPatch(patch);
+        patch = NULL;
+    }
+    else
+    {
+        err("flush left patched after record removed!");
+    }
+
+    hookExitRv(ret);
+}
+#endif
+
 
 #ifdef TALPA_HAS_SMBFS
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
@@ -1170,12 +1274,18 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             }
             patch->open = spatch->open;
             patch->release = spatch->release;
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            patch->flush = spatch->flush;
+#endif
             dbg("  storing shared file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
         }
         else
         {
             patch->open = patch->f_ops->open;
             patch->release = patch->f_ops->release;
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            patch->flush = patch->f_ops->flush;
+#endif
             dbg("  storing original file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release,patch->fstype->name);
         }
         hookLookupCreate = false; // Already hooked file operations
@@ -1354,6 +1464,9 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 #endif
 
     if (        patch->open == talpaOpen || patch->release == talpaRelease
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            || patch->flush == talpaFlush
+#endif
 #ifdef TALPA_HAS_SMBFS
             ||  patch->ioctl == talpaIoctl
 #endif
@@ -1370,6 +1483,12 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             fatal("ERROR: patch->release == talpaRelease on %s!", mnt->mnt_sb->s_type->name);
         }
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+        if (patch->flush == talpaFlush)
+        {
+            fatal("ERROR: patch->flush == talpaFlush on %s!", mnt->mnt_sb->s_type->name);
+        }
+#endif
 #ifdef TALPA_HAS_SMBFS
         if (patch->ioctl == talpaIoctl)
         {
@@ -1492,6 +1611,13 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
             dbg("     release 0x%p to 0x%p for %s", patch->release, talpaRelease, patch->fstype->name);
             talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
         }
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+        if ( patch->f_ops->flush != talpaFlush )
+        {
+            dbg("     flush 0x%p to 0x%p for %s", patch->flush, talpaFlush, patch->fstype->name);
+            talpa_syscallhook_poke(&patch->f_ops->flush, talpaFlush);
+        }
+#endif
     }
 #ifdef TALPA_HAS_SMBFS
     else if ( dentry && smbfs )
@@ -1625,12 +1751,18 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
         {
             patch->open = spatch->open;
             patch->release = spatch->release;
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            patch->flush = spatch->flush;
+#endif
             dbg("  storing shared file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
         }
         else
         {
             patch->open = patch->f_ops->open;
             patch->release = patch->f_ops->release;
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            patch->flush = patch->f_ops->flush;
+#endif
             dbg("  storing original file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
         }
         dbg("  patching file operations 0x%p", patch->f_ops);
@@ -1644,6 +1776,13 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
             dbg("     release 0x%p", patch->release);
             talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
         }
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+        if ( patch->f_ops->flush != talpaFlush )
+        {
+            dbg("     flush 0x%p", patch->flush);
+            talpa_syscallhook_poke(&patch->f_ops->flush, talpaFlush);
+        }
+#endif
     }
     else if ( smbfs )
     {
@@ -1786,6 +1925,12 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
             {
                 talpa_syscallhook_poke(&patch->f_ops->release, patch->release);
             }
+#ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
+            if (patch->f_ops->flush != patch->flush)
+            {
+                talpa_syscallhook_poke(&patch->f_ops->flush, patch->flush);
+            }
+#endif
         }
     }
     else if ( patch->i_ops )
