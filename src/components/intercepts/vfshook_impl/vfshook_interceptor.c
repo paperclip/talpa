@@ -391,12 +391,6 @@ static int talpaRelease(struct inode *inode, struct file *file)
                 err("talpaRelease: pFInfo=NULL");
             }
 
-            if (talpafile != NULL)
-            {
-                talpafile->delete(talpafile->object);
-                talpafile = NULL;
-            }
-
             if ( patch->release )
             {
                 ret = patch->release(inode, file);
