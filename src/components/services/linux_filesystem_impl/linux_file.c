@@ -281,7 +281,14 @@ static int openDentry(void* self, void* object1, void* object2, unsigned int fla
        file works around a problem with scanning a file created by user without
        permissions. And requesting no permission checking makes sense when
        opening a file for scanning when we know it has already been open (on close). */
-    if ( (acc_mode&MAY_WRITE) || (check_permissions && (inode->i_uid != current_fsuid())) )
+    if ( (acc_mode&MAY_WRITE) ||
+            (
+                check_permissions &&
+                (
+                    __talpa_kuid_val(inode->i_uid) != __talpa_kuid_val(current_fsuid())
+                )
+            )
+        )
     {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
         error = inode_permission(inode, acc_mode);

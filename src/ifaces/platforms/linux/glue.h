@@ -319,7 +319,38 @@ void talpa_putname(TALPA_FILENAME_T* filename);
 void talpa_get_fs_root_and_pwd(struct fs_struct *fs, struct path *root, struct path *pwd);
 #endif
 
-#endif
+#ifdef HAVE_LINUXUIDGID
+
+typedef kuid_t talpa_kuid_t;
+typedef kgid_t talpa_kgid_t;
+
+#define TALPA_KUIDT_INIT(value) KUIDT_INIT(value)
+#define TALPA_KGIDT_INIT(value) KGIDT_INIT(value)
+
+#define __talpa_kuid_val __kuid_val
+#define __talpa_kgid_val __kgid_val
+
+#else /* ! HAVE_LINUXUIDGID */
+
+typedef uid_t talpa_kuid_t;
+typedef gid_t talpa_kgid_t;
+
+static inline uid_t __talpa_kuid_val(talpa_kuid_t uid)
+{
+        return uid;
+}
+
+static inline gid_t __talpa_kgid_val(talpa_kgid_t gid)
+{
+        return gid;
+}
+
+#define TALPA_KUIDT_INIT(value) ((talpa_kuid_t) value )
+#define TALPA_KGIDT_INIT(value) ((talpa_kgid_t) value )
+
+#endif /* ! HAVE_LINUXUIDGID */
+
+#endif /* H_LINUXGLUE */
 /*
  * End of linux_glue.h
  */

@@ -587,6 +587,17 @@ else
 fi
 AC_SUBST(linuxmagicinclude, "$linuxmagicinclude")
 
+
+# Check for uidgid.h type
+TALPA_LOCATE_HEADER(linux/uidgid.h, $kernelhdrspath, linuxuidgidfound=yes, linuxuidgidfound=no)
+AC_MSG_RESULT([for uidgid strict type checking header])
+if test "$linuxuidgidfound" = "yes" ; then
+    AC_DEFINE([HAVE_LINUXUIDGID],1,[Defined when we have linux/uidgid.h])
+    linuxuidgid="-DHAVE_LINUXUIDGID"
+else
+    linuxuidgid=""
+fi
+
 TALPA_LOCATE_HEADER(linux/compiler.h, $kernelhdrspath, linuxcompilerfound=yes, linuxcompilerfound=no)
 AC_MSG_RESULT([$linuxcompilerfound - $TALPA_HEADER_LOCATION])
 if test "$linuxcompilerfound" = "yes" ; then
@@ -881,6 +892,7 @@ fi
 if test $hitcnt -gt 1 ; then
     AC_MSG_ERROR([ambiguous])
 fi
+
 
 # Check for snprintf only for kernels older than 2.4.10
 if test $((kern_version_code)) -lt 132106; then
@@ -1837,6 +1849,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsymbolver@/${buildsymbolver}/; \
                 s/@putname@/${putname}/; \
                 s/@strdupuser@/${strdupuser}/; \
+                s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -1886,6 +1899,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@putname@/${putname}/; \
                 s/@strdupuser@/${strdupuser}/; \
+                s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; \
                 s!@linuxmagicinclude@!${linuxmagicinclude}!; \
                 s!@linuxcompilerinclude@!${linuxcompilerinclude}!; \

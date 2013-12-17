@@ -77,11 +77,11 @@ LinuxPersonality* newLinuxPersonality(void)
         memcpy(object, &template_LinuxPersonality, sizeof(template_LinuxPersonality));
         object->i_IPersonality.object = object;
 
-        object->mUID = current_uid();
-        object->mEUID = current_euid();
-        object->mFSUID = current_fsuid();
-        object->mGID = current_gid();
-        object->mEGID = current_egid();
+        object->mUID = __talpa_kuid_val(current_uid());
+        object->mEUID = __talpa_kuid_val(current_euid());
+        object->mFSUID = __talpa_kuid_val(current_fsuid());
+        object->mGID = __talpa_kgid_val(current_gid());
+        object->mEGID = __talpa_kgid_val(current_egid());
     }
 
     return object;
