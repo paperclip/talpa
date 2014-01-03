@@ -47,6 +47,7 @@
 #include <linux/path.h>
 #endif
 
+#include "platforms/linux/bool.h"
 #include "platform/compiler.h"
 
 
