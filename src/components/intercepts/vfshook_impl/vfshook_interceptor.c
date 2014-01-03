@@ -2231,7 +2231,7 @@ static int talpa_copy_mount_string(const void __user *data, char **where)
 
     if (!data) {
         *where = NULL;
-        return 0;
+        return -EFAULT;
     }
 
 #ifdef TALPA_HAS_STRNDUP_USER
