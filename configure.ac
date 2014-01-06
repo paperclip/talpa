@@ -587,6 +587,17 @@ else
 fi
 AC_SUBST(linuxmagicinclude, "$linuxmagicinclude")
 
+
+# Check for uidgid.h type
+TALPA_LOCATE_HEADER(linux/uidgid.h, $kernelhdrspath, linuxuidgidfound=yes, linuxuidgidfound=no)
+AC_MSG_RESULT([for uidgid strict type checking header])
+if test "$linuxuidgidfound" = "yes" ; then
+    AC_DEFINE([HAVE_LINUXUIDGID],1,[Defined when we have linux/uidgid.h])
+    linuxuidgid="-DHAVE_LINUXUIDGID"
+else
+    linuxuidgid=""
+fi
+
 TALPA_LOCATE_HEADER(linux/compiler.h, $kernelhdrspath, linuxcompilerfound=yes, linuxcompilerfound=no)
 AC_MSG_RESULT([$linuxcompilerfound - $TALPA_HEADER_LOCATION])
 if test "$linuxcompilerfound" = "yes" ; then
@@ -881,6 +892,7 @@ fi
 if test $hitcnt -gt 1 ; then
     AC_MSG_ERROR([ambiguous])
 fi
+
 
 # Check for snprintf only for kernels older than 2.4.10
 if test $((kern_version_code)) -lt 132106; then
@@ -1331,8 +1343,18 @@ if test $((kern_version_code)) -ge 132608; then
     tests/configure/rodata
     rodatarc=$?
     if test $rodatarc -eq 0; then
-        AC_MSG_RESULT([yes])
         AC_SUBST(syscallhook, "yes")
+
+        ${CC} -c ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/probe_kernel_write.c -o tests/configure/probe_kernel_write
+        probe=$?
+        if test $probe -eq 0
+        then
+            AC_SUBST(rodata, "-DTALPA_RODATA_MAP_WRITABLE -DTALPA_HAS_PROBE_KERNEL_WRITE")
+            AC_SUBST(map_writable, yes)
+            AC_MSG_RESULT([yes - kernel writable - has probe_kernel_write - shadow mapping])
+        else
+            AC_MSG_RESULT([yes - kernel writable])
+        fi
     else
         # Detect SLES11 kernels
         # Blacklist openSUSE 11.3 release
@@ -1362,7 +1384,7 @@ if test $((kern_version_code)) -ge 132608; then
                     AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_NEED_MANUAL_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
                     ## >= 2.6.25
                     if test $((kern_version_code)) -ge 132633; then
-                        AC_SUBST(rodata, "$rodata -DTALPA_RODATA_MAP_WRITABLE")
+                        AC_SUBST(rodata, "$rodata -DTALPA_RODATA_MAP_WRITABLE -DTALPA_HAS_PROBE_KERNEL_WRITE")
                         AC_SUBST(map_writable, yes)
                         AC_MSG_RESULT([yes; shadow mapping])
                     else
@@ -1837,6 +1859,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsymbolver@/${buildsymbolver}/; \
                 s/@putname@/${putname}/; \
                 s/@strdupuser@/${strdupuser}/; \
+                s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -1886,6 +1909,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@putname@/${putname}/; \
                 s/@strdupuser@/${strdupuser}/; \
+                s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; \
                 s!@linuxmagicinclude@!${linuxmagicinclude}!; \
                 s!@linuxcompilerinclude@!${linuxcompilerinclude}!; \

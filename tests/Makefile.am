@@ -47,6 +47,7 @@ check_PROGRAMS +=   chkstdinterceptor \
                     chkinterceptorfilter14 \
                     chkext2mnt \
                     chkext2umnt \
+                    chk_null_mnt \
                     chkext2fops \
                     vc_inclusionproc \
                     chkvc \
@@ -151,6 +152,7 @@ chkinterceptorfilter14_SOURCES = chkinterceptorfilter14.c
 chkext2mnt_SOURCES = chkext2mnt.c
 chkext2umnt_SOURCES = chkext2umnt.c
 chkext2fops_SOURCES = chkext2fops.c
+chk_null_mnt_SOURCES = chk_null_mnt.c
 vc_inclusionproc_SOURCES = vc_inclusionproc.c ../clients/vc-lib.c ../clients/talpa.c
 chkvc_SOURCES = chkvc.c ../clients/vc-lib.c ../clients/talpa.c
 chkvc_timeout_SOURCES = chkvc_timeout.c ../clients/vc-lib.c ../clients/talpa.c
@@ -369,7 +371,8 @@ TESTS +=                  chk_vettingctrl12.sh \
                           tlp-9-003.sh \
                           tlp-9-004.sh \
                           chkext2mnt.sh \
-                          chkext2umnt.sh
+                          chkext2umnt.sh \
+						  chk_null_mnt.sh
 
 if LOADTEST
 TESTS +=                  reiserfsmnt.sh \
@@ -403,6 +406,19 @@ check_SCRIPTS =           $(TESTS) \
                           test-script2.sh \
                           test-script3.sh \
                           test-script4.sh
+
+talpa-test.sh : Makefile.am
+	echo "#/bin/bash" >$@
+	echo "export srcdir=$(srcdir)" >>$@
+	echo "export ko=$(ko)" >>$@
+	echo "export interceptor_module=$(interceptor_module)" >>$@
+	echo "export interceptor_name=$(interceptor_name)" >>$@
+	echo 'cd $$(dirname $$0)' >>$@
+	echo 'exec "$$@"' >>$@
+	chmod 700 $@
+
+runTest : $(TEST) talpa-test.sh
+	bash -x ./talpa-test.sh ./$(TEST) $(TESTARGS)
 
 EXTRA_DIST  = $(check_SCRIPTS) configure
 

@@ -154,7 +154,7 @@ static inline bool checkDegraded(const void* self, IEvaluationReport* report)
             this->mActive = true;
             strcpy(this->mActiveConfigData.value, "true");
         }
-        if ( !current_uid() )
+        if( __talpa_kuid_val(current_uid()) == 0 )
         {
             talpa_simple_unlock(&this->mLock);
             return true;

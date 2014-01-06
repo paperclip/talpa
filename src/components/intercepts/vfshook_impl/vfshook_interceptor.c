@@ -381,7 +381,7 @@ static int talpaRelease(struct inode *inode, struct file *file)
             {
                 if (pFInfo->filename(pFInfo) == NULL)
                 {
-                    err("talpaRelease: filename=NULL: fstype=%s",patch->fstype->name);
+                    dbg("talpaRelease: filename=NULL: fstype=%s",patch->fstype->name);
                 }
                 GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
                 pFInfo->delete(pFInfo);
@@ -1172,25 +1172,6 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
             {
                 critical("atomic_open rescan with file object");
                 resultCode = 0;
-                    //~ pFInfo = GL_object.mLinuxFilesystemFactory->i_IFilesystemFactory.newFileInfoFromFile(GL_object.mLinuxFilesystemFactory, EFS_Open, file);
-                    //~ if ( unlikely( pFInfo == NULL ) )
-                    //~ {
-                        //~ critical("talpaAtomicOpen - pFInfo is NULL");
-                    //~ }
-                    //~ else if ( unlikely( pFInfo->filename(pFInfo) == NULL ) )
-                    //~ {
-                        //~ critical("talpaAtomicOpen - pFInfo filename is NULL");
-                    //~ }
-                    //~ if ( likely( pFInfo != NULL ) )
-                    //~ {
-                        //~ /* Make sure our open and close attempts while examining will be excluded */
-                        //~ current->flags |= PF_TALPA_INTERNAL;
-                        //~ /* Examine this file */
-                        //~ resultCode = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, NULL);
-                        //~ /* Restore normal process examination */
-                        //~ current->flags &= ~PF_TALPA_INTERNAL;
-                        //~ pFInfo->delete(pFInfo);
-                    //~ }
             }
         }
 
@@ -1598,6 +1579,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
         if ( patch->f_ops->open != talpaOpen )
         {
             dbg("     open 0x%p to 0x%p for %s", patch->open, talpaOpen, patch->fstype->name);
+            dbg("     FOPS open 0x%p ", patch->f_ops->open);
             talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
         }
         if ( patch->f_ops->release != talpaRelease )
@@ -2229,10 +2211,11 @@ static int talpa_copy_mount_string(const void __user *data, char **where)
 {
     char *tmp;
 
-    if (!data) {
+    if ( !data ) {
         *where = NULL;
-        return 0;
+        return -EFAULT;
     }
+
 
 #ifdef TALPA_HAS_STRNDUP_USER
     tmp = strndup_user(data, PAGE_SIZE);
@@ -2256,6 +2239,11 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
 
 
     if ( unlikely( (GL_object.mInterceptMask & HOOK_MOUNT) == 0 ) )
+    {
+        return 0;
+    }
+
+    if ( unlikely (dev_name == NULL) )
     {
         return 0;
     }

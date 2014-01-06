@@ -15,12 +15,10 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-. ${srcdir}/tlp-cleanup.sh
+. ${srcdir}/talpa-init.sh
 
-get_mount_fs /
+lsmod | grep talpa
 
-tlp_insmod modules/tlp-exclusion.${ko}
-echo -n "+/etc/fstab" >${talpafs}/intercept-filters/FilesystemExclusionProcessor/paths
-./chk_fsexclusion  /etc/fstab ${_mount_fs} 3
-
-exit $?
+./chk_null_mnt
+EXIT=$?
+exit $EXIT

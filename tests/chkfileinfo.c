@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
     int minor;
     int filefd;
     int ignoreMajorMinor = 0;
+    struct stat pathStat;
 
 
     if ( argc == 3 )
@@ -59,6 +60,13 @@ int main(int argc, char *argv[])
     {
         strcpy(file,"/bin/bash");
         operation = 1;
+    }
+
+    ret = stat(file, &pathStat);
+    if (ret != 0)
+    {
+        fprintf(stderr,"Target file doesn't exist (stat == %d) (errno == %d)!\n",ret,errno);
+        return 2;
     }
 
 #ifdef BTRFS_SUPER_MAGIC
@@ -94,9 +102,22 @@ int main(int argc, char *argv[])
 
     if ( strcmp(file,tf.name) )
     {
-        fprintf(stderr,"Filename mismatch! %s != %s\n",file, tf.name);
-        close(fd);
-        return 1;
+        struct stat newpathStat;
+        int newstatRes;
+
+        newstatRes = stat(tf.name, &newpathStat);
+
+        if (newstatRes == 0 && pathStat.st_ino == newpathStat.st_ino)
+        {
+            /* actually the same file even though the paths don't match */
+            fprintf(stderr,"Filename mismatch! %s != %s, but actually the same file inode\n",file, tf.name);
+        }
+        else
+        {
+            fprintf(stderr,"Filename mismatch! %s != %s\n",file, tf.name);
+            close(fd);
+            return 1;
+        }
     }
 
     if ( operation != tf.operation )
@@ -160,9 +181,22 @@ int main(int argc, char *argv[])
 
     if ( strcmp(file,tf.name) )
     {
-        fprintf(stderr,"FD Filename mismatch! %s != %s\n",file, tf.name);
-        close(fd);
-        return 1;
+        struct stat newpathStat;
+        int newstatRes;
+
+        newstatRes = stat(tf.name, &newpathStat);
+
+        if (newstatRes == 0 && pathStat.st_ino == newpathStat.st_ino)
+        {
+            /* actually the same file even though the paths don't match */
+            fprintf(stderr,"FD Filename mismatch! %s != %s, but actually the same file inode\n",file, tf.name);
+        }
+        else
+        {
+            fprintf(stderr,"FD Filename mismatch! %s != %s\n",file, tf.name);
+            close(fd);
+            return 1;
+        }
     }
 
     if ( operation != tf.operation )

@@ -20,7 +20,7 @@
 get_mount_fs /
 
 tlp_insmod modules/tlp-exclusion.${ko}
-echo -n "+/bin/" >${talpafs}/intercept-filters/FilesystemExclusionProcessor/paths
-./chk_fsexclusion  /bin/bash ${_mount_fs} 3
+echo -n "+/etc/" >${talpafs}/intercept-filters/FilesystemExclusionProcessor/paths
+./chk_fsexclusion  /etc/fstab ${_mount_fs} 3
 
 exit $?

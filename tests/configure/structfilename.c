@@ -22,6 +22,11 @@ typedef unsigned long   __kernel_ulong_t;
 
 #include <asm-generic/fcntl.h>
 #include <linux/fcntl.h>
+
+#ifndef KBUILD_BASENAME
+# define KBUILD_BASENAME
+#endif
+
 #include <linux/fs.h>
 
 #ifdef TALPA_HAS_STRUCT_FILENAME

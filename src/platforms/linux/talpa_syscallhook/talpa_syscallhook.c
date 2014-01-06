@@ -40,7 +40,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #endif
-#ifdef TALPA_RODATA_MAP_WRITABLE
+#ifdef TALPA_HAS_PROBE_KERNEL_WRITE
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #endif
@@ -49,8 +49,6 @@
 #include "platforms/linux/locking.h"
 
 #include "platforms/linux/talpa_syscallhook.h"
-
-
 
 #ifdef TALPA_ID
 const char talpa_id[] = "$TALPA_ID:" TALPA_ID;
@@ -77,6 +75,7 @@ const char talpa_iface_version[] = "$TALPA_IFACE_VERSION:" TALPA_SYSCALLHOOK_IFA
   #define dbg_endt() do {} while (0)
   #define dbg(format, arg...) do {} while (0)
 #endif
+
 
 #if __GNUC__ == 2 && __GNUC_MINOR__ < 96
   #define __builtin_expect(x, expected_value) (x)
@@ -130,7 +129,7 @@ static asmlinkage long (*orig_umount_32)(char* name);
 static asmlinkage long (*orig_umount2_32)(char* name, int flags);
 #endif
 
-#if defined(TALPA_HAS_RODATA) && !defined(TALPA_HAS_MARK_RODATA_RW)
+#if defined(TALPA_RODATA_MAP_WRITABLE) || defined(TALPA_HAS_RODATA)
 static void *talpa_syscallhook_unro(void *addr, size_t len, int rw);
 #endif
 
@@ -338,44 +337,45 @@ void talpa_syscallhook_modify_finish(void)
 void *talpa_syscallhook_poke(void *addr, void *val)
 {
     unsigned long target = (unsigned long)addr;
-#if defined(TALPA_RODATA_MAP_WRITABLE)
+
+#ifdef TALPA_HAS_PROBE_KERNEL_WRITE
     long probeRes;
+#endif
+
+
+#if defined(TALPA_HAS_RODATA) && defined(TALPA_RODATA_MAP_WRITABLE)
 
     if (target >= rodata_start && target <= rodata_end)
     {
         target += rwdata_offset;
         *(void **)target = val;
+        return (void *)target;
     }
-    else
+#endif
+
+#ifdef TALPA_HAS_PROBE_KERNEL_WRITE
+    probeRes = probe_kernel_write((void*)target,(void*)&val,sizeof(void*));
+
+    if (probeRes == -EFAULT)
     {
-        dbg("poking to address outside of rodata area 0x%p",addr);
-        dbg("reading target 0x%p",*(void **)target);
-        probeRes = probe_kernel_write((void*)target,(void*)&val,sizeof(void*));
+        unsigned long rwshadow;
 
-        if (probeRes == -EFAULT)
+        dbg("Write to 0x%p would have caused a fault, so shadow mapping a replacement.",(void*)target);
+
+        rwshadow = (unsigned long)talpa_syscallhook_unro((void *)target, sizeof(void*), 1);
+        if (rwshadow)
         {
-            unsigned long rwshadow;
-
-            dbg("Write to 0x%p would have caused a fault, so shadow mapping a replacement.",(void*)target);
-
-            rwshadow = (unsigned long)talpa_syscallhook_unro((void *)target, sizeof(void*), 1);
-            if (rwshadow)
-            {
-                probeRes = probe_kernel_write((void*)rwshadow,(void*)&val,sizeof(void*));
-                talpa_syscallhook_unro((void *)(rwshadow), sizeof(void*), 0);
-            }
-        }
-        if (probeRes == -EFAULT)
-        {
-
-            err("Write to  0x%p would have caused a fault and failed to shadow map replacement.",(void*)target);
+            probeRes = probe_kernel_write((void*)rwshadow,(void*)&val,sizeof(void*));
+            talpa_syscallhook_unro((void *)(rwshadow), sizeof(void*), 0);
         }
     }
-
+    if (probeRes == -EFAULT)
+    {
+        err("Write to  0x%p would have caused a fault and failed to shadow map replacement.",(void*)target);
+    }
 #else
     *(void **)target = val;
 #endif
-
 
     return (void *)target;
 }
