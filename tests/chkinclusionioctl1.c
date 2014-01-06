@@ -56,10 +56,10 @@ int main(int argc, char *argv[])
     }
     else
     {
-        strcpy(path, "/sbin/");
-        strcpy(file,"/sbin/init");
+        strcpy(path, "/etc/");
+        strcpy(file,"/etc/fstab");
         strcpy(dev,"/dev/sda1");
-        strcpy(target,"/sbin/mnt-point");
+        strcpy(target,"/etc/mnt-point");
         strcpy(fs,"ext2");
         foperation = 1;
         fsoperation = 4;
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
     }
     else if ( ret != EIA_Next )
     {
-        fprintf(stderr,"File pass through test error!\n");
+        fprintf(stderr,"File pass through test error: ret=%d!\n",ret);
         close(fd);
         return 1;
     }

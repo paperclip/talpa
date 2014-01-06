@@ -215,11 +215,15 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 #endif
         if ( NULL == path )
         {
-            critical("talpa__d_path: kernel_d_path returned NULL");
             if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
-                err("    file deleted");
+                dbg("talpa__d_path: kernel_d_path returned NULL for deleted file");
+                dbg("    basename=%s",dentry->d_name.name);
             }
-            err("    basename=%s",dentry->d_name.name);
+            else
+            {
+                info("talpa__d_path: kernel_d_path returned NULL for non-deleted file");
+                info("    basename=%s",dentry->d_name.name);
+            }
         }
         else
         {

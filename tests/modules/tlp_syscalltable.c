@@ -36,7 +36,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #endif
-#ifdef TALPA_RODATA_MAP_WRITABLE
+#ifdef TALPA_HAS_PROBE_KERNEL_WRITE
 #include <linux/vmalloc.h>
 #endif
 
@@ -49,7 +49,7 @@
 
 static asmlinkage long (*orig_mount)(char* dev_name, char* dir_name, char* type, unsigned long flags, void* data);
 
-#if defined(TALPA_HAS_RODATA) && !defined(TALPA_HAS_MARK_RODATA_RW)
+#if defined(TALPA_HAS_RODATA)
 static void *talpa_syscallhook_unro(void *addr, size_t len, int rw);
 #endif
 
@@ -122,8 +122,7 @@ void *talpa_syscallhook_poke(void *addr, void *val)
 {
     unsigned long target = (unsigned long)addr;
 
-
-#if defined(TALPA_RODATA_MAP_WRITABLE)
+#if defined(TALPA_HAS_RODATA) && defined(TALPA_RODATA_MAP_WRITABLE)
     if (target >= rodata_start && target <= rodata_end)
     {
         target += rwdata_offset;
@@ -319,7 +318,8 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
-#if defined(TALPA_RODATA_MAP_WRITABLE)
+#if defined(TALPA_HAS_RODATA) && defined(TALPA_RODATA_MAP_WRITABLE)
+
 /*
  * map_writable creates a shadow page mapping of the range
  * [addr, addr + len) so that we can write to code mapped read-only.

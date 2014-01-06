@@ -1343,8 +1343,18 @@ if test $((kern_version_code)) -ge 132608; then
     tests/configure/rodata
     rodatarc=$?
     if test $rodatarc -eq 0; then
-        AC_MSG_RESULT([yes])
         AC_SUBST(syscallhook, "yes")
+
+        ${CC} -c ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/probe_kernel_write.c -o tests/configure/probe_kernel_write
+        probe=$?
+        if test $probe -eq 0
+        then
+            AC_SUBST(rodata, "-DTALPA_RODATA_MAP_WRITABLE -DTALPA_HAS_PROBE_KERNEL_WRITE")
+            AC_SUBST(map_writable, yes)
+            AC_MSG_RESULT([yes - kernel writable - has probe_kernel_write - shadow mapping])
+        else
+            AC_MSG_RESULT([yes - kernel writable])
+        fi
     else
         # Detect SLES11 kernels
         # Blacklist openSUSE 11.3 release
@@ -1374,7 +1384,7 @@ if test $((kern_version_code)) -ge 132608; then
                     AC_SUBST(rodata, "-DTALPA_HAS_RODATA -DTALPA_NEED_MANUAL_RODATA -DTALPA_RODATA_START=0x$start_rodata -DTALPA_RODATA_END=0x$end_rodata")
                     ## >= 2.6.25
                     if test $((kern_version_code)) -ge 132633; then
-                        AC_SUBST(rodata, "$rodata -DTALPA_RODATA_MAP_WRITABLE")
+                        AC_SUBST(rodata, "$rodata -DTALPA_RODATA_MAP_WRITABLE -DTALPA_HAS_PROBE_KERNEL_WRITE")
                         AC_SUBST(map_writable, yes)
                         AC_MSG_RESULT([yes; shadow mapping])
                     else
