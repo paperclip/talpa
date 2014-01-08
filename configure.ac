@@ -1345,7 +1345,7 @@ if test $((kern_version_code)) -ge 132608; then
     if test $rodatarc -eq 0; then
         AC_SUBST(syscallhook, "yes")
 
-        ${CC} -c ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/probe_kernel_write.c -o tests/configure/probe_kernel_write
+        ${CC} -c ${kernccflags} TALPA_INCLUDE_PATH($kernelhdrspath) -Itests/configure ${srcdir}/tests/configure/probe_kernel_write.c -o tests/configure/probe_kernel_write >/dev/null 2>&1
         probe=$?
         if test $probe -eq 0
         then
@@ -1659,6 +1659,15 @@ if test $((kern_version_code)) -ge 132608; then
         else
             AC_MSG_RESULT([disabled])
         fi
+    fi
+
+    AC_MSG_CHECKING([for asm-generic/fcntl.h])
+    TALPA_LOCATE_HEADER(asm-generic/fcntl.h, $kernelhdrspath, asmgenericfctntlfound=yes, asmgenericfctntlfound=no)
+    if test "$asmgenericfctntlfound" = "yes" ; then
+        kernccflags="${kernccflags} -DTALPA_HAS_ASM_GENERIC_FCNTL"
+        asmgenericfcntl="-DTALPA_HAS_ASM_GENERIC_FCNTL"
+    else
+        asmgenericfcntl=""
     fi
 
     AC_MSG_CHECKING([for correct getname])
