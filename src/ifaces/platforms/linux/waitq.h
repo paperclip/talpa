@@ -411,7 +411,7 @@ static inline void talpa_complete(struct talpa_completion *c)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
 #define talpa_wait_for_completion   wait_for_completion
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
 #define talpa_wait_for_completion           wait_for_completion_interruptible
 #define talpa_wait_for_completion_timeout   wait_for_completion_interruptible_timeout
 #else
