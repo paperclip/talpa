@@ -3,6 +3,7 @@
 #include "autoconf.h"
 
 #include <linux/version.h>
+#include <linux/types.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
 #include <linux/posix_types.h>
@@ -14,13 +15,17 @@ typedef long   __kernel_long_t;
 #ifndef __kernel_ulong_t
 typedef unsigned long   __kernel_ulong_t;
 #endif
+
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
 #include <linux/kconfig.h>
 #endif
 
+#ifdef TALPA_HAS_ASM_GENERIC_FCNTL
 #include <asm-generic/fcntl.h>
+#endif
+
 #include <linux/fcntl.h>
 
 #ifndef KBUILD_BASENAME

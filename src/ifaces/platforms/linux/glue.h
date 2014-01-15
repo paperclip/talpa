@@ -47,6 +47,10 @@
 #include <linux/path.h>
 #endif
 
+#ifdef HAVE_LINUXUIDGID
+#include <linux/uidgid.h>
+#endif
+
 #include "platforms/linux/bool.h"
 #include "platform/compiler.h"
 

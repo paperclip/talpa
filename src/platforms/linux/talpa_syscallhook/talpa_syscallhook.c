@@ -45,6 +45,10 @@
 #include <linux/uaccess.h>
 #endif
 
+#if defined(CONFIG_DEBUG_SET_MODULE_RONX) || defined(CONFIG_DEBUG_RODATA)
+#define TALPA_SHADOW_MAP
+#endif
+
 #include "platforms/linux/glue.h"
 #include "platforms/linux/locking.h"
 
@@ -129,7 +133,7 @@ static asmlinkage long (*orig_umount_32)(char* name);
 static asmlinkage long (*orig_umount2_32)(char* name, int flags);
 #endif
 
-#if defined(TALPA_RODATA_MAP_WRITABLE) || defined(TALPA_HAS_RODATA)
+#ifdef TALPA_SHADOW_MAP
 static void *talpa_syscallhook_unro(void *addr, size_t len, int rw);
 #endif
 
@@ -356,6 +360,7 @@ void *talpa_syscallhook_poke(void *addr, void *val)
 #ifdef TALPA_HAS_PROBE_KERNEL_WRITE
     probeRes = probe_kernel_write((void*)target,(void*)&val,sizeof(void*));
 
+#ifdef TALPA_SHADOW_MAP
     if (probeRes == -EFAULT)
     {
         unsigned long rwshadow;
@@ -369,6 +374,8 @@ void *talpa_syscallhook_poke(void *addr, void *val)
             talpa_syscallhook_unro((void *)(rwshadow), sizeof(void*), 0);
         }
     }
+#endif
+
     if (probeRes == -EFAULT)
     {
         err("Write to  0x%p would have caused a fault and failed to shadow map replacement.",(void*)target);
@@ -957,6 +964,8 @@ static void **talpa_find_syscall_table(void **ptr, const unsigned int unique_sys
 extern void *sys_call_table[];
 #endif
 
+#ifdef TALPA_SHADOW_MAP
+
 #if defined(TALPA_RODATA_MAP_WRITABLE)
 /*
  * map_writable creates a shadow page mapping of the range
@@ -1107,7 +1116,8 @@ static void *talpa_syscallhook_unro(void *addr, size_t len, int rw)
 
     return addr;
 }
-#endif /* HAS_RODATA */
+#endif /* defined(TALPA_RODATA_MAP_WRITABLE) else defined(TALPA_NEED_MANUAL_RODATA) */
+#endif /* TALPA_SHADOW_MAP */
 
 #ifdef TALPA_HIDDEN_SYSCALLS
 static void **look_around(void **p, const unsigned int unique_syscalls[], const unsigned int num_unique_syscalls, const unsigned int zapped_syscalls[], const unsigned int num_zapped_syscalls, int symlookup)
