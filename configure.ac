@@ -1820,6 +1820,18 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    AC_MSG_CHECKING([for getname])
+    ${EGREP} "\s+getname.*EXPORT_SYMBOL" ${symvers} >/dev/null 2>&1
+    if test $? -eq 0 ; then
+        AC_MSG_RESULT([getname present and exported])
+        AC_SUBST(getname,"-DTALPA_GETNAME_SYMBOL -DTALPA_GETNAME_EXPORTED")
+    else
+        getname_addr=`${EGREP} " getname\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$getname_addr" != ""; then
+            AC_MSG_RESULT([getname present but not exported])
+            AC_SUBST(getname, "-DTALPA_GETNAME_SYMBOL -DTALPA_GETNAME_ADDRESS=0x$getname_addr")
+        fi
+    fi
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
@@ -1867,6 +1879,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@buildsymbolver@/${buildsymbolver}/; \
                 s/@putname@/${putname}/; \
+                s/@getname@/${getname}/; \
                 s/@strdupuser@/${strdupuser}/; \
                 s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
@@ -1917,6 +1930,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@putname@/${putname}/; \
+                s/@getname@/${getname}/; \
                 s/@strdupuser@/${strdupuser}/; \
                 s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; \

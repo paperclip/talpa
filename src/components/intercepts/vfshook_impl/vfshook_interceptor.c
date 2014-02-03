@@ -2220,7 +2220,7 @@ static int talpa_copy_mount_string(const void __user *data, char **where)
 #ifdef TALPA_HAS_STRNDUP_USER
     tmp = strndup_user(data, PAGE_SIZE);
 #else
-    tmp = getname(data);
+    tmp = talpa_getname(data);
 #endif
     if (IS_ERR(tmp))
         return PTR_ERR(tmp);
@@ -2254,7 +2254,7 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
         goto out;
     }
 
-    dir = getname(dir_name);
+    dir = talpa_getname(dir_name);
     if ( IS_ERR(dir) )
     {
         goto out1;
@@ -2416,7 +2416,7 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     {
         const char* abs_dir;
 
-        dir = getname(dir_name);
+        dir = talpa_getname(dir_name);
         if (IS_ERR(dir))
         {
             ret = PTR_ERR(dir);
@@ -2566,7 +2566,7 @@ out:
 
 static void talpaPreUmount(char __user * name, int flags, void** ctx)
 {
-    TALPA_FILENAME_T* kname = getname(name);
+    TALPA_FILENAME_T* kname = talpa_getname(name);
 
 
     if ( !IS_ERR(kname) )

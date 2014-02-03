@@ -309,7 +309,11 @@ void talpa_putname(TALPA_FILENAME_T* filename);
 # define talpa_putname putname
 #endif
 
-
+#ifndef TALPA_GETNAME_EXPORTED
+TALPA_FILENAME_T * talpa_getname(const char * filename);
+#else
+# define talpa_getname getname
+#endif
 /**
  * Implement our own copy, since kernel 3.12 gets rid of this exported function
  */
