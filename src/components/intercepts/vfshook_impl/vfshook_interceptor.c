@@ -56,6 +56,11 @@
 # define TALPA_ALWAYS_HOOK_DOPS
 #endif
 */
+/*
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+# define TALPA_HOOK_EXT4_DOPS
+#endif
+*/
 
 #include "vfshook_interceptor.h"
 #include "app_ctrl/iportability_app_ctrl.h"
@@ -66,6 +71,8 @@
 #include "platforms/linux/locking.h"
 
 #include "findRegular.h"
+
+#define DEBUG_err dbg
 
 /*
  * Forward declare implementation methods.
@@ -1227,6 +1234,8 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     /* If we have a regular file prepare for file_operations patching */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
+        DEBUG_err("Got a regular file %s - can hook fs=%s immediately",dentry->d_name.name,patch->fstype->name);
+
         patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         dbg("  storing original inode operations [0x%p] for %s", patch->i_ops, patch->fstype->name);
         patch->f_ops = (struct file_operations *)dentry->d_inode->i_fop;
@@ -1236,7 +1245,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             if ( p != patch && p->f_ops == patch->f_ops )
             {
-                dbg("shared file operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                dbg("shared file operations between %s and %s at f_ops=0x%p.", p->fstype->name, patch->fstype->name, p->f_ops);
                 spatch = p;
                 break;
             }
@@ -1252,7 +1261,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 #ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
             patch->flush = spatch->flush;
 #endif
-            dbg("  storing shared file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
+            dbg("  storing shared file operations [f_ops=0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
         }
         else
         {
@@ -1261,7 +1270,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 #ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
             patch->flush = patch->f_ops->flush;
 #endif
-            dbg("  storing original file operations [0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release,patch->fstype->name);
+            dbg("  storing original file operations [f_ops=0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release,patch->fstype->name);
         }
         hookLookupCreate = false; // Already hooked file operations
     }
@@ -1301,7 +1310,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
                 {
                     if ( p != patch && p->i_ops == patch->i_ops)
                     {
-                        dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                        dbg("shared inode operations between %s and %s at i_ops=0x%p.", p->fstype->name, patch->fstype->name, p->i_ops);
                         spatch = p;
                         break;
                     }
@@ -1321,7 +1330,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             /* i_ops not shared */
             patch->atomic_open = patch->i_ops->atomic_open;
-            dbg("  storing shared inode operations [0x%p][atomic_open=0x%p] for %s", patch->i_ops, patch->atomic_open, patch->fstype->name);
+            dbg("  storing shared inode operations [i_ops=0x%p][atomic_open=0x%p] for %s", patch->i_ops, patch->atomic_open, patch->fstype->name);
         }
 #endif /* TALPA_HOOK_ATOMIC_OPEN */
 
@@ -1335,7 +1344,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
                 {
                     if ( p != patch && p->i_ops == patch->i_ops && p->lookup != NULL && p->create != NULL)
                     {
-                        dbg("shared inode operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                        dbg("shared inode operations between %s and %s at i_ops=0x%p.", p->fstype->name, patch->fstype->name,patch->i_ops);
                         spatch = p;
                         break;
                     }
@@ -1346,7 +1355,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             {
                 patch->lookup = spatch->lookup;
                 patch->create = spatch->create;
-                dbg("  storing shared inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
+                dbg("  storing shared inode operations [i_ops=0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
             }
             else
             {
@@ -1369,7 +1378,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
                 {
                     patch->create = patch->i_ops->create;
                 }
-                dbg("  storing original inode operations [0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
+                dbg("  storing original inode operations [i_ops=0x%p][0x%p 0x%p] for %s", patch->i_ops, patch->lookup, patch->create, patch->fstype->name);
             }
         }
     }
@@ -1398,7 +1407,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             {
                 if ( p != patch && p->d_ops == patch->d_ops )
                 {
-                    dbg("shared dentry operations between %s and %s.", p->fstype->name, patch->fstype->name);
+                    dbg("shared dentry operations between %s and %s at d_ops=0x%p.", p->fstype->name, patch->fstype->name, p->d_ops);
                     spatch = p;
                     break;
                 }
@@ -1537,7 +1546,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     {
         if ( patch->d_ops->d_revalidate != talpaDentryRevalidate)
         {
-            dbg("  patching dentry operations 0x%p for %s", patch->d_ops, patch->fstype->name);
+            dbg("  patching dentry operations d_ops=0x%p for %s", patch->d_ops, patch->fstype->name);
             dbg("     revalidate 0x%p", patch->d_revalidate);
             talpa_syscallhook_poke(&patch->d_ops->d_revalidate, talpaDentryRevalidate);
         }
@@ -1551,7 +1560,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
 
 
 #ifdef TALPA_HOOK_ATOMIC_OPEN
-    dbg("  patching atomic_open in inode operations 0x%p for %s", patch->i_ops, patch->fstype->name);
+    dbg("  patching atomic_open in inode operations i_ops=0x%p for %s", patch->i_ops, patch->fstype->name);
     if ( patch->i_ops->atomic_open == talpaAtomicOpen)
     {
         dbg("     atomic_open already patched to talpaAtomicOpen for %s", patch->fstype->name);
@@ -1575,7 +1584,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
-        dbg("  patching file operations 0x%p for %s", patch->f_ops, patch->fstype->name);
+        DEBUG_err("  patching file operations f_ops=0x%p for %s with regular file %s", patch->f_ops, patch->fstype->name,dentry->d_name.name);
         if ( patch->f_ops->open != talpaOpen )
         {
             dbg("     open 0x%p to 0x%p for %s", patch->open, talpaOpen, patch->fstype->name);
@@ -1604,7 +1613,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
 #endif
     else
     {
-        dbg("  patching inode operations 0x%p for %s", patch->i_ops, patch->fstype->name);
+        dbg("  patching inode operations i_ops=0x%p for %s", patch->i_ops, patch->fstype->name);
         if ( patch->i_ops->lookup != talpaInodeLookup )
         {
             dbg("     lookup 0x%p for %s", patch->lookup,patch->fstype->name);
@@ -2889,6 +2898,9 @@ VFSHookInterceptor* newVFSHookInterceptor(void)
 
     appendObject(&GL_object, &GL_object.mHookDopsFilesystems, "nfs", false);
     appendObject(&GL_object, &GL_object.mHookDopsFilesystems, "nfs4", false);
+#ifdef TALPA_HOOK_EXT4_DOPS
+    appendObject(&GL_object, &GL_object.mHookDopsFilesystems, "ext4", false);
+#endif
 
     /* Parse module parameters - addition and removals from the above lists */
     parseParams(&GL_object, good_list, &GL_object.mGoodFilesystems, &GL_object.mGoodFilesystemsSet);

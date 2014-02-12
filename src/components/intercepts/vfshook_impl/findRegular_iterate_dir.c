@@ -34,6 +34,7 @@
 
 #include "platforms/linux/alloc.h"
 #include "platforms/linux/log.h"
+#include "platforms/linux/glue.h"
 
 #include "getPath.h"
 
@@ -41,6 +42,7 @@
 # define LOOKUP_NO_AUTOMOUNT 0
 #endif
 
+#define DEBUG_err dbg
 
 struct TalpaFindRegularContext
 {
@@ -143,7 +145,7 @@ static int fillonedir(void * __buf, const char * name, int namlen, loff_t offset
  */
 static struct TalpaFindRegularContext* openDirectory(struct TalpaFindRegularContext* parent)
 {
-    struct TalpaFindRegularContext* dir;
+    struct TalpaFindRegularContext* dir = NULL;
     struct file* dirFilp;
 
 
@@ -152,6 +154,20 @@ static struct TalpaFindRegularContext* openDirectory(struct TalpaFindRegularCont
     {
         err("Failed to open directory: %ld",PTR_ERR(dirFilp));
         return (struct TalpaFindRegularContext*)dirFilp; /* Error */
+    }
+
+    if (kdev_t_to_nr(inode_dev(dirFilp->f_dentry->d_inode)) !=
+        kdev_t_to_nr(inode_dev(parent->dir->f_dentry->d_inode)))
+    {
+        /* Changed devices
+        DEBUG_err("openDirectory dev=%d != parent %d for %s - not on same filesystem",
+            kdev_t_to_nr(inode_dev(dirFilp->f_dentry->d_inode)),
+            kdev_t_to_nr(inode_dev(parent->dir->f_dentry->d_inode)),
+            parent->dirname);
+            */
+
+        filp_close(dirFilp, current->files);
+        return parent;
     }
 
     dir = talpa_alloc(sizeof(struct TalpaFindRegularContext));
@@ -373,7 +389,7 @@ struct dentry *findRegular(struct vfsmount* root)
         }
         if (reg && !IS_ERR(reg))
         {
-            dbg("found regular dentry 0x%p", reg);
+            DEBUG_err("found regular dentry 0x%p basename=%s",reg,reg->d_name.name);
         }
         break;
     }
