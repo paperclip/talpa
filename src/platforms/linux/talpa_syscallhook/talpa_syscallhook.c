@@ -507,7 +507,7 @@ static asmlinkage long talpa_execve(char __user * name,
     atomic_inc(&usecnt);
     ops = interceptor;
 
-    filename = getname(name);
+    filename = talpa_getname(name);
     error = PTR_ERR(filename);
     if (IS_ERR(filename))
         goto out;
@@ -558,9 +558,9 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
     ops = interceptor;
 
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
-    filename = getname((char *) regs.bx);
+    filename = talpa_getname((char *) regs.bx);
     #else
-    filename = getname((char *) regs.ebx);
+    filename = talpa_getname((char *) regs.ebx);
     #endif
     error = PTR_ERR(filename);
     if (IS_ERR(filename))

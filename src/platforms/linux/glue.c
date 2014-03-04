@@ -332,6 +332,18 @@ void talpa_putname(TALPA_FILENAME_T* filename)
 }
 #endif
 
+#ifndef TALPA_GETNAME_EXPORTED
+TALPA_FILENAME_T * talpa_getname(const char * filename )
+{
+    /*
+     * Uses putname if available, or final_putname - but they come from the same define
+     */
+    typedef TALPA_FILENAME_T * (*getname_func)(const char * filename);
+    getname_func getname = (getname_func)talpa_get_symbol("getname", (void *)TALPA_GETNAME_ADDRESS);
+    return(getname(filename));
+}
+#endif
+
 #ifndef TALPA_SYSTEM_GET_FS_ROOT_AND_PWD
 void talpa_get_fs_root_and_pwd(
                 struct fs_struct *fs,

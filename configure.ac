@@ -3,7 +3,7 @@
 #
 # TALPA Filesystem Interceptor
 #
-# Copyright (C) 2004-2013 Sophos Limited
+# Copyright (C) 2004-2014 Sophos Limited
 #
 # This program is free software; you can redistribute it and/or modify it under the terms of the
 # GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -19,12 +19,11 @@
 #
 # Bolierplate.
 #
-AC_INIT(talpa, 0.9.94)
+AC_INIT(talpa, 0.9.95)
 AC_CONFIG_AUX_DIR(config)
-AC_COPYRIGHT(Copyright (c) 2004-2013 Sophos Limited)
+AC_COPYRIGHT(Copyright (c) 2004-2014 Sophos Limited)
 
-AM_INIT_AUTOMAKE([1.9 tar-ustar])
-AM_INIT_AUTOMAKE([dist-zip dist-bzip2 dist-shar])
+AM_INIT_AUTOMAKE([1.9 tar-ustar dist-zip dist-bzip2])
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
@@ -1118,32 +1117,32 @@ if test $((kern_version_code)) -ge 132608; then
 
     AC_MSG_CHECKING([for vfsmount and br lock])
     vfsmount_lock_lock=`${EGREP} "[[VDd]] vfsmount_lock_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-	lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-	mount_lock=`${EGREP} " mount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    lg_local_lock=`${EGREP} " lg_local_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    mount_lock=`${EGREP} " mount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
 
-	if test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" == ""  ; then
-		AC_MSG_RESULT([vfsmount lock is BRLOCK])
-		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")
-	elif test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" != ""  ; then
-		AC_MSG_RESULT([vfsmount lock is LG_BRLOCK])
-		AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LG_BRLOCK")
+    if test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" == ""  ; then
+        AC_MSG_RESULT([vfsmount lock is BRLOCK])
+        AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_BRLOCK")
+    elif test x"$vfsmount_lock_lock" != x""  && test "$lg_local_lock" != ""  ; then
+        AC_MSG_RESULT([vfsmount lock is LG_BRLOCK])
+        AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LG_BRLOCK")
     elif test x"$mount_lock" != x"" ; then
-		AC_MSG_RESULT([vfsmount lock is mount_lock seqlock])
+        AC_MSG_RESULT([vfsmount lock is mount_lock seqlock])
         AC_SUBST(vfsmntlock, "-DTALPA_USE_MOUNT_LOCK -DTALPA_MOUNT_LOCK_ADDR=0x$mount_lock")
- 	elif test x"$vfsmount_lock_lock" == x"" ; then
-		AC_MSG_RESULT([vfsmount lock is spinlock])
-		# Find vfsmnt_lock address
-		AC_MSG_CHECKING([for vfsmount_lock address])
-		vfsmnt_lock_addr=`${EGREP} " vfsmount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-		if test "$vfsmnt_lock_addr" != ""; then
-			AC_MSG_RESULT([0x$vfsmnt_lock_addr])
-			AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
-		else
-			AC_MSG_ERROR([not found])
-		fi
-	else
-		AC_MSG_ERROR([not found])
-	fi
+    elif test x"$vfsmount_lock_lock" == x"" ; then
+        AC_MSG_RESULT([vfsmount lock is spinlock])
+        # Find vfsmnt_lock address
+        AC_MSG_CHECKING([for vfsmount_lock address])
+        vfsmnt_lock_addr=`${EGREP} " vfsmount_lock\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$vfsmnt_lock_addr" != ""; then
+            AC_MSG_RESULT([0x$vfsmnt_lock_addr])
+            AC_SUBST(vfsmntlock, "-DTALPA_USE_VFSMOUNT_LOCK -DTALPA_VFSMOUNT_LOCK_ADDR=0x$vfsmnt_lock_addr")
+        else
+            AC_MSG_ERROR([not found])
+        fi
+    else
+        AC_MSG_ERROR([not found])
+    fi
 
 
     # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
@@ -1820,6 +1819,18 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+    AC_MSG_CHECKING([for getname])
+    ${EGREP} "\s+getname.*EXPORT_SYMBOL" ${symvers} >/dev/null 2>&1
+    if test $? -eq 0 ; then
+        AC_MSG_RESULT([getname present and exported])
+        AC_SUBST(getname,"-DTALPA_GETNAME_SYMBOL -DTALPA_GETNAME_EXPORTED")
+    else
+        getname_addr=`${EGREP} " getname\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test "$getname_addr" != ""; then
+            AC_MSG_RESULT([getname present but not exported])
+            AC_SUBST(getname, "-DTALPA_GETNAME_SYMBOL -DTALPA_GETNAME_ADDRESS=0x$getname_addr")
+        fi
+    fi
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
@@ -1867,6 +1878,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@buildsymbolver@/${buildsymbolver}/; \
                 s/@putname@/${putname}/; \
+                s/@getname@/${getname}/; \
                 s/@strdupuser@/${strdupuser}/; \
                 s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
@@ -1917,6 +1929,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@buildprocfs@/${buildprocfs}/; s/@binarysysctl@/${binarysysctl}/; \
                 s/@buildsecurityfs@/${buildsecurityfs}/; s/@securityfs@/${securityfs}/; \
                 s/@putname@/${putname}/; \
+                s/@getname@/${getname}/; \
                 s/@strdupuser@/${strdupuser}/; \
                 s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; \
