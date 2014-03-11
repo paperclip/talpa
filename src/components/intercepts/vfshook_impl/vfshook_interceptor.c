@@ -363,12 +363,14 @@ static int talpaRelease(struct inode *inode, struct file *file)
 
         ret = 0;
         /* Do not examine if we should not intercept closes and we are already examining one */
-        if ( likely(
+        if (
 #ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
             (current->flags & PF_EXITING) == 0 &&
 #endif
-            ((GL_object.mInterceptMask & HOOK_CLOSE) != 0) &&
-            !(current->flags & PF_TALPA_INTERNAL) )
+            likely(
+                ((GL_object.mInterceptMask & HOOK_CLOSE) != 0) &&
+                !(current->flags & PF_TALPA_INTERNAL)
+                )
             )
         {
             IFileInfo *pFInfo;

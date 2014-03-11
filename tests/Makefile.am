@@ -241,6 +241,7 @@ endif
 SUBDIRS = modules
 
 TESTS                   = tlp-init.sh \
+                          chk_null_mnt.sh \
                           chkpersonality.sh \
                           chkfileinfo.sh \
                           chkfsinfo.sh \
@@ -371,8 +372,7 @@ TESTS +=                  chk_vettingctrl12.sh \
                           tlp-9-003.sh \
                           tlp-9-004.sh \
                           chkext2mnt.sh \
-                          chkext2umnt.sh \
-						  chk_null_mnt.sh
+                          chkext2umnt.sh
 
 if LOADTEST
 TESTS +=                  reiserfsmnt.sh \
@@ -407,7 +407,7 @@ check_SCRIPTS =           $(TESTS) \
                           test-script3.sh \
                           test-script4.sh
 
-talpa-test.sh : Makefile.am
+talpa-test.sh : Makefile.in
 	echo "#/bin/bash" >$@
 	echo "export srcdir=$(srcdir)" >>$@
 	echo "export ko=$(ko)" >>$@
