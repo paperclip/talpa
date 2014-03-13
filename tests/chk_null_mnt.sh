@@ -17,11 +17,19 @@
 
 . ${srcdir}/talpa-init.sh
 
+tmpdir='/tmp/tlp-test/mnt1'
+mkdir -p $tmpdir
+
 talpa_disable
 talpa_unload
 
 lsmod | grep talpa && { echo "Unable to unload Talpa" >&2 ; exit 77 ; }
-./chk_null_mnt || { echo "Kernel doesn't support NULL device" >&2 ; exit 77 ; }
+./chk_null_mnt "$tmpdir" || {
+    echo "Kernel doesn't support NULL device" >&2
+    umount $tmpdir
+    rmdir $tmpdir
+    exit 77
+}
 
 talpa_load
 talpa_defaults
@@ -29,6 +37,7 @@ talpa_enable
 
 lsmod | grep talpa
 
-./chk_null_mnt
+./chk_null_mnt "$tmpdir"
 EXIT=$?
+rmdir $tmpdir
 exit $EXIT
