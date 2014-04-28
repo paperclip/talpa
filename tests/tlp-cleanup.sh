@@ -20,6 +20,14 @@
 talpa_disable
 talpa_unload
 
+# Wait for modules to unload
+lsmod | grep talpa | grep tlp
+if [ $? -eq 1 ]
+then
+    sleep 2
+fi
+
+
 if [ -d /tmp/tlp-test ]
 then
     LSOF=`which lsof 2>/dev/null`
