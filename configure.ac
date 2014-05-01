@@ -531,7 +531,10 @@ function check_headers_layout
     fi
     kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include"`
     if test -d "${kerneldir}/arch/x86/include/asm"; then
-        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include"`
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include/asm"`
+    fi
+    if test -d "${kerneldir}/arch/x86/include/generated"; then
+        kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/arch/x86/include/generated"`
     fi
     if test -d "${kerneldir}/include2"; then
         kernelhdrspath=`append_path "${kernelhdrspath}" "${kerneldir}/include2"`
@@ -576,6 +579,7 @@ fi
 #
 TALPA_LOCATE_HEADER(linux/version.h, $kernelhdrspath)
 
+
 TALPA_LOCATE_HEADER(linux/magic.h, $kernelhdrspath, linuxmagicfound=yes, linuxmagicfound=no)
 AC_MSG_RESULT([$linuxmagicfound - $TALPA_HEADER_LOCATION])
 if test "$linuxmagicfound" = "yes" ; then
@@ -606,6 +610,26 @@ else
     linuxcompilerinclude=""
 fi
 AC_SUBST(linuxcompilerinclude, "$linuxcompilerinclude")
+
+TALPA_LOCATE_HEADER(uapi/asm/unistd.h, $kernelhdrspath, uapiunistdfound=yes, uapiunistdfound=no)
+AC_MSG_RESULT([$uapiunistdfound - $TALPA_HEADER_LOCATION])
+if test "$uapiunistdfound" = "yes" ; then
+    uapiunistdinclude="-I$TALPA_HEADER_LOCATION"
+    AC_DEFINE([HAVE_UAPIUNISTD],1,[Defined when we have uapi/asm/unistd.h])
+else
+    uapiunistdinclude=""
+fi
+AC_SUBST(uapiunistdinclude, "$uapiunistdinclude")
+
+TALPA_LOCATE_HEADER(asm/unistd_64_x32.h, $kernelhdrspath, unistd64x32found=yes, unistd64x32found=no)
+AC_MSG_RESULT([$unistd64x32found - $TALPA_HEADER_LOCATION])
+if test "$unistd64x32found" = "yes" ; then
+    unistd64x32include="-I$TALPA_HEADER_LOCATION"
+    AC_DEFINE([HAVE_UNISTD64x32],1,[Defined when we have asm/unistd_64_x32.h])
+else
+    unistd64x32include=""
+fi
+AC_SUBST(unistd64x32include, "$unistd64x32include")
 
 AC_MSG_CHECKING([for kernel configuration])
 TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, autoconffound=no, [quiet])
@@ -1935,6 +1959,8 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@builddualfs@/${builddualfs}/; \
                 s!@linuxmagicinclude@!${linuxmagicinclude}!; \
                 s!@linuxcompilerinclude@!${linuxcompilerinclude}!; \
+                s!@uapiunistdinclude@!${uapiunistdinclude}!; \
+                s!@unistd64x32include@!${unistd64x32include}!; \
                 s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
