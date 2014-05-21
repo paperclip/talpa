@@ -762,7 +762,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
                     }
                     else
                     {
-                        err("[intercepted %u-%u-%u] failed to openDentry %d - trying open of %s",processParentPID(current), current->tgid, current->pid, ret,local_filename);
+                        dbg("[intercepted %u-%u-%u] failed to openDentry %d - trying open of %s",processParentPID(current), current->tgid, current->pid, ret,local_filename);
                         ret = details->file->open(file->object, local_filename, openFlags, operation != EFS_Close);
                         /* We cannot distinguish between open and exec with vfs interceptor
                         so it is possible that this failed because of the lack of read permission.
@@ -776,7 +776,7 @@ static void examineFile(const void* self, IEvaluationReport* report, const IPers
                 }
                 else
                 {
-                    err("[intercepted %u-%u-%u] failed to openDentry %d - can't open %s due to process exiting",processParentPID(current), current->tgid, current->pid, ret,local_filename);
+                    dbg("[intercepted %u-%u-%u] failed to openDentry %d - can't open %s due to process exiting",processParentPID(current), current->tgid, current->pid, ret,local_filename);
                 }
 #endif
             }
