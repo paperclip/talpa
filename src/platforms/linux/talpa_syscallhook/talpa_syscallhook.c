@@ -813,7 +813,7 @@ static void **get_start_addr_ia32(void)
     #error "Syscall32 table address not built in"
   #endif
 #endif
-    err("Syscall searching not available for 2.6.39+");
+    dbg("Syscall searching not available for 2.6.39+");
     return (void **)0;
 }
 #else /* ! LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39) */
@@ -1241,7 +1241,7 @@ static int find_syscall_table(void)
         if (startaddr == NULL)
         {
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
-                err("The syscall32_table value is not valid, you will need to reboot your kernel");
+                err("The syscall32_table value is not valid, you will need to reboot your system");
             #else
                 err("The syscall32_table value is not valid");
             #endif
@@ -1311,11 +1311,11 @@ static int find_syscall_table(void)
         if (startaddr == NULL)
         {
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
-                err("The syscall_table value is not valid, you will need to reboot your kernel");
+                err("The syscall_table value is not valid, you will need to reboot your system");
             #else
                 err("The syscall_table value is not valid");
             #endif
-            
+
             return -EFAULT;
         }
 
