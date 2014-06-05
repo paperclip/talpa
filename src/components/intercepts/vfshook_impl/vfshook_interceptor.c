@@ -258,8 +258,9 @@ static int talpaOpen(struct inode *inode, struct file *file)
     struct patchedFilesystem *patch = NULL;
     int ret = -ESRCH;
 
-
     hookEntry();
+
+    BUG_ON(NULL == inode);
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
@@ -280,6 +281,8 @@ static int talpaOpen(struct inode *inode, struct file *file)
         /* Do not examine if we should not intercept opens and we are already examining one */
         if ( likely( ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
         {
+            BUG_ON(NULL == file);
+
             /* First check with the examineInode method */
             ret = GL_object.mTargetProcessor->examineInode(GL_object.mTargetProcessor, EFS_Open, flags_to_writable(file->f_flags), file->f_flags, kdev_t_to_nr(inode_dev(inode)), inode->i_ino);
 
@@ -339,6 +342,8 @@ static int talpaRelease(struct inode *inode, struct file *file)
 
     hookEntry();
 
+    BUG_ON(NULL == inode);
+
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
@@ -357,7 +362,10 @@ static int talpaRelease(struct inode *inode, struct file *file)
     if ( likely( patch != NULL ) )
     {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
-        struct path *path = &file->f_path;
+        struct path *path;
+
+        BUG_ON(NULL == file);
+        path = &file->f_path;
         path_get(path);
 #endif
 
@@ -436,6 +444,8 @@ static int talpaFlush(struct file *filp, fl_owner_t id)
     int ret = -ESRCH;
 
     hookEntry();
+
+    BUG_ON(NULL == filp);
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
@@ -517,8 +527,13 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
     struct patchedFilesystem *patch = NULL;
     int err = -ESRCH;
 
-
     hookEntry();
+
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+        BUG_ON(NULL == filp);
+  #else
+        BUG_ON(NULL == inode);
+  #endif
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
@@ -719,6 +734,8 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
 
 
     hookEntry();
+
+    BUG_ON(NULL == inode);
 
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
@@ -1070,6 +1087,8 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
 
     hookEntry();
 
+    BUG_ON(dentry == NULL);
+
     talpa_rcu_read_lock(&GL_object.mPatchLock);
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
@@ -1089,7 +1108,10 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         {
 #ifdef TALPA_HAVE_INTENT
             struct file *filpBefore = NULL;
-            filpBefore = nd->intent.open.file;
+            if ( likely( nd != NULL ) )
+            {
+                filpBefore = nd->intent.open.file;
+            }
             resultCode = patch->d_revalidate(dentry,nd);
             resultCode = maybeScanDentryRevalidate(resultCode,dentry,nd,filpBefore);
 #else
@@ -1137,11 +1159,16 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
-    bool writable = flags_to_writable(file->f_flags);
+    bool writable;
 
     hookEntry();
+
+    BUG_ON(NULL == file);
+    writable = flags_to_writable(file->f_flags);
+
     atomic_open_dbg("atomic_open start, writable=%d, flags=%x, open_flag=%x",writable,file->f_flags, open_flag);
 
+    BUG_ON(NULL == inode);
     talpa_rcu_read_lock(&GL_object.mPatchLock);
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
