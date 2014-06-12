@@ -21,6 +21,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+
+#include <config.h>
+#include <configure/autoconf.h>
+
 #include <unistd.h>
 #include <sys/mount.h>
 #include <linux/unistd.h>
