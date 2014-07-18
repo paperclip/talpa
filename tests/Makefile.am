@@ -17,6 +17,7 @@
 #
 
 AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir) @linuxmagicinclude@ @linuxcompilerinclude@ @uapiunistdinclude@ @unistd64x32include@
+USERSPACE_C_FLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir)
 
 check_PROGRAMS =    chkpersonality \
                     chkfileinfo \
@@ -153,10 +154,19 @@ chkext2mnt_SOURCES = chkext2mnt.c
 chkext2umnt_SOURCES = chkext2umnt.c
 chkext2fops_SOURCES = chkext2fops.c
 chk_null_mnt_SOURCES = chk_null_mnt.c
+
 vc_inclusionproc_SOURCES = vc_inclusionproc.c ../clients/vc-lib.c ../clients/talpa.c
+vc_inclusionproc_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chkvc_SOURCES = chkvc.c ../clients/vc-lib.c ../clients/talpa.c
+chkvc_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chkvc_timeout_SOURCES = chkvc_timeout.c ../clients/vc-lib.c ../clients/talpa.c
+chkvc_timeout_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chkcacheintcpt_SOURCES = chkcacheintcpt.c ../clients/vc-lib.c ../clients/talpa.c
+chkcacheintcpt_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chkinclusionioctl_SOURCES = chkinclusionioctl.c
 chkinclusionioctl1_SOURCES = chkinclusionioctl1.c
 chkexclusionioctl_SOURCES = chkexclusionioctl.c
@@ -175,30 +185,67 @@ chk_ddvc5_SOURCES = chk_ddvc5.c ../clients/talpa.c
 chk_ddvc6_SOURCES = chk_ddvc6.c ../clients/talpa.c
 chk_ddvc7_SOURCES = chk_ddvc7.c ../clients/talpa.c
 chk_ddvc8_SOURCES = chk_ddvc8.c ../clients/talpa.c
+
 chk_vettingctrl_SOURCES = chk_vettingctrl.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl1_SOURCES = chk_vettingctrl1.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl1_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl2_SOURCES = chk_vettingctrl2.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl2_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl3_SOURCES = chk_vettingctrl3.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl3_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl4_SOURCES = chk_vettingctrl4.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl4_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl5_SOURCES = chk_vettingctrl5.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl5_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl8_SOURCES = chk_vettingctrl8.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl8_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl9_SOURCES = chk_vettingctrl9.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl9_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl10_SOURCES = chk_vettingctrl10.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl10_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl11_SOURCES = chk_vettingctrl11.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl11_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_vettingctrl12_SOURCES = chk_vettingctrl12.c ../clients/vc-lib.c ../clients/talpa.c
+chk_vettingctrl12_CFLAGS = $(USERSPACE_C_FLAGS)
+
 chk_fsexclusion_SOURCES = chk_fsexclusion.c
 chk_fsexclusion8_SOURCES = chk_fsexclusion8.c
 chk_fsexclusion10_SOURCES = chk_fsexclusion10.c
 chk_fsexclusion15_SOURCES = chk_fsexclusion15.c
 tlp_4_001_SOURCES = tlp-4-001.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_001_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_4_002_SOURCES = tlp-4-002.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_002_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_4_003_SOURCES = tlp-4-003.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_003_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_4_003a_SOURCES = tlp-4-003a.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_4_003a_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_4_004_SOURCES = tlp-4-004.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_4_004_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_4_005_SOURCES = tlp-4-005.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_005_LDFLAGS = $(PTHREAD_FLAG)
+tlp_4_005_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_4_006_SOURCES = tlp-4-006.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
 tlp_4_006_LDFLAGS = $(PTHREAD_FLAG)
+tlp_4_006_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_5_001_SOURCES = tlp-5-001.c
 tlp_5_002_SOURCES = tlp-5-002.c
 tlp_5_003_SOURCES = tlp-5-003.c
@@ -222,13 +269,27 @@ tlp_6_027_SOURCES = tlp-6-027.c
 tlp_6_028_SOURCES = tlp-6-028.c
 tlp_6_029_SOURCES = tlp-6-029.c
 tlp_6_030_SOURCES = tlp-6-030.c
+
 tlp_7_001_SOURCES = tlp-7-001.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_7_001_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_7_003_SOURCES = tlp-7-003.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_7_003_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_7_005_SOURCES = tlp-7-005.c ../clients/vc-lib.c ../clients/talpa.c
+tlp_7_005_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_8_001_SOURCES = tlp-8-001.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_001_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_8_002_SOURCES = tlp-8-002.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_002_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_8_003_SOURCES = tlp-8-003.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_003_CFLAGS = $(USERSPACE_C_FLAGS)
+
 tlp_8_004_SOURCES = tlp-8-004.c ../clients/vc-lib.c ../clients/pe-lib.c ../clients/talpa.c
+tlp_8_004_CFLAGS = $(USERSPACE_C_FLAGS)
 
 if LOADTEST
 
