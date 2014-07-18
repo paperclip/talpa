@@ -575,10 +575,12 @@ static asmlinkage int talpa_execve(struct pt_regs regs)
         }
     }
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+    #ifdef TALPA_HAS_STRUCT_FILENAME
     error = talpa_do_execve((char *) regs.bx, (char **) regs.cx, (char **) regs.dx, &regs);
+    #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+    error = talpa_do_execve(filename, (char **) regs.cx, (char **) regs.dx, &regs);
     #else
-    error = talpa_do_execve((char *) regs.ebx, (char **) regs.ecx, (char **) regs.edx, &regs);
+    error = talpa_do_execve(filename, (char **) regs.ecx, (char **) regs.edx, &regs);
     #endif
     if (error == 0)
     {
