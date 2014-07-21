@@ -21,12 +21,15 @@ talpa_disable
 talpa_unload
 
 # Wait for modules to unload
-lsmod | grep talpa | grep tlp
-if [ $? -eq 1 ]
-then
-    sleep 2
-fi
-
+for i in 0 1 2 3 4 5 6 7 8 9
+do
+    if lsmod | grep 'talpa\|tlp'
+    then
+        sleep 0.2 || sleep 1
+    else
+        break
+    fi
+done
 
 if [ -d /tmp/tlp-test ]
 then
