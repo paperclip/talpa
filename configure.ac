@@ -636,6 +636,7 @@ TALPA_LOCATE_HEADER(generated/autoconf.h, $kernelhdrspath, autoconffound=yes, au
 if test "$autoconffound" = "yes"; then
     autoconf_h=generated/autoconf.h
     autoconf_h_path=$TALPA_HEADER_LOCATION/generated/autoconf.h
+    autoconf_h_include="-I${TALPA_HEADER_LOCATION}"
     utsrelease_h=generated/utsrelease.h
     ccgenerateduts="-DGENERATED_UTS_RELEASE"
 else
@@ -643,11 +644,13 @@ else
     if test "$autoconffound" = "yes"; then
         autoconf_h=linux/autoconf.h
         autoconf_h_path=$TALPA_HEADER_LOCATION/linux/autoconf.h
+        autoconf_h_include="-I${TALPA_HEADER_LOCATION}"
         utsrelease_h=linux/utsrelease.h
     else
         AC_MSG_ERROR([autoconf.h not found])
     fi
 fi
+AC_SUBST(autoconf_h_include,"$autoconf_h_include")
 
 if test ! -d tests/configure; then
     mkdir -p tests/configure
@@ -1961,6 +1964,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s!@linuxcompilerinclude@!${linuxcompilerinclude}!; \
                 s!@uapiunistdinclude@!${uapiunistdinclude}!; \
                 s!@unistd64x32include@!${unistd64x32include}!; \
+                s!@autoconf_h_include@!${autoconf_h_include}!; \
                 s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
