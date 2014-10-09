@@ -34,13 +34,26 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AC_CHECK_TOOL(MODULELINKER, ld, :)
 AC_PROG_EGREP
-AC_PATH_PROG(CAT, cat)
-AC_PATH_PROG(CUT, cut)
-AC_PATH_PROG(SED, sed)
-AC_PATH_PROG(UNAME, uname)
 AC_PROG_LN_S
+
+AC_PATH_PROG(CAT, cat)
+test -x "${CAT}" || AC_MSG_ERROR([Please install cat before configuring])
+
+AC_PATH_PROG(CUT, cut)
+test -x "${CUT}" || AC_MSG_ERROR([Please install cut before configuring])
+
+AC_PATH_PROG(SED, sed)
+test -x "${SED}" || AC_MSG_ERROR([Please install sed before configuring])
+
+AC_PATH_PROG(UNAME, uname)
+test -x "${UNAME}" || AC_MSG_ERROR([Please install uname before configuring])
+
 AC_PATH_PROG(RM, rm)
+test -x "${RM}" || AC_MSG_ERROR([Please install rm before configuring])
+
 AC_PATH_PROG(XARGS, xargs)
+test -x "${XARGS}" || AC_MSG_ERROR([Please install xargs before configuring])
+
 
 #
 # Options.
