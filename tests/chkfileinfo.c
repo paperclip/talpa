@@ -30,6 +30,9 @@
 #include <linux/magic.h>
 #endif
 
+#ifdef HAVE_UAPILINUXMAGIC
+#include <uapi/linux/magic.h>
+#endif
 #include <sys/vfs.h>
 
 #include "tlp-test.h"

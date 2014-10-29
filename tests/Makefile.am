@@ -16,7 +16,7 @@
 ## write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 ##
 
-AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir) @autoconf_h_include@ @linuxmagicinclude@ @linuxcompilerinclude@ @uapiunistdinclude@ @unistd64x32include@
+AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir) @autoconf_h_include@ @linuxmagicinclude@ @linuxuapimagicinclude@ @linuxcompilerinclude@ @uapiunistdinclude@ @unistd64x32include@
 USERSPACE_C_FLAGS = -I$(srcdir)/include -I$(srcdir) -I$(top_srcdir)
 
 check_PROGRAMS =    chkpersonality \

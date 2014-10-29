@@ -603,6 +603,16 @@ else
 fi
 AC_SUBST(linuxmagicinclude, "$linuxmagicinclude")
 
+TALPA_LOCATE_HEADER(uapi/linux/magic.h, $kernelhdrspath, linuxuapimagicfound=yes, linuxuapimagicfound=no)
+AC_MSG_RESULT([$linuxuapimagicfound - $TALPA_HEADER_LOCATION])
+if test "$linuxuapimagicfound" = "yes" ; then
+    linuxuapimagicinclude="-I$TALPA_HEADER_LOCATION"
+    AC_DEFINE([HAVE_UAPILINUXMAGIC],1,[Defined when we have uapi/linux/magic.h])
+else
+    linuxuapimagicinclude=""
+fi
+AC_SUBST(linuxuapimagicinclude, "$linuxuapimagicinclude")
+
 
 # Check for uidgid.h type
 TALPA_LOCATE_HEADER(linux/uidgid.h, $kernelhdrspath, linuxuidgidfound=yes, linuxuidgidfound=no)
@@ -1974,6 +1984,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@builddualfs@/${builddualfs}/; \
                 s!@linuxmagicinclude@!${linuxmagicinclude}!; \
+                s!@linuxuapimagicinclude@!${linuxuapimagicinclude}!; \
                 s!@linuxcompilerinclude@!${linuxcompilerinclude}!; \
                 s!@uapiunistdinclude@!${uapiunistdinclude}!; \
                 s!@unistd64x32include@!${unistd64x32include}!; \
