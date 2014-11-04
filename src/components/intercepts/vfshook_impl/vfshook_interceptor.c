@@ -594,7 +594,7 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 
     hookExitRv(err);
 }
-#endif
+#endif /*SMBFS */
 
 #if  LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, umode_t mode, bool flag)
@@ -704,7 +704,7 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
                         current->flags &= ~PF_TALPA_INTERNAL;
                         pFInfo->delete(pFInfo);
                     }
-#endif
+#endif /* VERSION > 2.6 */
                 }
             }
         }
@@ -1474,7 +1474,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         patch->d_ops = NULL;
         patch->d_revalidate = NULL;
     }
-#endif
+#endif /* TALPA_HOOK_D_OPS */
 
     if (        patch->open == talpaOpen || patch->release == talpaRelease
 #ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
@@ -1608,7 +1608,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
             return -1;
         }
     }
-#endif
+#endif /* TALPA_HOOK_ATOMIC_OPEN */
 
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
@@ -1883,7 +1883,7 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         patch->d_revalidate = NULL;
         patch->d_ops = NULL;
     }
-#endif
+#endif /* TALPA_HOOK_D_OPS */
 
 #ifdef TALPA_HAS_SMBFS
     if ( !(patch->sf_ops || patch->f_ops || patch->i_ops) )
@@ -2064,7 +2064,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         }
     }
 # endif
-#endif
+#endif  /* TALPA_HOOK_D_OPS */
 
     talpa_rcu_read_unlock(&GL_object.mListLock);
 
@@ -2251,9 +2251,8 @@ static int talpa_copy_mount_string(const void __user *data, char **where)
 
     if ( !data ) {
         *where = NULL;
-        return -EFAULT;
+        return 0;
     }
-
 
 #ifdef TALPA_HAS_STRNDUP_USER
     tmp = strndup_user(data, PAGE_SIZE);
@@ -2295,12 +2294,14 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
     dir = talpa_getname(dir_name);
     if ( IS_ERR(dir) )
     {
+        dbg(" talpa_getname  error  is %ld",IS_ERR(dir));
         goto out1;
     }
 
     decision = talpa_copy_mount_string(type,&fstype);
     if ( decision < 0 )
     {
+        dbg("talpa_copy_mount returned error is %d",decision);
         goto out2;
     }
 
@@ -2560,7 +2561,6 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
 #else
                         mnt = p.mnt;
 #endif
-
                         ret = processMount(mnt, flags, true);
 
 # ifdef TALPA_HAVE_PATH_LOOKUP
@@ -2588,7 +2588,6 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
             }
 #endif
         }
-
         err("Failed to synchronise post-mount! (%d)", ret);
     }
 
@@ -2598,7 +2597,6 @@ out:
     {
         free_page((unsigned long) page);
     }
-
     return ret;
 }
 
