@@ -49,6 +49,7 @@ check_PROGRAMS +=   chkstdinterceptor \
                     chkext2mnt \
                     chkext2umnt \
                     chk_null_mnt \
+                    chk_null_fstype_mnt \
                     chkext2fops \
                     vc_inclusionproc \
                     chkvc \
@@ -154,6 +155,7 @@ chkext2mnt_SOURCES = chkext2mnt.c
 chkext2umnt_SOURCES = chkext2umnt.c
 chkext2fops_SOURCES = chkext2fops.c
 chk_null_mnt_SOURCES = chk_null_mnt.c
+chk_null_fstype_mnt_SOURCES = chk_null_fstype_mnt.c
 
 vc_inclusionproc_SOURCES = vc_inclusionproc.c ../clients/vc-lib.c ../clients/talpa.c
 vc_inclusionproc_CFLAGS = $(USERSPACE_C_FLAGS)
@@ -303,6 +305,7 @@ SUBDIRS = modules
 
 TESTS                   = tlp-init.sh \
                           chk_null_mnt.sh \
+                          chk_null_fstype_mnt.sh \
                           chkpersonality.sh \
                           chkfileinfo.sh \
                           chkfsinfo.sh \
