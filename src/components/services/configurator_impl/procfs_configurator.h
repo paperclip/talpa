@@ -27,6 +27,8 @@
 #include "configurator/econfiguration_group.h"
 #include "configurator/iconfigurator.h"
 
+typedef struct ctl_table ctl_table;
+
 typedef struct
 {
     struct list_head            list;
