@@ -17,12 +17,12 @@
 
 . ${srcdir}/tlp-cleanup.sh
 
-if su -c /bin/true nobody; then
+if su -s /bin/sh -c /bin/true nobody; then
     rm -f /tmp/talpa-file-object-test-file 2>/dev/null
     tlp_insmod modules/tlp-file.${ko}
     chmod 555 tlp-6-029
     chown nobody tlp-6-029
-    su -c ./tlp-6-029 nobody
+    su -s /bin/sh -c ./tlp-6-029 nobody
     rc=$?
     if [ $rc -eq 0 ]; then
         exit 0

@@ -1310,6 +1310,18 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     fi
 
+
+    # Autodetect if fdentry is defined in fs structure
+    TALPA_LOCATE_HEADER(linux/fs.h, $kernelhdrspath, /bin/true, /bin/false , [quiet])
+    AC_MSG_CHECKING([for f_dentry in fs struct member])
+    ${EGREP} f_dentry $TALPA_HEADER_LOCATION/linux/fs.h >/dev/null 2>&1
+    if test $? -eq 0; then
+        AC_MSG_RESULT([detected])
+        AC_SUBST(fdentry,"-DTALPA_FDENTRY_DEFINED")
+    else
+        AC_MSG_RESULT([not detected])
+    fi
+
     # Autodetect if struct inode has i_private field
     # < 2.6.19
     if test $((kern_version_code)) -lt 132627; then
@@ -1896,6 +1908,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@rcubackport@/${rcubackport}/; \
                 s/@mutexes@/${mutexes}/; \
                 s/@inodemutex@/${inodemutex}/; \
+                s/@fdentry@/${fdentry}/; \
                 s/@inodeiprivate@/${inodeiprivate}/; \
                 s/@signalbackport@/${signalbackport}/; \
                 s/@jiffiesbackport@/${jiffiesbackport}/; \
@@ -1948,6 +1961,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@rcubackport@/${rcubackport}/; \
                 s/@mutexes@/${mutexes}/; \
                 s/@inodemutex@/${inodemutex}/; \
+                s/@fdentry@/${fdentry}/; \
                 s/@inodeiprivate@/${inodeiprivate}/; \
                 s/@signalbackport@/${signalbackport}/; \
                 s/@jiffiesbackport@/${jiffiesbackport}/; \

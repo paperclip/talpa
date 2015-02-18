@@ -359,6 +359,10 @@ static inline gid_t __talpa_kgid_val(talpa_kgid_t gid)
 
 #endif /* ! HAVE_LINUXUIDGID */
 
+#ifndef TALPA_FDENTRY_DEFINED
+#define f_dentry f_path.dentry
+#endif /* TALPA_FDENTRY_DEFINED */
+
 #endif /* H_LINUXGLUE */
 /*
  * End of linux_glue.h
