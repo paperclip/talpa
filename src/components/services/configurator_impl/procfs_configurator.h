@@ -27,7 +27,9 @@
 #include "configurator/econfiguration_group.h"
 #include "configurator/iconfigurator.h"
 
+#ifndef TALPA_HAS_CTLTABLE
 typedef struct ctl_table ctl_table;
+#endif
 
 typedef struct
 {

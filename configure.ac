@@ -1893,10 +1893,23 @@ if test $((kern_version_code)) -ge 132608; then
             AC_SUBST(getname, "-DTALPA_GETNAME_SYMBOL -DTALPA_GETNAME_ADDRESS=0x$getname_addr")
         fi
     fi
+
+
+    # Autodetect ctl_table  typdef
+    TALPA_LOCATE_HEADER(linux/sysctl.h, $kernelhdrspath, , , [quiet])
+    AC_MSG_CHECKING([typedef ctl_table])
+    if ${EGREP} -q "typedef struct ctl_table ctl_table" "$TALPA_HEADER_LOCATION/linux/sysctl.h" 2>/dev/null; then
+        AC_MSG_RESULT([detected])
+        AC_SUBST(ctltable,"-DTALPA_HAS_CTLTABLE")
+    else
+        AC_MSG_RESULT([not detected])
+    fi
+
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
                 s/@bool@/${bool}/; \
+                s/@ctltable@/${ctltable}/; \
                 s/@freetaskflag@/${freetaskflag}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
@@ -1950,6 +1963,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@debug@/${debug}/; \
                 s/@assert@/${assert}/; \
                 s/@bool@/${bool}/; \
+                s/@ctltable@/${ctltable}/; \
                 s/@freetaskflag@/${freetaskflag}/; \
                 s/@dpath@/${dpath}/; \
                 s/@newparent@/${newparent}/; \
