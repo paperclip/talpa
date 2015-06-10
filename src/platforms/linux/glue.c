@@ -173,11 +173,12 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 #endif
 
 #if defined TALPA_D_DNAME_DIRECT_DPATH
-    if (dentry->d_op && dentry->d_op->d_dname)
+    path = d_path(&pathPath, buffer, buflen);
+    if ( NULL != path )
     {
-        return d_path(&pathPath, buffer, buflen);
+        return path;
     }
-#endif
+#endif /* TALPA_D_DNAME_DIRECT_DPATH */
 
 #   if defined TALPA_DPATH_SLES11
     path = kernel_d_path(&pathPath, &rootPath, buffer, buflen, 0);
@@ -204,37 +205,14 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     }
     else if ( unlikely( NULL == path ) )
     {
-#ifdef TALPA_D_DNAME_DIRECT_DPATH
-        path = d_path(&pathPath, buffer, buflen);
-        dbg("    dpath=%s",path);
-
-        if (dentry->d_op && dentry->d_op->d_dname)
-        {
-            err("dpath=%s - dentry has d_op and d_dname=%p",path,dentry->d_op->d_dname);
-        }
-#endif
-        if ( NULL == path )
-        {
-            if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
-                dbg("talpa__d_path: kernel_d_path returned NULL for deleted file");
-                dbg("    basename=%s",dentry->d_name.name);
-            }
-            else
-            {
-                info("talpa__d_path: kernel_d_path returned NULL for non-deleted file");
-                info("    basename=%s",dentry->d_name.name);
-            }
+        if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
+            dbg("talpa__d_path: kernel_d_path returned NULL for deleted file");
+            dbg("    basename=%s",dentry->d_name.name);
         }
         else
         {
-            if (!IS_ROOT(dentry) && d_unhashed(dentry))
-            {
-                dbg ("    talpa__d_path: kernel_d_path returned NULL but d_path returned path %s for deleted file",path);
-            }
-            else
-            {
-                info("    talpa__d_path: kernel_d_path returned NULL but d_path returned path %s for non-deleted file",path);
-            }
+            info("talpa__d_path: kernel_d_path returned NULL for non-deleted file");
+            info("    basename=%s",dentry->d_name.name);
         }
     }
 

@@ -278,7 +278,7 @@ static struct dentry *scanDirectory(const char* dirname, char* buf, size_t bufsi
         error = iterate_dir(context->dir, &(ctx.ctx));
         if (error != 0 && error != -EBFONT)
         {
-            err("iterate_dir produced error %d",error);
+            err("iterate_dir produced error %d while iterating directory %s",error,dirname);
             context = closeDirAndReturnParent(context);
             if (context == NULL)
             {
