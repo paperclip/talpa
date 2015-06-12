@@ -174,6 +174,11 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
 #if defined TALPA_D_DNAME_DIRECT_DPATH
     path = d_path(&pathPath, buffer, buflen);
+    if ( unlikely( IS_ERR(path) != 0 ) )
+    {
+        critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
+        path = NULL;
+    }
     if ( NULL != path )
     {
         return path;
