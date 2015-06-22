@@ -208,6 +208,12 @@ static ssize_t securityfsRead(struct file *file, char __user *buf, size_t count,
         return 0;
     }
 
+    if ( !file )
+    {
+        dbg("Attempting to read from null file");
+        return -EBADF;
+    }
+
     element = (struct configurationElement *)file->private_data;
     if ( !element )
     {
