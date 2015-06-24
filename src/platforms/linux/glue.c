@@ -156,8 +156,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     struct path pathPath;
     struct path rootPath;
 #   endif
-#endif
-
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || (defined TALPA_HAS_DPATH) */
 
 #if defined HOLD_DCACHE_LOCK_WHILE_CALLING_D_PATH
     spin_lock(&dcache_lock);
@@ -173,15 +172,18 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 #endif
 
 #if defined TALPA_D_DNAME_DIRECT_DPATH
-    path = d_path(&pathPath, buffer, buflen);
-    if ( unlikely( IS_ERR(path) != 0 ) )
+    if (dentry->d_op && dentry->d_op->d_dname)
     {
-        critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
-        path = NULL;
-    }
-    if ( NULL != path )
-    {
-        return path;
+        path = d_path(&pathPath, buffer, buflen);
+        if ( unlikely( IS_ERR(path) != 0 ) )
+        {
+            critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
+            path = NULL;
+        }
+        if ( NULL != path )
+        {
+            return path;
+        }
     }
 #endif /* TALPA_D_DNAME_DIRECT_DPATH */
 
@@ -210,14 +212,46 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
     }
     else if ( unlikely( NULL == path ) )
     {
-        if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
-            dbg("talpa__d_path: kernel_d_path returned NULL for deleted file");
-            dbg("    basename=%s",dentry->d_name.name);
+#ifdef TALPA_D_DNAME_DIRECT_DPATH
+        /* only use this as a fall-back, it will only return the relative path from a chroot
+         * Use this in cases where kernel_d_path fails to return a valid path for bind mounts
+         * in newer kernel in a systemd environment */
+        path = d_path(&pathPath, buffer, buflen);
+        if ( unlikely( IS_ERR(path) != 0 ) )
+        {
+            critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
+            path = NULL;
+        }
+        dbg("    dpath=%s",path);
+
+        if (dentry->d_op && dentry->d_op->d_dname)
+        {
+            err("dpath=%s - dentry has d_op and d_dname=%p",path,dentry->d_op->d_dname);
+        }
+#endif
+        if ( NULL == path )
+        {
+            if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
+                dbg("talpa__d_path: kernel_d_path returned NULL for deleted file");
+                dbg("    basename=%s",dentry->d_name.name);
+            }
+            else
+            {
+                info("talpa__d_path: kernel_d_path returned NULL for non-deleted file");
+                info("    basename=%s",dentry->d_name.name);
+            }
         }
         else
         {
-            info("talpa__d_path: kernel_d_path returned NULL for non-deleted file");
-            info("    basename=%s",dentry->d_name.name);
+            if (!IS_ROOT(dentry) && d_unhashed(dentry))
+            {
+                dbg("    talpa__d_path: kernel_d_path returned NULL but d_path returned path %s for deleted file",path);
+            }
+            else
+            {
+                /* the systemd / containers / bind mount case. */
+                dbg("    talpa__d_path: kernel_d_path returned NULL but d_path returned path %s for non-deleted file",path);
+            }
         }
     }
 
