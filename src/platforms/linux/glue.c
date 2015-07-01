@@ -36,6 +36,7 @@
 
 #include "platforms/linux/glue.h"
 #include "platforms/linux/log.h"
+#include "platforms/linux/vfs_mount.h"
 
 #if defined(TALPA_DPATH_PATH) && LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 #define TALPA_D_DNAME_DIRECT_DPATH
@@ -131,6 +132,7 @@ Elong:
 char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dentry *root, struct vfsmount *rootmnt, char *buffer, int buflen)
 {
     char* path;
+    int pathlen;
 
     /* Get the function pointer for the real __d_path if we're going to call it. */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || (defined TALPA_HAS_DPATH)
@@ -177,7 +179,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
         path = d_path(&pathPath, buffer, buflen);
         if ( unlikely( IS_ERR(path) != 0 ) )
         {
-            critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
+            critical("talpa__d_path: d_path returned an error: %ld",PTR_ERR(path));
             path = NULL;
         }
         if ( NULL != path )
@@ -207,7 +209,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 
     if ( unlikely( IS_ERR(path) != 0 ) )
     {
-        critical("talpa__d_path: kernel_d_path returned an error: %ld",PTR_ERR(path));
+        critical("talpa__d_path: kernel__d_path returned an error: %ld",PTR_ERR(path));
         path = NULL;
     }
     else if ( unlikely( NULL == path ) )
@@ -249,6 +251,22 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
             }
             else
             {
+#ifdef TALPA_MNT_NAMESPACE
+                if (NULL != getNamespaceInfo(vfsmnt) && (!S_ISDIR(dentry->d_inode->i_mode)))
+                {
+                    info("Checking if its getNameSpaceInfo");
+                    /* we're in a namespace/container, append '(namespace)' to the path */
+                    pathlen=strlen(path);
+                    if (pathlen + 13 > buflen)
+                    {
+                        return ERR_PTR(-ENAMETOOLONG);
+                    }
+                    memmove(buffer, path, pathlen);
+                    path = buffer;
+                    memcpy(buffer + pathlen, " (namespace)", 13);
+                }
+#endif
+
                 /* the systemd / containers / bind mount case. */
                 dbg("    talpa__d_path: kernel_d_path returned NULL but d_path returned path %s for non-deleted file",path);
             }

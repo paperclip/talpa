@@ -40,6 +40,9 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
  */
 const char *getDeviceName(struct vfsmount* mnt);
 
+#ifdef TALPA_MNT_NAMESPACE
+struct mnt_namespace *getNamespaceInfo(struct vfsmount * mnt);
+#endif
 
 struct dentry *getVfsMountPoint(struct vfsmount* mnt);
 

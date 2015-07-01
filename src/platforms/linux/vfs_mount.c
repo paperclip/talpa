@@ -6,6 +6,7 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
  #define TALPA_REPLACE_MOUNT_STRUCT
+ #define TALPA_MNT_NAMESPACE
 #endif
 
 #ifdef TALPA_REPLACE_MOUNT_STRUCT
@@ -95,6 +96,20 @@ const char *getDeviceName(struct vfsmount* mnt)
     return realmnt->mnt_devname;
 #endif
 }
+
+#ifdef TALPA_MNT_NAMESPACE
+struct mnt_namespace *getNamespaceInfo(struct vfsmount* mnt)
+{
+    struct talpa_replacement_mount_struct *realmnt = real_mount(mnt);
+    /* TODO: remove this debug trap */
+    if (NULL == realmnt )
+    {
+        critical("getNamespaceInfo: real_mount(mnt) returned NULL");
+        return NULL;
+    }
+    return realmnt->mnt_ns;
+}
+#endif
 
 /**
  */
