@@ -254,7 +254,6 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
 #ifdef TALPA_MNT_NAMESPACE
                 if (NULL != getNamespaceInfo(vfsmnt) && (!S_ISDIR(dentry->d_inode->i_mode)))
                 {
-                    info("Checking if its getNameSpaceInfo");
                     /* we're in a namespace/container, append '(namespace)' to the path */
                     pathlen=strlen(path);
                     if (pathlen + 13 > buflen)
