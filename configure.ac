@@ -3,7 +3,7 @@
 #
 # TALPA Filesystem Interceptor
 #
-# Copyright (C) 2004-2014 Sophos Limited
+# Copyright (C) 2004-2015 Sophos Limited
 #
 # This program is free software; you can redistribute it and/or modify it under the terms of the
 # GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -16,12 +16,9 @@
 # write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #
 
-#
-# Bolierplate.
-#
 AC_INIT(talpa, 0.9.95)
 AC_CONFIG_AUX_DIR(config)
-AC_COPYRIGHT(Copyright (c) 2004-2014 Sophos Limited)
+AC_COPYRIGHT(Copyright (c) 2004-2015 Sophos Limited)
 
 AM_INIT_AUTOMAKE([1.9 tar-ustar dist-zip dist-bzip2])
 AM_CONFIG_HEADER(config.h)
