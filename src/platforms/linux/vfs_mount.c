@@ -4,11 +4,6 @@
 #include "platforms/linux/log.h"
 #include "platforms/linux/glue.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
- #define TALPA_REPLACE_MOUNT_STRUCT
- #define TALPA_MNT_NAMESPACE
-#endif
-
 #ifdef TALPA_REPLACE_MOUNT_STRUCT
 struct talpa_mnt_pcp {
 	int mnt_count;

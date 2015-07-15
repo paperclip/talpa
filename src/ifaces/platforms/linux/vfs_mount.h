@@ -31,6 +31,11 @@
 #include "platforms/linux/glue.h"
 #include "platforms/linux/locking.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
+ #define TALPA_REPLACE_MOUNT_STRUCT
+ #define TALPA_MNT_NAMESPACE
+#endif
+
 struct vfsmount* getParent(struct vfsmount* mnt);
 
 int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* mnt, unsigned long flags, bool fromMount));
