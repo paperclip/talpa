@@ -2266,6 +2266,12 @@ static int talpa_copy_mount_string(const void __user *data, char **where)
     return 0;
 }
 
+#ifdef MS_MOVE
+#define VFSHOOK_MS_IGNORE (MS_MOVE|MS_BIND)
+#else
+#define VFSHOOK_MS_IGNORE (MS_BIND)
+#endif
+
 static long talpaPreMount(char __user * dev_name, char __user * dir_name, char __user * type, unsigned long flags, void* data)
 {
     char* dev = 0;
@@ -2280,7 +2286,7 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
         return 0;
     }
 
-    if ( unlikely( (flags & MS_BIND) != 0 ) )
+    if ( unlikely( (flags & VFSHOOK_MS_IGNORE) != 0 ) )
     {
         return 0;
     }
@@ -2448,11 +2454,6 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     char *page = 0;
 
 
-#ifdef MS_MOVE
-#define VFSHOOK_MS_IGNORE (MS_MOVE|MS_BIND)
-#else
-#define VFSHOOK_MS_IGNORE (MS_BIND)
-#endif
     /* Interception housekeeping work: Patch filesystem?
        Do it only if the actual mount succeeded.
        We also ignore bind mounts and subtree moves. */
