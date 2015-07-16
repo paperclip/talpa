@@ -2280,6 +2280,11 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
         return 0;
     }
 
+    if ( unlikely( (flags & MS_BIND) != 0 ) )
+    {
+        return 0;
+    }
+
     if ( unlikely (dev_name == NULL) )
     {
         return 0;
@@ -2444,9 +2449,9 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
 
 
 #ifdef MS_MOVE
-#define VFSHOOK_MS_IGNORE (MS_MOVE)
+#define VFSHOOK_MS_IGNORE (MS_MOVE|MS_BIND)
 #else
-#define VFSHOOK_MS_IGNORE (0)
+#define VFSHOOK_MS_IGNORE (MS_BIND)
 #endif
     /* Interception housekeeping work: Patch filesystem?
        Do it only if the actual mount succeeded.
