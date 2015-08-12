@@ -199,7 +199,7 @@ static struct TalpaFindRegularContext* initialOpenDirectory(const char* dirname,
     dirFilp = filp_open(dirname, O_RDONLY | O_DIRECTORY, 0);
     if ( IS_ERR(dirFilp) )
     {
-        err("Failed to open directory: %ld",PTR_ERR(dirFilp));
+        err("Failed to open initial directory: %ld",PTR_ERR(dirFilp));
         return (struct TalpaFindRegularContext*)dirFilp; /* Error */
     }
 
@@ -264,7 +264,7 @@ static struct dentry *scanDirectory(const char* dirname, char* buf, size_t bufsi
     context = initialOpenDirectory(dirname, overflow, buf, bufsize);
     if (IS_ERR(context))
     {
-        err("Failed to open a  directory %s: %ld",dirname,PTR_ERR(context));
+        err("Failed to open initial directory %s: %ld",dirname,PTR_ERR(context));
         return NULL;
     }
 
