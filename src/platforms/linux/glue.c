@@ -132,7 +132,6 @@ Elong:
 char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dentry *root, struct vfsmount *rootmnt, char *buffer, int buflen)
 {
     char* path;
-    int pathlen;
 
     /* Get the function pointer for the real __d_path if we're going to call it. */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || (defined TALPA_HAS_DPATH)
@@ -255,7 +254,7 @@ char* talpa__d_path( struct dentry *dentry, struct vfsmount *vfsmnt, struct dent
                 if (NULL != getNamespaceInfo(vfsmnt) && (!S_ISDIR(dentry->d_inode->i_mode)))
                 {
                     /* we're in a namespace/container, append '(namespace)' to the path */
-                    pathlen=strlen(path);
+                    int pathlen=strlen(path);
                     if (pathlen + 13 > buflen)
                     {
                         return ERR_PTR(-ENAMETOOLONG);
