@@ -20,7 +20,7 @@ AC_INIT(talpa, 0.9.95)
 AC_CONFIG_AUX_DIR(config)
 AC_COPYRIGHT(Copyright (c) 2004-2015 Sophos Limited)
 
-AM_INIT_AUTOMAKE([1.9 tar-ustar dist-zip dist-bzip2])
+AM_INIT_AUTOMAKE([1.9 tar-ustar dist-zip dist-bzip2 subdir-objects])
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
