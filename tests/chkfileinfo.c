@@ -47,7 +47,6 @@ int main(int argc, char *argv[])
     int fd;
     struct talpa_file tf;
     int ret;
-    struct statfs statfsBuf;
     int major;
     int minor;
     int filefd;
@@ -74,12 +73,16 @@ int main(int argc, char *argv[])
     }
 
 #ifdef BTRFS_SUPER_MAGIC
-    ret = statfs(file,&statfsBuf);
-    if (ret == 0)
     {
-        if (statfsBuf.f_type == BTRFS_SUPER_MAGIC)
+        struct statfs statfsBuf;
+
+        ret = statfs(file,&statfsBuf);
+        if (ret == 0)
         {
-            ignoreMajorMinor = 1;
+            if (statfsBuf.f_type == BTRFS_SUPER_MAGIC)
+            {
+                ignoreMajorMinor = 1;
+            }
         }
     }
 #endif
@@ -139,7 +142,7 @@ int main(int argc, char *argv[])
         ret = stat(file, &fstat);
         if ( ret < 0 )
         {
-            fprintf(stderr,"STAT error!\n");
+            fprintf(stderr,"Stat of %s failed (%d)!\n", file, errno);
             close(fd);
             return 1;
         }
