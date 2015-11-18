@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     ret = stat(dev, &fstat);
     if ( ret < 0 )
     {
-        fprintf(stderr,"STAT error!\n");
+            fprintf(stderr,"Stat of %s failed (%d)!\n", dev, errno);
         close(fd);
         return 77;
     }
