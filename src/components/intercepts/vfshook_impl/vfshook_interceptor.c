@@ -2286,19 +2286,16 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
         return 0;
     }
 
-    if ( unlikely( (flags & VFSHOOK_MS_IGNORE) != 0 ) )
-    {
-        return 0;
-    }
-
     if ( unlikely (dev_name == NULL) )
     {
+        dbg("talpaPreMount got NULL dev_name");
         return 0;
     }
 
     decision = talpa_copy_mount_string(dev_name,&dev);
     if ( decision < 0 )
     {
+        dbg("talpaPreMount failed to copy dev_name");
         goto out;
     }
 
@@ -2307,6 +2304,23 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
     {
         dbg(" talpa_getname  error  is %ld",IS_ERR(dir));
         goto out1;
+    }
+
+    /* We ignore bind mounts and subtree moves with NULL type.
+     *
+     * Originally we ignored all bind and move - LINUXEP-804
+     * However that broke detection - LINUXEP-1903
+     */
+    if ( unlikely( ( (flags & VFSHOOK_MS_IGNORE) != 0 ) && type == NULL ) )
+    {
+        char *dir_str = 0;
+        decision = talpa_copy_mount_string(dir_name,&dir_str);
+        if ( decision < 0 )
+        {
+            dir_str = "<unknown>";
+        }
+        dbg("talpaPreMount ignoring move/bind mount of '%s' on '%s' with NULL type", dev_name, dir_name);
+        return 0;
     }
 
     decision = talpa_copy_mount_string(type,&fstype);
@@ -2454,10 +2468,16 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     char *page = 0;
 
 
+    /* We ignore bind mounts and subtree moves with NULL type. */
+    if (unlikely( (flags & VFSHOOK_MS_IGNORE)  && type == NULL ))
+    {
+        dbg("talpaPostMount ignoring bind/move mount with NULL type");
+        goto out;
+    }
+
     /* Interception housekeeping work: Patch filesystem?
-       Do it only if the actual mount succeeded.
-       We also ignore bind mounts and subtree moves. */
-    if ( !err && !(flags & VFSHOOK_MS_IGNORE) )
+       Do it only if the actual mount succeeded. */
+    if ( !err )
     {
         const char* abs_dir;
 
