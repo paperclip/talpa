@@ -2306,21 +2306,19 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
         goto out1;
     }
 
-    /* We ignore bind mounts and subtree moves with NULL type.
-     *
-     * Originally we ignored all bind and move - LINUXEP-804
-     * However that broke detection - LINUXEP-1903
+    /*
+     *  We ignore bind mounts and subtree moves as they can't contain interesting boot-sectors to scan.
      */
-    if ( unlikely( ( (flags & VFSHOOK_MS_IGNORE) != 0 ) && type == NULL ) )
+    if ( unlikely( ( (flags & VFSHOOK_MS_IGNORE) != 0 ) ) )
     {
         char *dir_str = 0;
-        decision = talpa_copy_mount_string(dir_name,&dir_str);
-        if ( decision < 0 )
+        int ret = talpa_copy_mount_string(dir_name,&dir_str);
+        if ( ret < 0 )
         {
             dir_str = "<unknown>";
         }
-        dbg("talpaPreMount ignoring move/bind mount of '%s' on '%s' with NULL type", dev_name, dir_name);
-        return 0;
+        dbg("talpaPreMount ignoring move/bind mount of '%s' on '%s'", dev_name, dir_name);
+        goto out2;
     }
 
     decision = talpa_copy_mount_string(type,&fstype);
@@ -2468,10 +2466,18 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     char *page = 0;
 
 
-    /* We ignore bind mounts and subtree moves with NULL type. */
-    if (unlikely( (flags & VFSHOOK_MS_IGNORE)  && type == NULL ))
+#ifdef MS_MOVE
+    if (unlikely( (flags & MS_MOVE) ))
     {
-        dbg("talpaPostMount ignoring bind/move mount with NULL type");
+        dbg("talpaPostMount ignoring move mount");
+        goto out;
+    }
+#endif
+
+    /* We ignore bind mounts with NULL type. */
+    if (unlikely( (flags & MS_BIND)  && type == NULL ))
+    {
+        dbg("talpaPostMount ignoring bind mount with NULL type");
         goto out;
     }
 
@@ -2614,7 +2620,15 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
             }
 #endif
         }
-        err("Failed to synchronise post-mount! (%d)", ret);
+        if (flags & VFSHOOK_MS_IGNORE)
+        {
+            dbg("Failed to lookup path (%d) for path '%s', filesystem '%s'", ret, abs_dir, type);
+            ret = 0; // Ignore the error
+        }
+        else
+        {
+            err("Failed to synchronise post-mount! (%d) for path '%s', filesystem '%s'", ret, abs_dir, type);
+        }
     }
 
 out:
