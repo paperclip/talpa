@@ -2474,13 +2474,6 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     }
 #endif
 
-    /* We ignore bind mounts with NULL type. */
-    if (unlikely( (flags & MS_BIND)  && type == NULL ))
-    {
-        dbg("talpaPostMount ignoring bind mount with NULL type");
-        goto out;
-    }
-
     /* Interception housekeeping work: Patch filesystem?
        Do it only if the actual mount succeeded. */
     if ( !err )
