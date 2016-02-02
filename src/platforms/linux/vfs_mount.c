@@ -322,7 +322,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
 {
 #ifdef TALPA_REPLACE_MOUNT_STRUCT
 
-    lookup_mnt_last_func lookup_mnt_last = (lookup_mnt_last_func)talpa_get_symbol("__lookup_mnt_last", (void *)TALPA__lookup_mnt_last);
+    lookup_mnt_last_func lookup_mnt_last = (lookup_mnt_last_func)talpa_get_symbol("__lookup_mnt_last", (void *)TALPA__LOOKUP_MNT_LAST);
 
     struct talpa_replacement_mount_struct *mnt = real_mount(vmnt);
     struct talpa_replacement_mount_struct *child;

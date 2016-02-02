@@ -1191,15 +1191,20 @@ if test $((kern_version_code)) -ge 132608; then
         AC_MSG_ERROR([not found])
     fi
 
-    ## Needed to count point points
-    AC_MSG_CHECKING([for __lookup_mnt_last address])
-    lookup_mnt_last=`${EGREP} " __lookup_mnt_last\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
-    if test x"$lookup_mnt_last" != x""
-    then
-        AC_SUBST(lookup_mnt_last, "-DTALPA__lookup_mnt_last=0x$lookup_mnt_last")
-            AC_MSG_RESULT([0x$lookup_mnt_last])
+    ## 3.3+
+    if test $((kern_version_code)) -ge 197376; then
+        ## Needed to count point points
+        AC_MSG_CHECKING([for __lookup_mnt_last address])
+        lookup_mnt_last_val=`${EGREP} " __lookup_mnt_last\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test x"$lookup_mnt_last_val" != x""
+        then
+            AC_MSG_RESULT([0x$lookup_mnt_last_val])
+            AC_SUBST(lookup_mnt_last, "-DTALPA__LOOKUP_MNT_LAST=0x$lookup_mnt_last_val")
+        else
+            AC_MSG_ERROR([not found])
+        fi
     else
-        AC_MSG_ERROR([not found])
+        AC_SUBST(lookup_mnt_last, "")
     fi
 
     # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
