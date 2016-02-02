@@ -2027,6 +2027,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     const char*                 fsname = (const char *)mnt->mnt_sb->s_type->name;
     bool                        good_fs = false;
     bool                        hook_dops = false;
+    int                         i;
 
 
     /* We don't want to patch some filesystems, and for some we want
@@ -2149,6 +2150,9 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     ret = prepareFilesystem(mnt, reg, smbfs, patch);
     if ( !ret )
     {
+        i = countPropagationPoints(mnt);
+        err("propagation points for mnt = %d",i);
+
         /* Only add it to the list if this is a new patch (not a new
            instance of the existing one) */
         if ( patch == newpatch )
@@ -2158,10 +2162,12 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             if ( !ret )
             {
                 dbg("refcnt for %s = %d", fsname, atomic_read(&patch->refcnt));
-                atomic_inc(&patch->usecnt);
+                for (;i--;i>0)
+                {
+                    atomic_inc(&patch->usecnt);
+                }
                 talpa_simple_unlock(&patch->lock);
                 talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
-                dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
             }
             else
             {
@@ -2176,8 +2182,10 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             shouldinc = repatchFilesystem(reg, smbfs, patch);
             if ( shouldinc && !(fromMount && (flags & MS_REMOUNT)) )
             {
-                atomic_inc(&patch->usecnt);
-                dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
+                for (;i--;i>0)
+                {
+                    atomic_inc(&patch->usecnt);
+                }
             }
             else
             {
@@ -2185,6 +2193,8 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             }
             talpa_simple_unlock(&patch->lock);
         }
+
+        err("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
         /* Free list showed to userspace so it will be regenerated on next read */
         destroyStringSet(&GL_object, &GL_object.mPatchListSet);
     }
@@ -2470,6 +2480,49 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     if (unlikely( (flags & MS_MOVE) ))
     {
         dbg("talpaPostMount ignoring move mount");
+        goto out;
+    }
+#endif
+
+#ifdef MS_UNBINDABLE
+    if (unlikely( (flags == MS_UNBINDABLE) ))
+    {
+        err("talpaPostMount ignoring MS_UNBINDABLE %lx",flags);
+        goto out;
+    }
+#endif
+
+#ifdef MS_PRIVATE
+    if (unlikely( (flags == MS_PRIVATE) ))
+    {
+        err("talpaPostMount ignoring MS_PRIVATE %lx",flags);
+        goto out;
+    }
+#endif
+#ifdef MS_SLAVE
+    if (unlikely( (flags == MS_SLAVE) ))
+    {
+        err("talpaPostMount ignoring MS_SLAVE %lx",flags);
+        goto out;
+    }
+#endif
+#ifdef MS_SHARED
+    /* TODO: repeat for MS_SLAVE, etc */
+    if (unlikely( ( (flags & ~MS_REC) == MS_SHARED) ))
+    {
+        err("talpaPostMount ignoring MS_SHARED %lx",flags);
+        goto out;
+    }
+    else
+    if (unlikely (( flags & MS_SHARED ) != 0 ))
+    {
+        err("talpaPostMount not ignoring MS_SHARED with %lx",flags);
+    }
+#endif
+#ifdef MS_REMOUNT
+    if (unlikely( (flags & MS_REMOUNT) ))
+    {
+        err("talpaPostMount ignoring MS_REMOUNT %lx",flags);
         goto out;
     }
 #endif

@@ -33,7 +33,7 @@ struct talpa_mnt_pcp {
 	struct list_head mnt_share;	/* circular list of shared mounts */
 	struct list_head mnt_slave_list;/* list of slave mounts */
 	struct list_head mnt_slave;	/* slave list entry */
-	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
+	struct talpa_replacement_mount_struct *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 };
  #else /* 3.3 - 3.5 */
@@ -67,6 +67,8 @@ static inline struct talpa_replacement_mount_struct *real_mount(struct vfsmount 
 	return container_of(mnt, struct talpa_replacement_mount_struct, mnt);
 }
 
+typedef struct talpa_replacement_mount_struct talpa_mount_struct;
+#else
 #endif /* TALPA_REPLACE_MOUNT_STRUCT */
 
 struct vfsmount* getParent(struct vfsmount* mnt)
@@ -118,6 +120,7 @@ struct dentry *getVfsMountPoint(struct vfsmount* mnt)
     return realmnt->mnt_mountpoint;
 #endif
 }
+
 
 
 #ifndef TALPA_REPLACE_MOUNT_STRUCT
@@ -254,3 +257,90 @@ int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* 
     return ret;
 }
 #endif /* TALPA_REPLACE_MOUNT_STRUCT */
+
+/* Implement countPropagationPoints, copying code from pnode.c to do it */
+
+#ifdef TALPA_REPLACE_MOUNT_STRUCT
+
+static inline struct talpa_replacement_mount_struct *next_peer(struct talpa_replacement_mount_struct *p)
+{
+        return list_entry(p->mnt_share.next, struct talpa_replacement_mount_struct, mnt_share);
+}
+
+static inline struct talpa_replacement_mount_struct *first_slave(struct talpa_replacement_mount_struct *p)
+{
+        return list_entry(p->mnt_slave_list.next, struct talpa_replacement_mount_struct, mnt_slave);
+}
+
+static inline struct talpa_replacement_mount_struct *next_slave(struct talpa_replacement_mount_struct *p)
+{
+        return list_entry(p->mnt_slave.next, struct talpa_replacement_mount_struct, mnt_slave);
+}
+
+#define IS_MNT_NEW(m)  (!(m)->mnt_ns)
+
+/*
+ * get the next mount in the propagation tree.
+ * @m: the mount seen last
+ * @origin: the original mount from where the tree walk initiated
+ *
+ * Note that peer groups form contiguous segments of slave lists.
+ * We rely on that in get_source() to be able to find out if
+ * vfsmount found while iterating with propagation_next() is
+ * a peer of one we'd found earlier.
+ */
+static struct talpa_replacement_mount_struct *propagation_next(struct talpa_replacement_mount_struct *m,
+                                         struct talpa_replacement_mount_struct *origin)
+{
+    /* are there any slaves of this mount? */
+    if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
+            return first_slave(m);
+
+    while (1) {
+            struct talpa_replacement_mount_struct *master = m->mnt_master;
+
+            if (master == origin->mnt_master) {
+                    struct talpa_replacement_mount_struct *next = next_peer(m);
+                    return (next == origin) ? NULL : next;
+            } else if (m->mnt_slave.next != &master->mnt_slave_list)
+                    return next_slave(m);
+
+            /* back at master */
+            m = master;
+    }
+}
+
+/*
+ *  struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
+ *  struct talpa_replacement_mount_struct *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
+ */
+typedef struct talpa_replacement_mount_struct *(*lookup_mnt_last_func)(struct vfsmount *mnt, struct dentry *dentry);
+
+#endif
+
+int countPropagationPoints(struct vfsmount* vmnt)
+{
+#ifdef TALPA_REPLACE_MOUNT_STRUCT
+
+    lookup_mnt_last_func lookup_mnt_last = (lookup_mnt_last_func)talpa_get_symbol("__lookup_mnt_last", (void *)TALPA__lookup_mnt_last);
+
+    struct talpa_replacement_mount_struct *mnt = real_mount(vmnt);
+    struct talpa_replacement_mount_struct *child;
+    struct talpa_replacement_mount_struct *parent = mnt->mnt_parent;
+    struct talpa_replacement_mount_struct *m;
+    int ret = 1;
+
+    for (m = propagation_next(parent, parent); m;
+            m = propagation_next(m, parent))
+    {
+        child = lookup_mnt_last(&m->mnt, mnt->mnt_mountpoint);
+        if (child)
+        {
+            ret += 1;
+        }
+    }
+    return ret;
+#else
+    return 1;
+#endif
+}

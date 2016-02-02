@@ -36,6 +36,8 @@
  #define TALPA_MNT_NAMESPACE
 #endif
 
+int countPropagationPoints(struct vfsmount* mnt);
+
 struct vfsmount* getParent(struct vfsmount* mnt);
 
 int iterateFilesystems(struct vfsmount* root, int (*callback) (struct vfsmount* mnt, unsigned long flags, bool fromMount));

@@ -1191,6 +1191,16 @@ if test $((kern_version_code)) -ge 132608; then
         AC_MSG_ERROR([not found])
     fi
 
+    ## Needed to count point points
+    AC_MSG_CHECKING([for __lookup_mnt_last address])
+    lookup_mnt_last=`${EGREP} " __lookup_mnt_last\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+    if test x"$lookup_mnt_last" != x""
+    then
+        AC_SUBST(lookup_mnt_last, "-DTALPA__lookup_mnt_last=0x$lookup_mnt_last")
+            AC_MSG_RESULT([0x$lookup_mnt_last])
+    else
+        AC_MSG_ERROR([not found])
+    fi
 
     # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
     AC_MSG_CHECKING([for syscallhook module execve support])
@@ -1954,6 +1964,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@getname@/${getname}/; \
                 s/@strdupuser@/${strdupuser}/; \
                 s/@linuxuidgid@/${linuxuidgid}/; \
+                s/@lookup_mnt_last@/${lookup_mnt_last}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -2014,6 +2025,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s!@uapiunistdinclude@!${uapiunistdinclude}!; \
                 s!@unistd64x32include@!${unistd64x32include}!; \
                 s!@autoconf_h_include@!${autoconf_h_include}!; \
+                s/@lookup_mnt_last@/${lookup_mnt_last}/; \
                 s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])
