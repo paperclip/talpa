@@ -454,7 +454,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
     for (m = propagation_next(parent, parent); m;
             m = propagation_next(m, parent))
     {
-        //~ child = talpa_lookup_mnt_last(vfs_mount(m), mnt->mnt_mountpoint);
+        child = talpa_lookup_mnt_last(vfs_mount(m), mnt->mnt_mountpoint);
         if (child)
         {
 #ifdef DEBUG_PROPOGATION_POINTS
