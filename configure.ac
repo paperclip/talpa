@@ -745,6 +745,9 @@ AC_MSG_RESULT([${kern_version_code}])
 ## 3.3.0  == 197376     0x030300
 ## 3.5.0  == 197888     0x030500
 ## 3.7.0  == 198400     0x030700
+## 3.11.0 == 199424     0x030b00
+## 3.11.10== 199434     0x030b0a (Ubuntu 12.04.4)
+## 3.13.0 == 199936     0x030d00
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
 TALPA_LOCATE_HEADER($utsrelease_h, $kernelhdrspath, cckernrelease="-DSEPARATE_UTS_RELEASE", /bin/true, [quiet])
@@ -1192,9 +1195,9 @@ if test $((kern_version_code)) -ge 132608; then
         AC_MSG_ERROR([not found])
     fi
 
-    ## 3.3+
-    if test $((kern_version_code)) -ge 197376; then
-        ## Needed to count point points
+    if test $((kern_version_code)) -ge 199424; then
+        ## 3.13+
+        ## Needed to count mount points
         AC_MSG_CHECKING([for __lookup_mnt_last address])
         lookup_mnt_last_val=`${EGREP} " __lookup_mnt_last\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test x"$lookup_mnt_last_val" != x""
@@ -1205,7 +1208,7 @@ if test $((kern_version_code)) -ge 132608; then
             AC_MSG_ERROR([not found])
         fi
     elif test $((kern_version_code)) -ge 132629; then
-        ## 2.6.15
+        ## 2.6.15 - 3.12
         AC_MSG_CHECKING([for __lookup_mnt address])
         lookup_mnt_val=`${EGREP} " __lookup_mnt\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test x"$lookup_mnt_val" != x""
