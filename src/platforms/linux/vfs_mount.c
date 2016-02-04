@@ -382,13 +382,17 @@ static talpa_mount_struct* talpa_lookup_mnt_last(struct vfsmount *mnt, struct de
     return NULL;
 }
 
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 # ifdef DEBUG
+#  define DEBUG_PROPOGATION_POINTS
+# endif
+# endif
+
+# ifdef DEBUG_PROPOGATION_POINTS
 /* calls d_path with dentry and vfsmount */
 static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt, char* pathBuffer, int path_size)
 {
-
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
-
     struct path pathPath;
     char* path;
 
@@ -408,11 +412,8 @@ static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt, char* pat
         path = NULL;
     }
     return path;
- #else
-    return "<KERNEL TOO OLD>";
- #endif
 }
-# endif /* DEBUG */
+# endif /* DEBUG_PROPOGATION_POINTS */
 #endif /* TALPA_SHARED_MOUNTS */
 
 /**
@@ -425,13 +426,13 @@ int countPropagationPoints(struct vfsmount* vmnt)
 
     talpa_mount_struct *mnt = real_mount(vmnt);
     talpa_mount_struct *parent = mnt->mnt_parent;
-    talpa_mount_struct *child;
+    talpa_mount_struct *child = NULL;
     talpa_mount_struct *m;
     int ret = 1;
 
     unsigned m_seq = 1;
 
-#ifdef DEBUG
+#ifdef DEBUG_PROPOGATION_POINTS
     talpa_mnt_namespace_t* ns;
     size_t path_size = 0;
     char* path = talpa_alloc_path(&path_size);
@@ -453,10 +454,10 @@ int countPropagationPoints(struct vfsmount* vmnt)
     for (m = propagation_next(parent, parent); m;
             m = propagation_next(m, parent))
     {
-        child = talpa_lookup_mnt_last(vfs_mount(m), mnt->mnt_mountpoint);
+        //~ child = talpa_lookup_mnt_last(vfs_mount(m), mnt->mnt_mountpoint);
         if (child)
         {
-#ifdef DEBUG
+#ifdef DEBUG_PROPOGATION_POINTS
             p = absolutePath(child->mnt_mountpoint,vfs_mount(child->mnt_parent), path, path_size);
             ns = child->mnt_ns;
             dbg("CHILD: %s ns=%p ns.ns.inum=%u",p,ns,PROC_INUM_FROM_MNT_NAMESPACE(ns));
@@ -469,7 +470,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
     }
     talpa_vfsmount_unlock(&m_seq); /* unlocks dcache_lock on 2.4 */
 
-#ifdef DEBUG
+#ifdef DEBUG_PROPOGATION_POINTS
     talpa_free_path(path);
 #endif
     return ret;
