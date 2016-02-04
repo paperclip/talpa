@@ -747,6 +747,7 @@ AC_MSG_RESULT([${kern_version_code}])
 ## 3.7.0  == 198400     0x030700
 ## 3.11.0 == 199424     0x030b00
 ## 3.11.10== 199434     0x030b0a (Ubuntu 12.04.4)
+## 3.12.0 ==
 ## 3.13.0 == 199936     0x030d00
 ${RM} -f tests/configure/kernversion
 AC_MSG_CHECKING([for kernel version string])
@@ -1195,7 +1196,7 @@ if test $((kern_version_code)) -ge 132608; then
         AC_MSG_ERROR([not found])
     fi
 
-    if test $((kern_version_code)) -ge 199424; then
+    if test $((kern_version_code)) -ge 199936; then
         ## 3.13+
         ## Needed to count mount points
         AC_MSG_CHECKING([for __lookup_mnt_last address])
