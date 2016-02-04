@@ -386,6 +386,9 @@ static talpa_mount_struct* talpa_lookup_mnt_last(struct vfsmount *mnt, struct de
 /* calls d_path with dentry and vfsmount */
 static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt, char* pathBuffer, int path_size)
 {
+
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+
     struct path pathPath;
     char* path;
 
@@ -405,6 +408,9 @@ static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt, char* pat
         path = NULL;
     }
     return path;
+ #else
+    return "<KERNEL TOO OLD>";
+ #endif
 }
 # endif /* DEBUG */
 #endif /* TALPA_SHARED_MOUNTS */
