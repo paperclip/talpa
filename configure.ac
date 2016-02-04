@@ -738,8 +738,9 @@ kern_version_code=`tests/configure/kernversion`
 AC_MSG_RESULT([${kern_version_code}])
 ## 2.6.0  == 132608
 ## 2.6.5  == 132613
-## 2.6.18 == 132626?
-## 2.6.36 == 132644?
+## 2.6.15 == 132623?    0x02060f
+## 2.6.18 == 132626?    0x020612    0x12==18
+## 2.6.36 == 132644?    0x020624    0x24==36
 ## 3.0.0  == 196608     0x030000
 ## 3.3.0  == 197376     0x030300
 ## 3.5.0  == 197888     0x030500
@@ -1199,7 +1200,18 @@ if test $((kern_version_code)) -ge 132608; then
         if test x"$lookup_mnt_last_val" != x""
         then
             AC_MSG_RESULT([0x$lookup_mnt_last_val])
-            AC_SUBST(lookup_mnt_last, "-DTALPA__LOOKUP_MNT_LAST=0x$lookup_mnt_last_val")
+            AC_SUBST(lookup_mnt_last, "-DTALPA_SHARED_MOUNTS -DTALPA_HAVE_LOOKUP_MNT_LAST -DTALPA__LOOKUP_MNT_LAST=0x$lookup_mnt_last_val")
+        else
+            AC_MSG_ERROR([not found])
+        fi
+    elif test $((kern_version_code)) -ge 132629; then
+        ## 2.6.15
+        AC_MSG_CHECKING([for __lookup_mnt address])
+        lookup_mnt_val=`${EGREP} " __lookup_mnt\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
+        if test x"$lookup_mnt_val" != x""
+        then
+            AC_MSG_RESULT([0x$lookup_mnt_val])
+            AC_SUBST(lookup_mnt_last, "-DTALPA_SHARED_MOUNTS -DTALPA_HAVE_LOOKUP_MNT -DTALPA__LOOKUP_MNT=0x$lookup_mnt_val")
         else
             AC_MSG_ERROR([not found])
         fi

@@ -3,7 +3,7 @@
  *
  * TALPA Filesystem Interceptor
  *
- * Copyright (C) 2004-2012 Sophos Limited, Oxford, England.
+ * Copyright (C) 2004-2016 Sophos Limited, Oxford, England.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of the
  * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -2151,7 +2151,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     if ( !ret )
     {
         i = countPropagationPoints(mnt);
-        err("propagation points for mnt = %d",i);
+        dbg("propagation points for mnt on %s = %d", fsname, i);
 
         /* Only add it to the list if this is a new patch (not a new
            instance of the existing one) */
@@ -2162,7 +2162,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             if ( !ret )
             {
                 dbg("refcnt for %s = %d", fsname, atomic_read(&patch->refcnt));
-                for (;i--;i>0)
+                for (;i>0;i--)
                 {
                     atomic_inc(&patch->usecnt);
                 }
@@ -2182,7 +2182,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             shouldinc = repatchFilesystem(reg, smbfs, patch);
             if ( shouldinc && !(fromMount && (flags & MS_REMOUNT)) )
             {
-                for (;i--;i>0)
+                for (;i>0;i--)
                 {
                     atomic_inc(&patch->usecnt);
                 }
@@ -2194,7 +2194,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             talpa_simple_unlock(&patch->lock);
         }
 
-        err("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
+        dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
         /* Free list showed to userspace so it will be regenerated on next read */
         destroyStringSet(&GL_object, &GL_object.mPatchListSet);
     }
@@ -2312,7 +2312,7 @@ static long talpaPreMount(char __user * dev_name, char __user * dir_name, char _
     dir = talpa_getname(dir_name);
     if ( IS_ERR(dir) )
     {
-        dbg(" talpa_getname  error  is %ld",IS_ERR(dir));
+        dbg(" talpa_getname  error  is %ld",(long)IS_ERR(dir));
         goto out1;
     }
 
@@ -2732,12 +2732,15 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int ret;
+    int propagationCount = 1;
 
 
     if ( err || !pFSInfo )
     {
         return;
     }
+
+    propagationCount = pFSInfo->propagationCount(pFSInfo->object);
 
     /* Unprotect read-only memory outside locks held. */
     do
@@ -2767,25 +2770,29 @@ static void talpaPostUmount(int err, char* name, int flags, void* ctx)
 
     if ( patch )
     {
-        if ( atomic_dec_and_test(&patch->usecnt) )
+        while (patch && propagationCount-- > 0)
         {
-            talpa_simple_lock(&patch->lock);
-            restoreFilesystem(patch);
-            talpa_simple_unlock(&patch->lock);
-            talpa_list_del_rcu(&patch->head);
-            talpa_rcu_write_unlock(&GL_object.mPatchLock);
-            atomic_dec(&patch->refcnt);
-            /* It is possible that the hook will keep the patch reference
-            for more than one rcu_synchronize call. To be safe, we will
-            keep synchronising until the refcnt drops to zero. */
-            do
+            if ( atomic_dec_and_test(&patch->usecnt) )
             {
-                talpa_rcu_synchronize();
-                dbg("PostUmount: refcnt for %s = %d after sync", patch->fstype->name, atomic_read(&patch->refcnt));
-            } while ( atomic_read(&patch->refcnt) > 0 );
-            talpa_free(patch);
+                talpa_simple_lock(&patch->lock);
+                restoreFilesystem(patch);
+                talpa_simple_unlock(&patch->lock);
+                talpa_list_del_rcu(&patch->head);
+                talpa_rcu_write_unlock(&GL_object.mPatchLock);
+                atomic_dec(&patch->refcnt);
+                /* It is possible that the hook will keep the patch reference
+                for more than one rcu_synchronize call. To be safe, we will
+                keep synchronising until the refcnt drops to zero. */
+                do
+                {
+                    talpa_rcu_synchronize();
+                    dbg("PostUmount: refcnt for %s = %d after sync", patch->fstype->name, atomic_read(&patch->refcnt));
+                } while ( atomic_read(&patch->refcnt) > 0 );
+                talpa_free(patch); patch = NULL;
+            }
         }
-        else
+
+        if (patch != NULL)
         {
             talpa_rcu_write_unlock(&GL_object.mPatchLock);
         }

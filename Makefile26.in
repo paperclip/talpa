@@ -48,7 +48,7 @@ EXTRA_CFLAGS += -I$(src)/src -I$(src)/src/ifaces -I$(src)/include \
 		@strdupuser@ \
 		@linuxuidgid@ \
 		@vfsunlink@ \
-        @lookup_mnt_last@
+		@lookup_mnt_last@
 
 obj-m := talpa_linux.o talpa_core.o talpa_vcdevice.o talpa_pedevice.o talpa_pedconnector.o
 

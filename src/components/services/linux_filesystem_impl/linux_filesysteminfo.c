@@ -3,7 +3,7 @@
  *
  * TALPA Filesystem Interceptor
  *
- * Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
+ * Copyright (C) 2004-2016 Sophos Limited, Oxford, England.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of the
  * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -45,6 +45,7 @@ static const char*           type               (const void* self);
 static uint64_t              device             (const void* self);
 static uint32_t              deviceMajor        (const void* self);
 static uint32_t              deviceMinor        (const void* self);
+static int                   propagationCount   (const void* self);
 static void deleteLinuxFilesystemInfo(struct tag_LinuxFilesystemInfo* object);
 
 
@@ -62,6 +63,7 @@ static LinuxFilesystemInfo template_LinuxFilesystemInfo =
             device,
             deviceMajor,
             deviceMinor,
+            propagationCount,
             NULL,
             (void (*)(const void*))deleteLinuxFilesystemInfo
         },
@@ -71,6 +73,7 @@ static LinuxFilesystemInfo template_LinuxFilesystemInfo =
         NULL,
         NULL,
         NULL,
+        0,
         0,
         0,
         0
@@ -370,6 +373,8 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, cons
 
             dbg("Device %s resolved from mount point %s - %s", object->mDeviceName, object->mMountPoint, object->mType);
 
+            object->mPropagationCount = countPropagationPoints(mnt);
+
 #ifdef TALPA_HAVE_PATH_LOOKUP
             talpa_path_release(&nd);
 #else
@@ -380,6 +385,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, cons
         {
             goto error;
         }
+
 
         dbg("NAME:%s MAJOR:%u MINOR:%u",object->mDeviceName, object->mDeviceMajor, object->mDeviceMinor);
     }
@@ -455,6 +461,11 @@ static uint32_t deviceMajor(const void* self)
 static uint32_t deviceMinor(const void* self)
 {
     return this->mDeviceMinor;
+}
+
+static int propagationCount(const void* self)
+{
+    return this->mPropagationCount;
 }
 
 /*
