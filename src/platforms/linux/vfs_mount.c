@@ -366,17 +366,36 @@ static talpa_mount_struct *propagation_next(talpa_mount_struct *m,
  *  struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
  *  talpa_mount_struct *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
  */
+#ifdef TALPA_HAVE_LOOKUP_MNT_LAST
 typedef talpa_mount_struct *(*lookup_mnt_last_func)(struct vfsmount *mnt, struct dentry *dentry);
+#endif
+#ifdef TALPA_HAVE_LOOKUP_MNT
 typedef talpa_mount_struct *(*lookup_mnt_func)(struct vfsmount *mnt, struct dentry *dentry, int dir);
+#endif
+
+/*
+ * Mark the function pointer as 'volatile' to avoid gcc bug/error:
+ * "immediate operand illegal with absolute jump"
+ *
+ * Should be fixed in GCC 4.6.2
+ */
+#define TALPA_GCC_VERSION(A,B,C) ((A) * 10000 + (B) * 100 + (C))
+#define TALPA_GCC_VERSION_CODE TALPA_GCC_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
+
+#if TALPA_GCC_VERSION_CODE < TALPA_GCC_VERSION(4,6,2)
+# define TALPA_PTR_FIX volatile
+#else
+# define TALPA_PTR_FIX
+#endif
 
 static talpa_mount_struct* talpa_lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
 {
 #ifdef TALPA_HAVE_LOOKUP_MNT_LAST
-    lookup_mnt_last_func lookup_mnt_last = (lookup_mnt_last_func)talpa_get_symbol("__lookup_mnt_last", (void *)TALPA__LOOKUP_MNT_LAST);
+    TALPA_PTR_FIX lookup_mnt_last_func lookup_mnt_last = (lookup_mnt_last_func)talpa_get_symbol("__lookup_mnt_last", (void *)TALPA__LOOKUP_MNT_LAST);
     return lookup_mnt_last(mnt, dentry);
 #endif
 #ifdef TALPA_HAVE_LOOKUP_MNT
-    lookup_mnt_func lookup_mnt = (lookup_mnt_func)talpa_get_symbol("__lookup_mnt", (void *)TALPA__LOOKUP_MNT);
+    TALPA_PTR_FIX lookup_mnt_func lookup_mnt = (lookup_mnt_func)talpa_get_symbol("__lookup_mnt", (void *)TALPA__LOOKUP_MNT);
     return lookup_mnt(mnt, dentry, 0);
 #endif
     return NULL;
