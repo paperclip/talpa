@@ -740,6 +740,7 @@ AC_MSG_RESULT([${kern_version_code}])
 ## 2.6.5  == 132613
 ## 2.6.15 == 132623     0x02060f
 ## 2.6.18 == 132626     0x020612    0x12==18
+## 2.6.21 == 132629     0x020615
 ## 2.6.24 (Ubuntu 8.04)
 ## 2.6.25 == 132633     0x020619
 ## 2.6.36 == 132644     0x020624    0x24==36
@@ -1210,8 +1211,8 @@ if test $((kern_version_code)) -ge 132608; then
         else
             AC_MSG_ERROR([not found])
         fi
-    elif test $((kern_version_code)) -ge 132623; then
-        ## 2.6.15 - 3.12
+    elif test $((kern_version_code)) -ge 132629; then
+        ## 2.6.21 - 3.12
         AC_MSG_CHECKING([for __lookup_mnt address])
         lookup_mnt_val=`${EGREP} " __lookup_mnt\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test x"$lookup_mnt_val" != x""
