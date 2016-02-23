@@ -1223,7 +1223,7 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
         putPatch(patch);
     }
 
-    err("atomic_open exit %d",resultCode);
+    atomic_open_dbg("atomic_open exit %d",resultCode);
     hookExitRv(resultCode);
 }
 #endif /* TALPA_HOOK_ATOMIC_OPEN */
