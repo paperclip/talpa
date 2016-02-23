@@ -1211,8 +1211,8 @@ if test $((kern_version_code)) -ge 132608; then
         else
             AC_MSG_ERROR([not found])
         fi
-    elif test $((kern_version_code)) -ge 132629; then
-        ## 2.6.21 - 3.12
+    elif test $((kern_version_code)) -ge 132623; then
+        ## 2.6.15 - 3.12
         AC_MSG_CHECKING([for __lookup_mnt address])
         lookup_mnt_val=`${EGREP} " __lookup_mnt\$" "$system_map" 2>/dev/null | ${CUT} -d ' ' -f 1`
         if test x"$lookup_mnt_val" != x""
@@ -1224,6 +1224,22 @@ if test $((kern_version_code)) -ge 132608; then
         fi
     else
         AC_SUBST(lookup_mnt_last, "")
+    fi
+
+    if test $((kern_version_code)) -ge 132623; then
+        ## 2.6.15+
+        # vfsmount's namespace element changed from mnt_namespace to mnt_ns in 2.6.20
+        TALPA_LOCATE_HEADER(linux/mount.h, $kernelhdrspath)
+        AC_MSG_CHECKING([for vfsmount mnt_namespace element])
+        if ${EGREP} "struct namespace \*mnt_namespace;" $TALPA_HEADER_LOCATION/linux/mount.h >/dev/null 2>&1; then
+            AC_MSG_RESULT([vfsmount has mnt_namespace])
+            AC_SUBST(vfsmount_namespace, "-DTALPA_VFSMOUNT_NAMESPACE=mnt_namespace")
+        else
+            AC_MSG_RESULT([assuming vfsmount has mnt_ns])
+            AC_SUBST(vfsmount_namespace, "-DTALPA_VFSMOUNT_NAMESPACE=mnt_ns")
+        fi
+    else
+        AC_SUBST(vfsmount_namespace, "")
     fi
 
     # some 2.6 kernels do not export do_execve (vanilla >=2.6.10 and some vendor ones)
@@ -1989,6 +2005,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s/@strdupuser@/${strdupuser}/; \
                 s/@linuxuidgid@/${linuxuidgid}/; \
                 s/@lookup_mnt_last@/${lookup_mnt_last}/; \
+                s/@vfsmount_namespace@/${vfsmount_namespace}/; \
                 s/@builddualfs@/${builddualfs}/; s/@dualfs@/${dualfs}/;" ${srcdir}/Makefile26.in >${srcdir}/Makefile
 
     ${SED} -e  "s/@talpaversion@/${talpaversion}/; \
@@ -2050,6 +2067,7 @@ if test $((kern_version_code)) -ge 132608; then
                 s!@unistd64x32include@!${unistd64x32include}!; \
                 s!@autoconf_h_include@!${autoconf_h_include}!; \
                 s/@lookup_mnt_last@/${lookup_mnt_last}/; \
+                s/@vfsmount_namespace@/${vfsmount_namespace}/; \
                 s/@dualfs@/${dualfs}/;" ${srcdir}/tests/modules/Makefile26.in >${srcdir}/tests/modules/Makefile
 else
     AC_MSG_RESULT([2.4 build system detected])

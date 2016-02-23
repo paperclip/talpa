@@ -329,7 +329,9 @@ static inline talpa_mount_struct *next_slave(talpa_mount_struct *p)
         return list_entry(p->mnt_slave.next, talpa_mount_struct, mnt_slave);
 }
 
-#define IS_MNT_NEW(m)  (!(m)->mnt_ns)
+/* TALPA_VFSMOUNT_NAMESPACE is either mnt_namespace or mnt_ns */
+#define IS_MNT_NEW(m)  (!(m)->TALPA_VFSMOUNT_NAMESPACE)
+
 
 /*
  * get the next mount in the propagation tree.
@@ -404,11 +406,11 @@ static talpa_mount_struct* talpa_lookup_mnt_last(struct vfsmount *mnt, struct de
 
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 # ifdef DEBUG
-#  define DEBUG_PROPOGATION_POINTS
+#  define DEBUG_PROPAGATION_POINTS
 # endif
 # endif
 
-# ifdef DEBUG_PROPOGATION_POINTS
+# ifdef DEBUG_PROPAGATION_POINTS
 /* calls d_path with dentry and vfsmount */
 static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt, char* pathBuffer, int path_size)
 {
@@ -432,7 +434,7 @@ static char* absolutePath(struct dentry *dentry, struct vfsmount *mnt, char* pat
     }
     return path;
 }
-# endif /* DEBUG_PROPOGATION_POINTS */
+# endif /* DEBUG_PROPAGATION_POINTS */
 #endif /* TALPA_SHARED_MOUNTS */
 
 /**
@@ -451,7 +453,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
 
     unsigned m_seq = 1;
 
-#ifdef DEBUG_PROPOGATION_POINTS
+#ifdef DEBUG_PROPAGATION_POINTS
     talpa_mnt_namespace_t* ns;
     size_t path_size = 0;
     char* path = talpa_alloc_path(&path_size);
@@ -476,7 +478,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
         child = talpa_lookup_mnt_last(vfs_mount(m), mnt->mnt_mountpoint);
         if (child)
         {
-#ifdef DEBUG_PROPOGATION_POINTS
+#ifdef DEBUG_PROPAGATION_POINTS
             p = absolutePath(child->mnt_mountpoint,vfs_mount(child->mnt_parent), path, path_size);
             ns = child->mnt_ns;
             dbg("CHILD: %s ns=%p ns.ns.inum=%u",p,ns,PROC_INUM_FROM_MNT_NAMESPACE(ns));
@@ -489,7 +491,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
     }
     talpa_vfsmount_unlock(&m_seq); /* unlocks dcache_lock on 2.4 */
 
-#ifdef DEBUG_PROPOGATION_POINTS
+#ifdef DEBUG_PROPAGATION_POINTS
     talpa_free_path(path);
 #endif
     return ret;

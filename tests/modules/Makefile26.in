@@ -46,7 +46,8 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@putname@ \
 		@getname@ \
 		@vfsunlink@ \
-		@lookup_mnt_last@
+		@lookup_mnt_last@ \
+		@vfsmount_namespace@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \
