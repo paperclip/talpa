@@ -163,8 +163,6 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, cons
     struct dentry *dentry;
     int rc;
 
-
-
     object = talpa_alloc(sizeof(template_LinuxFilesystemInfo));
     if ( likely(object != NULL) )
     {
@@ -275,6 +273,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, cons
 #endif
             if ( unlikely(rc != 0) )
             {
+                dbg("DEBUG: EFS_Umount talpa_path_lookup/kern_path failed (%d)", rc);
                 goto error;
             }
 #ifdef TALPA_HAVE_PATH_LOOKUP
@@ -287,6 +286,7 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, cons
 
             if ( dentry != mnt->mnt_root )
             {
+                dbg("DEBUG: EFS_Umount dentry != mnt->mnt_root");
                 goto error2;
             }
 
@@ -383,11 +383,16 @@ LinuxFilesystemInfo* newLinuxFilesystemInfo(EFilesystemOperation operation, cons
         }
         else
         {
+            dbg("DEBUG: unknown operation");
             goto error;
         }
 
 
         dbg("NAME:%s MAJOR:%u MINOR:%u",object->mDeviceName, object->mDeviceMajor, object->mDeviceMinor);
+    }
+    else
+    {
+        err("talpa_alloc() failed");
     }
 
     return object;

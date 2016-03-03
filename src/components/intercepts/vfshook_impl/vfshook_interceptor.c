@@ -2542,55 +2542,58 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
     struct vfsmount *mnt;
     char *page = 0;
 
+#ifdef MS_SHARED
+    unsigned int ignore_mask = ( 0
+# ifdef MS_REC
+            | MS_REC
+# endif
+# ifdef MS_SILENT
+            | MS_SILENT
+# endif
+        );
+
+    unsigned int propagation_mask = ( 0
+            | MS_SHARED
+# ifdef MS_PRIVATE
+            | MS_PRIVATE
+# endif
+# ifdef MS_SLAVE
+            | MS_SLAVE
+# endif
+# ifdef MS_UNBINDABLE
+            | MS_UNBINDABLE
+# endif
+        );
+#endif /* MS_SHARED */
 
 #ifdef MS_MOVE
     if (unlikely( (flags & MS_MOVE) ))
     {
-        dbg("talpaPostMount ignoring move mount");
+        dbg("talpaPostMount ignoring move mount %lx",flags);
         goto out;
     }
 #endif
 
-#ifdef MS_UNBINDABLE
-    if (unlikely( (flags == MS_UNBINDABLE) ))
-    {
-        err("talpaPostMount ignoring MS_UNBINDABLE %lx",flags);
-        goto out;
-    }
-#endif
-
-#ifdef MS_PRIVATE
-    if (unlikely( (flags == MS_PRIVATE) ))
-    {
-        err("talpaPostMount ignoring MS_PRIVATE %lx",flags);
-        goto out;
-    }
-#endif
-#ifdef MS_SLAVE
-    if (unlikely( (flags == MS_SLAVE) ))
-    {
-        err("talpaPostMount ignoring MS_SLAVE %lx",flags);
-        goto out;
-    }
-#endif
-#ifdef MS_SHARED
-    /* TODO: repeat for MS_SLAVE, etc */
-    if (unlikely( ( (flags & ~MS_REC) == MS_SHARED) ))
-    {
-        err("talpaPostMount ignoring MS_SHARED %lx",flags);
-        goto out;
-    }
-    else
-    if (unlikely (( flags & MS_SHARED ) != 0 ))
-    {
-        err("talpaPostMount not ignoring MS_SHARED with %lx",flags);
-    }
-#endif
 #ifdef MS_REMOUNT
     if (unlikely( (flags & MS_REMOUNT) ))
     {
-        err("talpaPostMount ignoring MS_REMOUNT %lx",flags);
+        dbg("talpaPostMount ignoring remount %lx",flags);
         goto out;
+    }
+#endif
+
+#ifdef MS_SHARED
+    if (unlikely( (flags & propagation_mask) != 0 ))
+    {
+        if (unlikely( ((unsigned int)flags & ~(ignore_mask | propagation_mask)) == 0 ))
+        {
+            dbg("talpaPostMount ignoring propagation change %lx", flags);
+            goto out;
+        }
+        else
+        {
+            dbg("talpaPostMount not ignoring propagation flagged mount %lx", flags);
+        }
     }
 #endif
 
