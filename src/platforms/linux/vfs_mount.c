@@ -456,9 +456,14 @@ int countPropagationPoints(struct vfsmount* vmnt)
 #ifdef DEBUG_PROPAGATION_POINTS
     talpa_mnt_namespace_t* ns;
     size_t path_size = 0;
-    char* path = talpa_alloc_path(&path_size);
+    char* path = talpa_alloc_path_atomic(&path_size);
     char* p = absolutePath(mnt->mnt_mountpoint,vfs_mount(parent), path, path_size);
 
+    if (unlikely( path == NULL ))
+    {
+        warn("talpa_alloc_path failed");
+        return 0;
+    }
 
     ns = mnt->mnt_ns;
     dbg("PATH START: %s ns=%p ns.ns.inum=%u",p,ns,PROC_INUM_FROM_MNT_NAMESPACE(ns));
