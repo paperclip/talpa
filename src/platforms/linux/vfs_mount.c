@@ -405,9 +405,9 @@ static talpa_mount_struct* talpa_lookup_mnt_last(struct vfsmount *mnt, struct de
 
 
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
-# ifdef DEBUG
-#  define DEBUG_PROPAGATION_POINTS
-# endif
+#  ifdef DEBUG
+#   define DEBUG_PROPAGATION_POINTS
+#  endif
 # endif
 
 # ifdef DEBUG_PROPAGATION_POINTS
@@ -457,7 +457,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
     talpa_mnt_namespace_t* ns;
     size_t path_size = 0;
     char* path = talpa_alloc_path_atomic(&path_size);
-    char* p = absolutePath(mnt->mnt_mountpoint,vfs_mount(parent), path, path_size);
+    const char* p = absolutePath(mnt->mnt_mountpoint,vfs_mount(parent), path, path_size);
 
     if (unlikely( path == NULL ))
     {
@@ -467,10 +467,11 @@ int countPropagationPoints(struct vfsmount* vmnt)
 
     ns = mnt->mnt_ns;
     dbg("PATH START: %s ns=%p ns.ns.inum=%u",p,ns,PROC_INUM_FROM_MNT_NAMESPACE(ns));
+
     ns = parent->mnt_ns;
     p = absolutePath(parent->mnt_mountpoint,vfs_mount(parent->mnt_parent), path, path_size);
     dbg("PARENT: %s ns=%p ns.ns.inum=%u",p,ns,PROC_INUM_FROM_MNT_NAMESPACE(ns));
-#endif /* DEBUG */
+#endif /* DEBUG_PROPAGATION_POINTS */
 
     talpa_vfsmount_lock(&m_seq); /* locks dcache_lock on 2.4 */
 
@@ -484,10 +485,11 @@ int countPropagationPoints(struct vfsmount* vmnt)
         if (child)
         {
 #ifdef DEBUG_PROPAGATION_POINTS
-            p = absolutePath(child->mnt_mountpoint,vfs_mount(child->mnt_parent), path, path_size);
+            /* absolutePath() locks up in d_path() if vfsmount_lock is already held */
+            p = child->mnt_mountpoint->d_name.name;
             ns = child->mnt_ns;
             dbg("CHILD: %s ns=%p ns.ns.inum=%u",p,ns,PROC_INUM_FROM_MNT_NAMESPACE(ns));
-#endif
+#endif /* DEBUG_PROPAGATION_POINTS */
             if (list_empty(&child->mnt_mounts))
             {
                 ret += 1;
@@ -500,7 +502,7 @@ int countPropagationPoints(struct vfsmount* vmnt)
     talpa_free_path(path);
 #endif
     return ret;
-#else
+#else /* ! TALPA_SHARED_MOUNTS */
     return 1;
-#endif
+#endif /* TALPA_SHARED_MOUNTS */
 }
