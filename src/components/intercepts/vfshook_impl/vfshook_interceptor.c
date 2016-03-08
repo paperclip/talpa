@@ -820,7 +820,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     }
     else
     {
-        err("Inode lookup left patched after record removed!");
+        err("Inode lookup left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     hookExitRv(err);
@@ -1301,7 +1301,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
     /* If we have a regular file prepare for file_operations patching */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
-        DEBUG_err("Got a regular file %s - can hook fs=%s immediately",dentry->d_name.name,patch->fstype->name);
+        dbg("Got a regular file %s - can hook fs=%s immediately",dentry->d_name.name,patch->fstype->name);
 
         patch->i_ops = (struct inode_operations *)dentry->d_inode->i_op;
         dbg("  storing original inode operations [0x%p] for %s", patch->i_ops, patch->fstype->name);
@@ -1651,7 +1651,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
-        DEBUG_err("  patching file operations f_ops=0x%p for %s with regular file %s", patch->f_ops, patch->fstype->name,dentry->d_name.name);
+        dbg("  patching file operations f_ops=0x%p for %s with regular file %s", patch->f_ops, patch->fstype->name,dentry->d_name.name);
         if ( patch->f_ops->open != talpaOpen )
         {
             dbg("     open 0x%p to 0x%p for %s", patch->open, talpaOpen, patch->fstype->name);
@@ -2014,7 +2014,9 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
 #endif
         }
     }
-    else if ( patch->i_ops )
+
+    /* even if f_ops was patched, i_ops may still be patched too if they're shared, so no "else if" here */
+    if ( patch->i_ops )
     {
         /* We must not restore when filesystem share operation tables
            until the call to restore the last one. */
