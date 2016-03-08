@@ -1434,28 +1434,31 @@ static void destroyClient(void* self, VettingClient* client)
 }
 
 #define pktreturn_ok \
+do \
 { \
     client->response.header.type = TALPA_PKT_OK; \
     client->response.header.payloadLength = 0; \
     return &client->response.header; \
-}
+} while (0)
 
 #define pktreturn_fail(code) \
+do \
 { \
     client->response.header.type = TALPA_PKT_FAIL; \
     client->response.header.payloadLength = 1; \
-    client->response.errorCode = code; \
+    client->response.errorCode = (code); \
     return &client->response.header; \
-}
+} while (0)
 
 #define pktreturn_stream(payloadlen, streamlen) \
+do \
 { \
     atomic_set(&client->instream, 1); \
     client->stream->header.payloadLength = (payloadlen); \
     client->stream->size = (streamlen); \
     dbg("stream prepared, packet payload=%u, streamlen=%u", (payloadlen), (streamlen)); \
     return &client->stream->header; \
-}
+} while (0)
 
 
 static struct TalpaProtocolHeader* registerClient(void* self, VettingClient* client, struct TalpaPacket_Register* packet)
