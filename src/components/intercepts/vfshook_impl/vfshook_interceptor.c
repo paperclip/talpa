@@ -611,6 +611,15 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int err = -ESRCH;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+    int (*create)(struct inode *,struct dentry *,umode_t, bool) = NULL;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0) /* 3.3 - 3.5 */
+    int (*create)(struct inode *,struct dentry *,umode_t,struct nameidata *) = NULL;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.2 */
+    int (*create)(struct inode *,struct dentry *,int, struct nameidata *) = NULL;
+#else /* 2.4 */
+    int (*create)(struct inode *,struct dentry *,int) = NULL;
+#endif
 
     hookEntry();
 
@@ -624,37 +633,63 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
     {
         if ( inode->i_op == p->i_ops )
         {
+            err = 0;
             patch = getPatch(p);
+            BUG_ON(NULL == patch->fstype);
+
+#ifdef DEBUG
+            if ( create && ( create != patch->create ) )
+            {
+                dbg("WARNING: Mismatched create operations between patches %p != %p for %s", create, patch->create, patch->fstype->name );
+            }
+#endif
+            create = patch->create;
+
+            /* make sure we find the correct fstype to repatch */
+            if ( strcmp( inode->i_sb->s_type->name, patch->fstype->name ) != 0 )
+            {
+                dbg("Ignoring patch for %s, it's not %s", patch->fstype->name, inode->i_sb->s_type->name );
+                putPatch(patch);
+                patch = NULL;
+                continue;
+            }
+
+            dbg("Found patch for %s", patch->fstype->name);
             break;
         }
     }
 
     talpa_rcu_read_unlock(&GL_object.mPatchLock);
 
+    if ( unlikely( err != 0 ) )
+    {
+        err("Inode create left patched after record removed for %s!", inode->i_sb->s_type->name);
+    }
+    /* First call the original hook so that the inode gets created */
+    else if ( likely( create != NULL ) )
+    {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+        err = create(inode, dentry, mode, flag );
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.5 */
+        err = create(inode, dentry, mode, nd);
+#else /* 2.4 */
+        err = create(inode, dentry, mode);
+#endif
+    }
+    else
+    {
+        err = -ESRCH;
+        dbg("No create method for %s, returning -ESRCH (-3)", inode->i_sb->s_type->name);
+    }
+
     if ( likely( patch != NULL ) )
     {
-        /* First call the original hook so that the inode gets created */
-        if ( patch->create )
-        {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
-            err = patch->create(inode, dentry, mode, flag );
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.5 */
-            err = patch->create(inode, dentry, mode, nd);
-#else /* 2.4 */
-            err = patch->create(inode, dentry, mode);
-#endif
-        }
-        else
-        {
-            dbg("No create method for %s, returning -ESRCH (-3)", patch->fstype->name);
-        }
-
-        /* If creation was successfull try to resolve the created inode
-           and also pass it through for interception. */
         if ( patch->f_ops && ( patch->f_ops->open == talpaOpen ) )
         {
             dbg("Filesystem %s already patched, no repatching necessary", patch->fstype->name);
         }
+        /* If creation was successful try to resolve the created inode
+           and also pass it through for interception. */
         else if ( !err )
         {
             /* Check if this is a regular file */
@@ -723,10 +758,6 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
         putPatch(patch);
         patch = NULL;
     }
-    else
-    {
-        err("Inode create left patched after record removed for %s!", inode->i_sb->s_type->name);
-    }
 
     hookExitRv(err);
 }
@@ -743,7 +774,15 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     struct dentry* err = ERR_PTR(-ESRCH);
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+    struct dentry* (*lookup)(struct inode *,struct dentry *, unsigned int ) = NULL;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0) /* 3.3 - 3.5 */
+    struct dentry* (*lookup)(struct inode *,struct dentry *, struct nameidata *) = NULL;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.2 */
+    struct dentry* (*lookup)(struct inode *,struct dentry *, struct nameidata *) = NULL;
+#else /* 2.4 */
+    struct dentry* (*lookup)(struct inode *,struct dentry *) = NULL;
+#endif
 
     hookEntry();
 
@@ -757,37 +796,63 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
     {
         if ( inode->i_op == p->i_ops )
         {
+            err = NULL;
             patch = getPatch(p);
+            BUG_ON(NULL == patch->fstype);
+
+#ifdef DEBUG
+            if ( lookup && ( lookup != patch->lookup ) )
+            {
+                dbg("WARNING: Mismatched lookup operations between patches %p != %p for %s", lookup, patch->lookup, patch->fstype->name );
+            }
+#endif
+            lookup = patch->lookup;
+
+            /* make sure we find the correct fstype to repatch */
+            if ( strcmp( inode->i_sb->s_type->name, patch->fstype->name ) != 0 )
+            {
+                dbg("Ignoring patch for %s, it's not %s", patch->fstype->name, inode->i_sb->s_type->name );
+                putPatch(patch);
+                patch = NULL;
+                continue;
+            }
+
+            dbg("Found patch for %s", patch->fstype->name);
             break;
         }
     }
 
     talpa_rcu_read_unlock(&GL_object.mPatchLock);
 
+    if ( unlikely( err != NULL ) )
+    {
+        err("Inode lookup left patched after record removed for %s!", inode->i_sb->s_type->name);
+    }
+    /* First call the original hook so that the inode gets looked up */
+    else if ( likely( lookup != NULL ) )
+    {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+        err = lookup(inode, dentry, dir);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) /* 2.6.0 - 3.5 */
+        err = lookup(inode, dentry, nd);
+#else /* 2.4 */
+        err = lookup(inode, dentry);
+#endif
+    }
+    else
+    {
+        err = ERR_PTR(-ESRCH);
+        dbg("No lookup method for %s, returning -ESRCH (-3)", inode->i_sb->s_type->name);
+    }
+
     if ( likely( patch != NULL ) )
     {
-        /* First call the original hook so that the inode gets looked up */
-        if ( patch->lookup )
-        {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
-            err = patch->lookup(inode, dentry, dir);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-            err = patch->lookup(inode, dentry, nd);
-#else
-            err = patch->lookup(inode, dentry);
-#endif
-        }
-        else
-        {
-            dbg("No lookup method for %s, returning -ESRCH (-3)", patch->fstype->name);
-        }
-
-        /* If the lookup was successfull try to repatch
-           if the target is a regular file. */
         if ( patch->f_ops && ( patch->f_ops->open == talpaOpen ) )
         {
             dbg("Filesystem %s already patched, no repatching necessary", patch->fstype->name);
         }
+        /* If the lookup was successful try to repatch
+           if the target is a regular file. */
         else if ( !err && !IS_ERR(dentry) )
         {
             /* Check if this is a regular file */
@@ -803,10 +868,6 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
 
         putPatch(patch);
         patch = NULL;
-    }
-    else
-    {
-        err("Inode lookup left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     hookExitRv(err);
@@ -1040,7 +1101,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
 
     if (filp->TALPA_f_dentry == NULL)
     {
-        /* No dentry openned */
+        /* No dentry opened */
         return resultCode;
     }
 
@@ -1071,7 +1132,7 @@ static int maybeScanDentryRevalidate(int resultCode, struct dentry * dentry, str
             /* Make sure our open and close attempts while examining will be excluded */
             current->flags |= PF_TALPA_INTERNAL;
             /* Examine this file */
-            ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, pFile); /* Share the pre-openned file */
+            ret = GL_object.mTargetProcessor->examineFileInfo(GL_object.mTargetProcessor, pFInfo, pFile); /* Share the pre-opened file */
             /* Restore normal process examination */
             current->flags &= ~PF_TALPA_INTERNAL;
         }
@@ -1182,6 +1243,8 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
     bool writable;
+    int (*atomic_open)(struct inode *, struct dentry *, struct file *,
+            unsigned open_flag, umode_t create_mode, int *opened) = NULL;
 
     hookEntry();
 
@@ -1197,28 +1260,56 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
     {
         if ( inode->i_op == p->i_ops )
         {
+            resultCode = 0;
             patch = getPatch(p);
+            BUG_ON(NULL == patch->fstype);
+
+#ifdef DEBUG
+            if ( atomic_open && ( atomic_open != patch->atomic_open ) )
+            {
+                dbg("WARNING: Mismatched atomic_open operations between patches %p != %p for %s", atomic_open, patch->atomic_open, patch->fstype->name );
+            }
+#endif
+            atomic_open = patch->atomic_open;
+
+            /* make sure we find the correct fstype to repatch */
+            if ( strcmp( inode->i_sb->s_type->name, patch->fstype->name ) != 0 )
+            {
+                dbg("Ignoring patch for %s, it's not %s", patch->fstype->name, inode->i_sb->s_type->name );
+                putPatch(patch);
+                patch = NULL;
+                continue;
+            }
+
+            dbg("Found patch for %s", patch->fstype->name);
             break;
         }
     }
 
     talpa_rcu_read_unlock(&GL_object.mPatchLock);
 
+    if ( unlikely( resultCode != 0 ) )
+    {
+        err("Inode atomic_open left patched after record removed for %s!", inode->i_sb->s_type->name);
+    }
+    /* First call the original hook */
+    else if ( likely (atomic_open != NULL) )
+    {
+        resultCode = atomic_open(inode,dentry,file,open_flag,create_mode,opened);
+        atomic_open_dbg("atomic_open patch->atomic_open => %d",resultCode);
+    }
+    else
+    {
+        resultCode = -ENXIO;
+        err("Patched atomic_open without saving original value for fs=%s", inode->i_sb->s_type->name);
+    }
+
     if ( likely( patch != NULL ) )
     {
-        atomic_open_dbg("atomic_open found patch");
-
-        if (unlikely (patch->atomic_open == NULL) )
+        if ( patch->f_ops && ( patch->f_ops->open == talpaOpen ) )
         {
-            err("Patched atomic_open without saving original value for fs=%s",patch->fstype->name);
-            resultCode = -ENXIO;
+            dbg("Filesystem %s already patched, no repatching necessary", patch->fstype->name);
         }
-        else
-        {
-            resultCode = patch->atomic_open(inode,dentry,file,open_flag,create_mode,opened);
-        }
-
-        atomic_open_dbg("atomic_open patch->atomic_open => %d",resultCode);
         if ( likely( resultCode == 0 && ((GL_object.mInterceptMask & HOOK_OPEN) != 0) && !(current->flags & PF_TALPA_INTERNAL) ) )
         {
             atomic_open_dbg("want to scan file open: writable=%d, flags=%x, open_flag=%x file->f_path=%s",writable,file->f_flags, open_flag, file->f_path.dentry->d_name.name);
@@ -1246,10 +1337,6 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
 
         putPatch(patch);
         patch = NULL;
-    }
-    else
-    {
-        err("Inode atomic_open left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     atomic_open_dbg("atomic_open exit %d",resultCode);
@@ -2163,7 +2250,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
 #endif
     }
 
-    /* Prepare potentially read-only memory for writting outside the lock.*/
+    /* Prepare potentially read-only memory for writing outside the lock.*/
     ret = talpa_syscallhook_modify_start();
     if ( ret )
     {
@@ -2193,7 +2280,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     {
         talpa_free(newpatch);
     }
-    /* Othrewise set the patch to be the newpatch */
+    /* Otherwise set the patch to be the newpatch */
     else if ( newpatch )
     {
         patch = newpatch;
