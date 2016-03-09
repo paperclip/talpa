@@ -325,10 +325,11 @@ static int talpaOpen(struct inode *inode, struct file *file)
         }
 
         putPatch(patch);
+        patch = NULL;
     }
     else
     {
-        err("Open left patched after record removed!");
+        err("Open left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     hookExitRv(ret);
@@ -430,7 +431,7 @@ static int talpaRelease(struct inode *inode, struct file *file)
     }
     else
     {
-        err("Close left patched after record removed!");
+        err("Close left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     hookExitRv(ret);
@@ -508,7 +509,7 @@ static int talpaFlush(struct file *filp, fl_owner_t id)
     }
     else
     {
-        err("flush left patched after record removed!");
+        err("flush left patched after record removed for %s!", filp->f_dentry->d_inode->i_sb->s_type->name);
     }
 
     hookExitRv(ret);
@@ -586,10 +587,11 @@ static int talpaIoctl(struct inode *inode, struct file *filp, unsigned int cmd, 
         }
 
         putPatch(patch);
+        patch = NULL;
     }
     else
     {
-        err("ioctl left patched after record removed!");
+        err("ioctl left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     hookExitRv(err);
@@ -620,20 +622,9 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
-        /* check i_ops first, as this is a cheaper operation than a string comparison */
         if ( inode->i_op == p->i_ops )
         {
             patch = getPatch(p);
-            BUG_ON(NULL == patch->fstype);
-
-            if ( strcmp( inode->i_sb->s_type->name, patch->fstype->name ) != 0 )
-            {
-                dbg("Ignoring patch for %s, it's not %s", patch->fstype->name, inode->i_sb->s_type->name );
-                putPatch(patch);
-                continue;
-            }
-
-            dbg("Found patch for %s", patch->fstype->name);
             break;
         }
     }
@@ -652,6 +643,10 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
 #else /* 2.4 */
             err = patch->create(inode, dentry, mode);
 #endif
+        }
+        else
+        {
+            dbg("No create method for %s, returning -ESRCH (-3)", patch->fstype->name);
         }
 
         /* If creation was successfull try to resolve the created inode
@@ -726,10 +721,11 @@ static int talpaInodeCreate(struct inode *inode, struct dentry *dentry, int mode
         }
 
         putPatch(patch);
+        patch = NULL;
     }
     else
     {
-        err("InodeCreate left patched after record removed!");
+        err("Inode create left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     hookExitRv(err);
@@ -759,20 +755,9 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
 
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
-        /* check i_ops first, as this is a cheaper operation than a string comparison */
         if ( inode->i_op == p->i_ops )
         {
             patch = getPatch(p);
-            BUG_ON(NULL == patch->fstype);
-
-            if ( strcmp( inode->i_sb->s_type->name, patch->fstype->name ) != 0 )
-            {
-                dbg("Ignoring patch for %s, it's not %s", patch->fstype->name, inode->i_sb->s_type->name );
-                putPatch(patch);
-                continue;
-            }
-
-            dbg("Found patch for %s", patch->fstype->name);
             break;
         }
     }
@@ -817,6 +802,7 @@ static struct dentry* talpaInodeLookup(struct inode *inode, struct dentry *dentr
         }
 
         putPatch(patch);
+        patch = NULL;
     }
     else
     {
@@ -1160,7 +1146,7 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         }
         else
         {
-           err("Dentry revalidate patched without d_revalidate!");
+           err("Dentry revalidate patched without d_revalidate for %s!", dentry->d_inode->i_sb->s_type->name);
         }
 
         if (unlikely(patch->f_ops == NULL && dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode)))
@@ -1173,10 +1159,11 @@ static int talpaDentryRevalidate(struct dentry * dentry, struct nameidata * nd)
         }
 
         putPatch(patch);
+        patch = NULL;
     }
     else
     {
-        err("Dentry revalidate left patched after record removed!");
+        err("Dentry revalidate left patched after record removed for %s!", dentry->d_inode->i_sb->s_type->name);
     }
 
     hookExitRv(resultCode);
@@ -1191,7 +1178,6 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
                     struct file* file, unsigned open_flag,
                     umode_t create_mode, int *opened)
 {
-
     struct patchedFilesystem *p;
     struct patchedFilesystem *patch = NULL;
     int resultCode = -ENXIO;
@@ -1206,6 +1192,7 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
 
     BUG_ON(NULL == inode);
     talpa_rcu_read_lock(&GL_object.mPatchLock);
+
     talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
     {
         if ( inode->i_op == p->i_ops )
@@ -1214,6 +1201,7 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
             break;
         }
     }
+
     talpa_rcu_read_unlock(&GL_object.mPatchLock);
 
     if ( likely( patch != NULL ) )
@@ -1257,6 +1245,11 @@ static int talpaAtomicOpen(struct inode* inode, struct dentry* dentry,
         }
 
         putPatch(patch);
+        patch = NULL;
+    }
+    else
+    {
+        err("Inode atomic_open left patched after record removed for %s!", inode->i_sb->s_type->name);
     }
 
     atomic_open_dbg("atomic_open exit %d",resultCode);
@@ -1337,7 +1330,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
 #ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
             patch->flush = patch->f_ops->flush;
 #endif
-            dbg("  storing original file operations [f_ops=0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release,patch->fstype->name);
+            dbg("  storing original file operations [f_ops=0x%p][0x%p 0x%p] for %s", patch->f_ops, patch->open, patch->release, patch->fstype->name);
         }
         hookLookupCreate = false; // Already hooked file operations
     }
@@ -1387,6 +1380,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
             if ( spatch )
             {
                 patch->atomic_open = spatch->atomic_open;
+                dbg("  storing shared atomic_open operation [i_ops=0x%p][0x%p] for %s", patch->i_ops, patch->atomic_open, patch->fstype->name);
             }
             else
             {
@@ -1397,7 +1391,7 @@ static int prepareFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool s
         {
             /* i_ops not shared */
             patch->atomic_open = patch->i_ops->atomic_open;
-            dbg("  storing shared inode operations [i_ops=0x%p][atomic_open=0x%p] for %s", patch->i_ops, patch->atomic_open, patch->fstype->name);
+            dbg("  storing original atomic_open operation [i_ops=0x%p][atomic_open=0x%p] for %s", patch->i_ops, patch->atomic_open, patch->fstype->name);
         }
 #endif /* TALPA_HOOK_ATOMIC_OPEN */
 
@@ -1651,7 +1645,7 @@ static int patchFilesystem(struct vfsmount* mnt, struct dentry* dentry, bool smb
     /* If we have a regular file from this filesystem we patch the file_operations */
     if ( dentry && dentry->d_inode && S_ISREG(dentry->d_inode->i_mode) )
     {
-        dbg("  patching file operations f_ops=0x%p for %s with regular file %s", patch->f_ops, patch->fstype->name,dentry->d_name.name);
+        dbg("  patching file operations f_ops=0x%p for %s with regular file %s", patch->f_ops, patch->fstype->name, dentry->d_name.name);
         if ( patch->f_ops->open != talpaOpen )
         {
             dbg("     open 0x%p to 0x%p for %s", patch->open, talpaOpen, patch->fstype->name);
