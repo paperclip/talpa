@@ -2050,15 +2050,6 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
     }
 #endif
 
-#ifdef TALPA_HOOK_ATOMIC_OPEN
-    dbg("  restoring atomic_open in inode operations 0x%p for %s", patch->i_ops, patch->fstype->name);
-    if ( patch->i_ops->atomic_open == talpaAtomicOpen )
-    {
-        dbg("     atomic_open 0x%p for %s", patch->atomic_open,patch->fstype->name);
-        talpa_syscallhook_poke(&patch->i_ops->atomic_open, patch->atomic_open);
-    }
-#endif
-
     if ( patch->f_ops )
     {
         /* We must not restore when filesystem share operation tables
@@ -2114,20 +2105,28 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
         /* Only restore if last instance of this inode operations. */
         if ( !spatch )
         {
+            dbg("Restoring inode operations 0x%p 0x%p for %s", patch->lookup, patch->create, patch->fstype->name);
+#ifdef TALPA_HOOK_ATOMIC_OPEN
+            if ( patch->i_ops->atomic_open == talpaAtomicOpen )
+            {
+                dbg("     atomic_open 0x%p to 0x%p for %s", patch->i_ops->atomic_open, patch->atomic_open, patch->fstype->name);
+                talpa_syscallhook_poke(&patch->i_ops->atomic_open, patch->atomic_open);
+            }
+#endif
             if ( patch->i_ops->lookup == talpaInodeLookup )
             {
-                dbg("Restoring lookup inode operation 0x%p for %s", patch->lookup, patch->fstype->name);
                 if (patch->i_ops->lookup != patch->lookup)
                 {
+                    dbg("     lookup 0x%p to 0x%p for %s", patch->i_ops->lookup, patch->lookup, patch->fstype->name);
                     talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
                 }
                 patch->lookup = NULL;
             }
             if ( patch->i_ops->create == talpaInodeCreate )
             {
-                dbg("Restoring create inode operation 0x%p for %s", patch->create, patch->fstype->name);
                 if (patch->i_ops->create != patch->create)
                 {
+                    dbg("     create 0x%p to 0x%p for %s", patch->i_ops->create, patch->create, patch->fstype->name);
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
                 }
                 patch->create = NULL;
