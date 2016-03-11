@@ -265,11 +265,6 @@ static int _talpa_syscallhook_modify_start(void)
   #ifdef TALPA_HAS_MARK_RODATA_RW
     mark_rodata_rw();
   #else
-    if (rwdata_offset)
-    {
-        err("RODATA: rwdata_offset is already set: %lx", rwdata_offset);
-    }
-
     rwshadow = (unsigned long)talpa_syscallhook_unro((void *)rodata_start, rodata_end - rodata_start, 1);
     if (!rwshadow)
     {
@@ -287,11 +282,6 @@ static void _talpa_syscallhook_modify_finish(void)
   #ifdef TALPA_HAS_MARK_RODATA_RW
     mark_rodata_ro();
   #else
-    if (!rwdata_offset)
-    {
-        err("RODATA: rwdata_offset is not set: %lx", rwdata_offset);
-    }
-
     talpa_syscallhook_unro((void *)(rodata_start + rwdata_offset), rodata_end - rodata_start, 0);
     rwdata_offset = 0;
   #endif
@@ -363,11 +353,6 @@ void *talpa_syscallhook_poke(void *addr, void *val)
 
     if (target >= rodata_start && target <= rodata_end)
     {
-        if (!rwdata_offset)
-        {
-            err("RODATA: rwdata_offset is not set: %lx", rwdata_offset);
-        }
-
         target += rwdata_offset;
         *(void **)target = val;
         return (void *)target;
