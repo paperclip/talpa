@@ -2226,6 +2226,11 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     /* Allocate patchedFilesystem structure because we
        can't do it while holding a lock. */
     newpatch = talpa_alloc(sizeof(struct patchedFilesystem));
+    if (!newpatch)
+    {
+        err("Failed to create newpatch!");
+        return -ENOMEM;
+    }
 
     /* We do not want to search for files on some filesystems on mount. */
     if ( fromMount && onNoScanList(fsname) )
@@ -2255,6 +2260,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     {
         warn("Failed to process filesystem due to inability to unprotect memory!");
         talpa_free(newpatch);
+        newpatch = NULL;
         if ( reg )
         {
             dput(reg);
@@ -2278,9 +2284,10 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
     if ( patch )
     {
         talpa_free(newpatch);
+        newpatch = NULL;
     }
     /* Otherwise set the patch to be the newpatch */
-    else if ( newpatch )
+    else
     {
         patch = newpatch;
         memset(patch, 0, sizeof(struct patchedFilesystem));
@@ -2306,6 +2313,10 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
            instance of the existing one) */
         if ( patch == newpatch )
         {
+            /* add the prepared patch to the list before patching, so the hook can find it
+             * without racing patchFilesystem() */
+            talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
+
             /* Patch the filesystem */
             ret = patchFilesystem(mnt, reg, smbfs, patch);
             if ( !ret )
@@ -2316,12 +2327,14 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
                     atomic_inc(&patch->usecnt);
                 }
                 talpa_simple_unlock(&patch->lock);
-                talpa_list_add_rcu(&patch->head, &GL_object.mPatches);
             }
             else
             {
                 warn("Failed to process filesystem due to inability to patch! (%d)", ret);
+                talpa_simple_unlock(&patch->lock);
+                talpa_list_del_rcu(&patch->head);
                 talpa_free(newpatch);
+                newpatch = NULL; patch = NULL;
             }
         }
         else
@@ -2343,7 +2356,10 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             talpa_simple_unlock(&patch->lock);
         }
 
-        dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
+        if (patch)
+        {
+            dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
+        }
         /* Free list showed to userspace so it will be regenerated on next read */
         destroyStringSet(&GL_object, &GL_object.mPatchListSet);
     }
@@ -2355,6 +2371,7 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
         if ( patch == newpatch )
         {
             talpa_free(newpatch);
+            newpatch = NULL; patch = NULL;
         }
     }
 
@@ -2784,6 +2801,7 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
                     ret = kern_path(dir2, TALPA_LOOKUP, &p);
 #endif
                     talpa_free_path(path);
+                    path = NULL;
                     if ( ret == 0 )
                     {
 #ifdef TALPA_HAVE_PATH_LOOKUP
@@ -2805,6 +2823,7 @@ static long talpaPostMount(int err, char __user * dev_name, char __user * dir_na
                 {
                     ret = PTR_ERR(dir2);
                     talpa_free_path(path);
+                    path = NULL;
                 }
             }
             else
@@ -2942,13 +2961,13 @@ static void talpaPostUmount(int err, char *name, int flags, void* ctx)
                     talpa_rcu_synchronize();
                     dbg("PostUmount: refcnt for %s = %d after sync", patch->fstype->name, atomic_read(&patch->refcnt));
                 } while ( atomic_read(&patch->refcnt) > 0 );
-                talpa_free(patch); patch = NULL;
+                talpa_free(patch);
+                patch = NULL;
             }
         }
 
         if (patch != NULL)
         {
-
             dbg("usecnt for %s = %d", patch->fstype->name, atomic_read(&patch->usecnt));
             talpa_rcu_write_unlock(&GL_object.mPatchLock);
         }
@@ -3073,6 +3092,7 @@ nextpatch:
             dbg("purgePatches: refcnt for %s = %d after sync", p->fstype->name, atomic_read(&p->refcnt));
         } while ( atomic_read(&p->refcnt) > 0 );
         talpa_free(p);
+        p = NULL;
         goto nextpatch;
     }
     talpa_rcu_write_unlock(&this->mPatchLock);
