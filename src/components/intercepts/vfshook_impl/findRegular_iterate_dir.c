@@ -93,8 +93,13 @@ static int appendBasename(struct TalpaFindRegularContext* buf, const char * name
 }
 
 /* Callback we supply to vfs_readdir in order to get dentry info */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+static int fillonedir(struct dir_context * __buf, const char * name, int namlen, loff_t offset,
+            u64 ino, unsigned int d_type)
+#else
 static int fillonedir(void * __buf, const char * name, int namlen, loff_t offset,
             u64 ino, unsigned int d_type)
+#endif
 {
     struct IterateCallback *ctx = (struct IterateCallback *) __buf;
     struct TalpaFindRegularContext* buf = ctx->talpaContext;
