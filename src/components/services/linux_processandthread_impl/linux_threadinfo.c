@@ -176,7 +176,7 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
             }
             else
             {
-                err("mm->mmap_sem is write locked");
+                dbg("mm->mmap_sem is write locked");
             }
             atomic_dec(&mm->mm_users);
         }
