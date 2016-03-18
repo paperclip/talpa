@@ -1862,14 +1862,12 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
             {
                 dbg("  restoring inode lookup operation [0x%p][0x%p]", patch->i_ops, patch->lookup);
                 talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
-                /* patch->lookup = NULL; */
             }
 
             if ( patch->i_ops->create == talpaInodeCreate )
             {
                 dbg("  restoring inode create operation [0x%p][0x%p]", patch->i_ops, patch->create);
                 talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
-                /* patch->create = NULL; */
             }
         }
         spatch = NULL;
@@ -1925,20 +1923,17 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
         if ( patch->f_ops->open != talpaOpen )
         {
             dbg("     open 0x%p to 0x%p for %s", patch->open, talpaOpen, patch->fstype->name);
-            //~ dbg("     open 0x%p", patch->open);
             talpa_syscallhook_poke(&patch->f_ops->open, talpaOpen);
         }
         if ( patch->f_ops->release != talpaRelease )
         {
             dbg("     release 0x%p to 0x%p for %s", patch->release, talpaRelease, patch->fstype->name);
-            //~ dbg("     release 0x%p", patch->release);
             talpa_syscallhook_poke(&patch->f_ops->release, talpaRelease);
         }
 #ifdef TALPA_USE_FLUSH_TO_SCAN_CLOSE_ON_EXIT
         if ( patch->f_ops->flush != talpaFlush )
         {
             dbg("     flush 0x%p to 0x%p for %s", patch->flush, talpaFlush, patch->fstype->name);
-            //~ dbg("     flush 0x%p", patch->flush);
             talpa_syscallhook_poke(&patch->f_ops->flush, talpaFlush);
         }
 #endif
@@ -2120,7 +2115,6 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
                     dbg("     lookup 0x%p to 0x%p for %s", patch->i_ops->lookup, patch->lookup, patch->fstype->name);
                     talpa_syscallhook_poke(&patch->i_ops->lookup, patch->lookup);
                 }
-                patch->lookup = NULL;
             }
             if ( patch->i_ops->create == talpaInodeCreate )
             {
@@ -2129,7 +2123,6 @@ static int restoreFilesystem(struct patchedFilesystem* patch)
                     dbg("     create 0x%p to 0x%p for %s", patch->i_ops->create, patch->create, patch->fstype->name);
                     talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
                 }
-                patch->create = NULL;
             }
         }
     }
@@ -2356,10 +2349,12 @@ static int processMount(struct vfsmount* mnt, unsigned long flags, bool fromMoun
             talpa_simple_unlock(&patch->lock);
         }
 
+#ifdef DEBUG
         if (patch)
         {
             dbg("usecnt for %s = %d", fsname, atomic_read(&patch->usecnt));
         }
+#endif
         /* Free list showed to userspace so it will be regenerated on next read */
         destroyStringSet(&GL_object, &GL_object.mPatchListSet);
     }
