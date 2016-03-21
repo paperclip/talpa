@@ -35,7 +35,6 @@
  #define TALPA_REPLACE_MOUNT_STRUCT
 #endif
 
-// TODO correct mnt_namespace version
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
  #define TALPA_MNT_NAMESPACE
 #endif
