@@ -221,12 +221,6 @@ const char *getDeviceName(struct vfsmount* mnt)
 struct mnt_namespace *getNamespaceInfo(struct vfsmount* mnt)
 {
     talpa_mount_struct *realmnt = real_mount(mnt);
-    /* TODO: remove this debug trap */
-    if (NULL == realmnt )
-    {
-        critical("getNamespaceInfo: real_mount(mnt) returned NULL");
-        return NULL;
-    }
     return (struct mnt_namespace *)realmnt->mnt_ns;
 }
 
