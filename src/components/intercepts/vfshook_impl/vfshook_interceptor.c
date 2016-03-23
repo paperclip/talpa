@@ -1870,7 +1870,6 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
                 talpa_syscallhook_poke(&patch->i_ops->create, patch->create);
             }
         }
-        spatch = NULL;
 
 #ifdef TALPA_HAS_SMBFS
         if ( patch->sf_ops && (patch->sf_ops->smbfs_ioctl == talpaIoctl) )
@@ -1888,6 +1887,7 @@ static bool repatchFilesystem(struct dentry* dentry, bool smbfs, struct patchedF
         patch->mLookupCreateHooked = false;
         /* Sometimes filesystems share operation tables in which case we
            want to store real pointers for restore. */
+        spatch = NULL;
         talpa_list_for_each_entry_rcu(p, &GL_object.mPatches, head)
         {
             if ( p != patch && p->f_ops == patch->f_ops )
