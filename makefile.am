@@ -147,6 +147,7 @@ manifest.sig : manifest.spec
 	echo "" >manifest.sig
 
 talpa-srcpack.tar.gz : distdir interface.spec manifest.spec source.spec manifest.sig
+	chmod -R og-rwx $(distdir) manifest.sig manifest.spec source.spec interface.spec
 	tar cf - $(distdir) manifest.sig manifest.spec source.spec interface.spec | GZIP=$(GZIP_ENV) gzip -c >$@
 
 exampleclients:
