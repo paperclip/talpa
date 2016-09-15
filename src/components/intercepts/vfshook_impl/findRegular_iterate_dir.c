@@ -3,7 +3,7 @@
  *
  * TALPA Filesystem Interceptor
  *
- * Copyright (C) 2004-2013 Sophos Limited, Oxford, England.
+ * Copyright (C) 2004-2016 Sophos Limited, Oxford, England.
  *
  * This program is free software; you can redistribute it and/or modify it under the terms of the
  * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -93,8 +93,13 @@ static int appendBasename(struct TalpaFindRegularContext* buf, const char * name
 }
 
 /* Callback we supply to vfs_readdir in order to get dentry info */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+static int fillonedir(struct dir_context * __buf, const char * name, int namlen, loff_t offset,
+            u64 ino, unsigned int d_type)
+#else
 static int fillonedir(void * __buf, const char * name, int namlen, loff_t offset,
             u64 ino, unsigned int d_type)
+#endif
 {
     struct IterateCallback *ctx = (struct IterateCallback *) __buf;
     struct TalpaFindRegularContext* buf = ctx->talpaContext;
@@ -199,7 +204,7 @@ static struct TalpaFindRegularContext* initialOpenDirectory(const char* dirname,
     dirFilp = filp_open(dirname, O_RDONLY | O_DIRECTORY, 0);
     if ( IS_ERR(dirFilp) )
     {
-        err("Failed to open directory: %ld",PTR_ERR(dirFilp));
+        err("Failed to open initial directory: %ld",PTR_ERR(dirFilp));
         return (struct TalpaFindRegularContext*)dirFilp; /* Error */
     }
 
@@ -264,7 +269,7 @@ static struct dentry *scanDirectory(const char* dirname, char* buf, size_t bufsi
     context = initialOpenDirectory(dirname, overflow, buf, bufsize);
     if (IS_ERR(context))
     {
-        err("Failed to open a  directory %s: %ld",dirname,PTR_ERR(context));
+        err("Failed to open initial directory %s: %ld",dirname,PTR_ERR(context));
         return NULL;
     }
 
@@ -278,7 +283,7 @@ static struct dentry *scanDirectory(const char* dirname, char* buf, size_t bufsi
         error = iterate_dir(context->dir, &(ctx.ctx));
         if (error != 0 && error != -EBFONT)
         {
-            err("iterate_dir produced error %d",error);
+            err("iterate_dir produced error %d while iterating directory %s",error,dirname);
             context = closeDirAndReturnParent(context);
             if (context == NULL)
             {

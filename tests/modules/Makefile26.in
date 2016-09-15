@@ -5,6 +5,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
                 @debug@ \
 		@assert@ \
 		@bool@ \
+		@ctltable@ \
 		@freetaskflag@ \
                 @dpath@ \
 		@printkaddr@ \
@@ -13,6 +14,7 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@rcubackport@ \
 		@mutexes@ \
 		@inodemutex@ \
+		@fdentry@ \
 		@inodeiprivate@ \
 		@signalbackport@ \
                 @jiffiesbackport@ \
@@ -43,7 +45,9 @@ EXTRA_CFLAGS += -I$(src)/../../src -I$(src)/../../src/ifaces -I$(src)/../../incl
 		@dualfs@ \
 		@putname@ \
 		@getname@ \
-		@vfsunlink@
+		@vfsunlink@ \
+		@lookup_mnt_last@ \
+		@vfsmount_namespace@
 
 obj-m :=    tlp-personality.o \
             tlp-fileinfo.o \

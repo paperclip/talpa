@@ -3,7 +3,7 @@
 *
 * TALPA Filesystem Interceptor
 *
-* Copyright (C) 2004-2011 Sophos Limited, Oxford, England.
+* Copyright (C) 2004-2016 Sophos Limited, Oxford, England.
 *
 * This program is free software; you can redistribute it and/or modify it under the terms of the
 * GNU General Public License Version 2 as published by the Free Software Foundation.
@@ -157,20 +157,26 @@ LinuxThreadInfo* newLinuxThreadInfo(void)
 
         if ( likely(mm != NULL) )
         {
-            object->mEnvSize = mm->env_end - mm->env_start;
-            object->mEnv = talpa_alloc(object->mEnvSize);
-            if ( likely(object->mEnv != NULL) )
+            if ( likely (down_read_trylock(&mm->mmap_sem) ) )
             {
-                /* This should be safe since we are accessing our memory
-                   from the same process context */
-                if ( copy_from_user(object->mEnv, (void *)mm->env_start, object->mEnvSize) )
+                object->mEnvSize = mm->env_end - mm->env_start;
+                object->mEnv = talpa_alloc(object->mEnvSize);
+                if ( likely(object->mEnv != NULL) )
                 {
-                    err("Can't copy environment for %s[%d/%d] (%lu)!", current->comm, current->tgid, current->pid, object->mEnvSize);
+                    if ( copy_from_user(object->mEnv, (void *)mm->env_start, object->mEnvSize) )
+                    {
+                        err("Can't copy environment for %s[%d/%d] (%lu)!", current->comm, current->tgid, current->pid, object->mEnvSize);
+                    }
                 }
+                else
+                {
+                    object->mEnvSize = 0;
+                }
+                up_read(&mm->mmap_sem);
             }
             else
             {
-                object->mEnvSize = 0;
+                dbg("mm->mmap_sem is write locked");
             }
             atomic_dec(&mm->mm_users);
         }
